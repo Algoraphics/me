@@ -157,6 +157,56 @@
             font-weight: bold;
         }
         
+        .page-tree-item {
+            margin-bottom: 5px;
+        }
+        
+        .page-parent {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+        }
+        
+        .expand-icon {
+            width: 20px;
+            text-align: center;
+            margin-right: 5px;
+            font-size: 12px;
+            color: #ffd700;
+        }
+        
+        .page-children {
+            margin-left: 25px;
+            margin-top: 5px;
+            display: none;
+        }
+        
+        .page-children.expanded {
+            display: block;
+        }
+        
+        .child-link {
+            display: block;
+            padding: 8px 10px;
+            color: #b0b0b0;
+            text-decoration: none;
+            border-radius: 4px;
+            margin-bottom: 3px;
+            transition: background 0.2s;
+        }
+        
+        .child-link:hover {
+            background: #3d3d3d;
+            color: #e0e0e0;
+        }
+        
+        .child-link.active {
+            background: #ffd700;
+            color: #1a1a1a;
+            font-weight: bold;
+        }
+        
         #content {
             flex: 1;
             background: #2d2d2d;
@@ -272,14 +322,67 @@
             }
         }
 
-        function renderSidebar() {
-            const pageList = document.getElementById('page-list');
-            pageList.innerHTML = '';
+        const expandedParents = new Set();
+        
+        function renderPageItem(pageId, isChild = false) {
+            const page = wikiData.pages.find(p => p.id === pageId);
+            if (!page) return null;
             
-            wikiData.pages.forEach(page => {
+            const hasChildren = page.children && page.children.length > 0;
+            const isExpanded = expandedParents.has(pageId);
+            
+            const item = document.createElement('div');
+            item.className = 'page-tree-item';
+            
+            if (hasChildren) {
+                const parent = document.createElement('div');
+                parent.className = 'page-parent';
+                
+                const expandIcon = document.createElement('span');
+                expandIcon.className = 'expand-icon';
+                expandIcon.textContent = isExpanded ? '▼' : '▶';
+                parent.appendChild(expandIcon);
+                
                 const link = document.createElement('a');
                 link.href = '#';
-                link.className = 'page-link';
+                link.className = isChild ? 'child-link' : 'page-link';
+                if (currentPage === page.id) {
+                    link.classList.add('active');
+                }
+                link.textContent = page.title;
+                link.onclick = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    loadPage(page.id);
+                };
+                parent.appendChild(link);
+                
+                parent.onclick = () => {
+                    if (isExpanded) {
+                        expandedParents.delete(pageId);
+                    } else {
+                        expandedParents.add(pageId);
+                    }
+                    renderSidebar();
+                };
+                
+                item.appendChild(parent);
+                
+                const childrenContainer = document.createElement('div');
+                childrenContainer.className = 'page-children' + (isExpanded ? ' expanded' : '');
+                
+                page.children.forEach(childId => {
+                    const childItem = renderPageItem(childId, true);
+                    if (childItem) {
+                        childrenContainer.appendChild(childItem);
+                    }
+                });
+                
+                item.appendChild(childrenContainer);
+            } else {
+                const link = document.createElement('a');
+                link.href = '#';
+                link.className = isChild ? 'child-link' : 'page-link';
                 if (currentPage === page.id) {
                     link.classList.add('active');
                 }
@@ -288,7 +391,21 @@
                     e.preventDefault();
                     loadPage(page.id);
                 };
-                pageList.appendChild(link);
+                item.appendChild(link);
+            }
+            
+            return item;
+        }
+        
+        function renderSidebar() {
+            const pageList = document.getElementById('page-list');
+            pageList.innerHTML = '';
+            
+            wikiData.tree.forEach(pageId => {
+                const item = renderPageItem(pageId);
+                if (item) {
+                    pageList.appendChild(item);
+                }
             });
         }
 
