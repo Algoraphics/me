@@ -88,21 +88,15 @@ export const Tab = styled.button<{ padding: string; border: string; activeTab: b
   border-width: thin;
   border-style: ${(props) => props.border};
   outline: 0;
-  background: #575757;
-  color: white;
+  background-color: ${(props) => props.activeTab ? 'yellow' : '#575757'};
+  color: ${(props) => props.activeTab ? 'black' : 'white'};
   white-space: nowrap;
-  border-bottom: 2px solid;
+  border-bottom: ${(props) => props.activeTab ? '0' : '2px solid'};
   border-color: #575757;
+  border: ${(props) => props.activeTab ? '0' : undefined};
   &:hover {
     border-color: yellow;
   }
-  ${({ activeTab }) =>
-        activeTab &&
-        `
-    background: yellow;
-    color: black;
-    border: 0;
-  `}
 `;
 
 export const TabButtons = styled.div`
