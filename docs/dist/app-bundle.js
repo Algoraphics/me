@@ -699,12 +699,14 @@ var ___CSS_LOADER_EXPORT___ = _node_modules_css_loader_dist_runtime_api_js__WEBP
 ___CSS_LOADER_EXPORT___.push([module.id, "@import url(https://fonts.googleapis.com/css?family=Montserrat:700,400);"]);
 // Module
 ___CSS_LOADER_EXPORT___.push([module.id, `body {
-    display: flex;
-    justify-content: center;
-    align-items: center;
     background: #212121;
     font-family: 'Montserrat', sans-serif;
-}`, "",{"version":3,"sources":["webpack://./styles.css"],"names":[],"mappings":"AAEA;IACI,aAAa;IACb,uBAAuB;IACvB,mBAAmB;IACnB,mBAAmB;IACnB,qCAAqC;AACzC","sourcesContent":["@import url(https://fonts.googleapis.com/css?family=Montserrat:700,400);\n\nbody {\n    display: flex;\n    justify-content: center;\n    align-items: center;\n    background: #212121;\n    font-family: 'Montserrat', sans-serif;\n}"],"sourceRoot":""}]);
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+}`, "",{"version":3,"sources":["webpack://./styles.css"],"names":[],"mappings":"AAEA;IACI,mBAAmB;IACnB,qCAAqC;IACrC,SAAS;IACT,UAAU;IACV,iBAAiB;IACjB,aAAa;IACb,uBAAuB;AAC3B","sourcesContent":["@import url(https://fonts.googleapis.com/css?family=Montserrat:700,400);\n\nbody {\n    background: #212121;\n    font-family: 'Montserrat', sans-serif;\n    margin: 0;\n    padding: 0;\n    min-height: 100vh;\n    display: flex;\n    justify-content: center;\n}"],"sourceRoot":""}]);
 // Exports
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (___CSS_LOADER_EXPORT___);
 
@@ -36292,6 +36294,7 @@ const Tab = styled_components__WEBPACK_IMPORTED_MODULE_0__["default"].button `
   background: #575757;
   color: white;
   white-space: nowrap;
+  flex-shrink: 0;
   border-bottom: 2px solid;
   border-color: #575757;
   &:hover {
@@ -36307,10 +36310,19 @@ const Tab = styled_components__WEBPACK_IMPORTED_MODULE_0__["default"].button `
 const TabButtons = styled_components__WEBPACK_IMPORTED_MODULE_0__["default"].div `
     display: flex;
     justify-content: center;
+    overflow-x: auto;
+    flex-wrap: nowrap;
 `;
 const FixedButtons = styled_components__WEBPACK_IMPORTED_MODULE_0__["default"].div `
     z-index: 5;
     position: fixed;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    max-width: 100vw;
 `;
 
 
