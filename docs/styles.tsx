@@ -91,7 +91,6 @@ export const Tab = styled.button<{ padding: string; border: string; activeTab: b
   background: #575757;
   color: white;
   white-space: nowrap;
-  flex-shrink: 0;
   border-bottom: 2px solid;
   border-color: #575757;
   &:hover {
@@ -109,19 +108,10 @@ export const Tab = styled.button<{ padding: string; border: string; activeTab: b
 export const TabButtons = styled.div`
     display: flex;
     justify-content: center;
-    overflow-x: auto;
-    flex-wrap: nowrap;
 `;
 
 export const FixedButtons = styled.div`
     z-index: 5;
     position: fixed;
-    top: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    max-width: 100vw;
 `;
 
