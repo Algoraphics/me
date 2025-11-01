@@ -36289,16 +36289,20 @@ const Tab = styled_components__WEBPACK_IMPORTED_MODULE_0__["default"].button `
   border-width: thin;
   border-style: ${(props) => props.border};
   outline: 0;
-  background-color: ${(props) => props.activeTab ? 'yellow !important' : '#575757'};
-  color: ${(props) => props.activeTab ? 'black !important' : 'white'};
+  background: #575757;
+  color: white;
   white-space: nowrap;
-  border-bottom: ${(props) => props.activeTab ? '0' : '2px solid #575757'};
-  border-top: ${(props) => props.activeTab ? '0' : undefined};
-  border-left: ${(props) => props.activeTab ? '0' : undefined};
-  border-right: ${(props) => props.activeTab ? '0' : undefined};
+  border-bottom: 2px solid #575757;
+  
   &:hover {
     border-bottom-color: yellow;
   }
+  
+  ${(props) => props.activeTab && `
+    background: yellow !important;
+    color: black !important;
+    border: 0 !important;
+  `}
 `;
 const TabButtons = styled_components__WEBPACK_IMPORTED_MODULE_0__["default"].div `
     display: flex;
