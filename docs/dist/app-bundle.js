@@ -36292,16 +36292,16 @@ const Tab = styled_components__WEBPACK_IMPORTED_MODULE_0__["default"].button `
   background: #575757;
   color: white;
   white-space: nowrap;
-  border-bottom: 2px solid #575757;
-  
+  border-bottom: 2px solid;
+  border-color: #575757;
   &:hover {
-    border-bottom-color: yellow;
+    border-color: yellow;
   }
-  
-  ${(props) => props.activeTab && `
-    background: yellow !important;
-    color: black !important;
-    border: 0 !important;
+  ${({ activeTab }) => activeTab &&
+    `
+    background: yellow;
+    color: black;
+    border: 0;
   `}
 `;
 const TabButtons = styled_components__WEBPACK_IMPORTED_MODULE_0__["default"].div `

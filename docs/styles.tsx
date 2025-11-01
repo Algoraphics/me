@@ -91,16 +91,17 @@ export const Tab = styled.button<{ padding: string; border: string; activeTab: b
   background: #575757;
   color: white;
   white-space: nowrap;
-  border-bottom: 2px solid #575757;
-  
+  border-bottom: 2px solid;
+  border-color: #575757;
   &:hover {
-    border-bottom-color: yellow;
+    border-color: yellow;
   }
-  
-  ${(props) => props.activeTab && `
-    background: yellow !important;
-    color: black !important;
-    border: 0 !important;
+  ${({ activeTab }) =>
+        activeTab &&
+        `
+    background: yellow;
+    color: black;
+    border: 0;
   `}
 `;
 
