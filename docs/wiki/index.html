@@ -267,13 +267,23 @@
     <div id="login-screen">
         <div id="login-box">
             <h1>🌿 Vivarium</h1>
-            <input 
-                type="password" 
-                id="password-input" 
-                placeholder="Enter password"
-                autocomplete="current-password"
-            />
-            <button id="login-button">Enter</button>
+            <form id="login-form" action="#" onsubmit="return false;">
+                <input 
+                    type="text" 
+                    name="username"
+                    value="vivarium"
+                    autocomplete="username"
+                    style="display: none;"
+                />
+                <input 
+                    type="password" 
+                    id="password-input"
+                    name="password"
+                    placeholder="Enter password"
+                    autocomplete="current-password"
+                />
+                <button id="login-button" type="submit">Enter</button>
+            </form>
             <div id="error-message">Incorrect password</div>
         </div>
     </div>
