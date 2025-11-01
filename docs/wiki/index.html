@@ -103,7 +103,13 @@
             font-size: 1.8em;
         }
         
-        #logout-button {
+        #header-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        button {
             padding: 10px 20px;
             background: #575757;
             color: white;
@@ -111,10 +117,99 @@
             border-radius: 6px;
             cursor: pointer;
             font-weight: bold;
+            transition: background 0.2s;
         }
         
-        #logout-button:hover {
+        button:hover {
             background: #6a6a6a;
+        }
+        
+        button.primary {
+            background: #ffd700;
+            color: #1a1a1a;
+        }
+        
+        button.primary:hover {
+            background: #ffed4e;
+        }
+        
+        button:disabled {
+            background: #3d3d3d;
+            color: #666;
+            cursor: not-allowed;
+        }
+        
+        #edit-mode {
+            display: none;
+        }
+        
+        #editor-toolbar {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+            padding: 10px;
+            background: #1a1a1a;
+            border-radius: 6px;
+        }
+        
+        .toolbar-button {
+            padding: 8px 12px;
+            background: #3d3d3d;
+            color: #e0e0e0;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: normal;
+            min-width: 40px;
+        }
+        
+        .toolbar-button:hover {
+            background: #4d4d4d;
+        }
+        
+        .toolbar-button:active {
+            background: #ffd700;
+            color: #1a1a1a;
+        }
+        
+        #markdown-editor {
+            width: 100%;
+            min-height: 400px;
+            background: #1a1a1a;
+            color: #e0e0e0;
+            border: 2px solid #575757;
+            border-radius: 6px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+        
+        #markdown-editor:focus {
+            outline: none;
+            border-color: #ffd700;
+        }
+        
+        #status-message {
+            padding: 10px;
+            border-radius: 6px;
+            margin-top: 10px;
+            display: none;
+        }
+        
+        #status-message.success {
+            background: #2d5016;
+            color: #90ee90;
+            display: block;
+        }
+        
+        #status-message.error {
+            background: #5a1a1a;
+            color: #ff6b6b;
+            display: block;
         }
         
         #main-content {
@@ -125,16 +220,83 @@
         #sidebar {
             min-width: 250px;
             background: #2d2d2d;
-            padding: 20px;
             border-radius: 8px;
             max-height: calc(100vh - 140px);
-            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
         }
         
-        #sidebar h2 {
+        #search-container {
+            padding: 20px;
+            padding-bottom: 10px;
+            flex-shrink: 0;
+        }
+        
+        #pages-container {
+            padding: 0 20px 20px 20px;
+            overflow-y: auto;
+            flex: 1;
+        }
+        
+        #pages-container h2 {
             color: #ffd700;
             font-size: 1.2em;
             margin-bottom: 15px;
+        }
+        
+        #search-box {
+            width: 100%;
+            padding: 10px;
+            background: #1a1a1a;
+            border: 2px solid #575757;
+            border-radius: 6px;
+            color: #e0e0e0;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+        
+        #search-box:focus {
+            outline: none;
+            border-color: #ffd700;
+        }
+        
+        #search-results {
+            margin-bottom: 15px;
+            display: none;
+        }
+        
+        #search-results.active {
+            display: block;
+        }
+        
+        .search-result {
+            padding: 10px;
+            background: #1a1a1a;
+            border-radius: 4px;
+            margin-bottom: 5px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .search-result:hover {
+            background: #3d3d3d;
+        }
+        
+        .search-result-title {
+            color: #ffd700;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .search-result-snippet {
+            color: #b0b0b0;
+            font-size: 0.9em;
+        }
+        
+        .search-highlight {
+            background: #ffd700;
+            color: #1a1a1a;
+            padding: 0 2px;
         }
         
         .page-link {
@@ -154,7 +316,6 @@
         .page-link.active {
             background: #ffd700;
             color: #1a1a1a;
-            font-weight: bold;
         }
         
         .page-tree-item {
@@ -204,16 +365,25 @@
         .child-link.active {
             background: #ffd700;
             color: #1a1a1a;
-            font-weight: bold;
         }
         
-        #content {
+        #content-wrapper {
             flex: 1;
             background: #2d2d2d;
             padding: 30px;
             border-radius: 8px;
             overflow-y: auto;
             max-height: calc(100vh - 140px);
+        }
+        
+        #page-header {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 15px;
+        }
+        
+        #content {
+            min-height: 200px;
         }
         
         #content h1 {
@@ -279,7 +449,7 @@
                     type="password" 
                     id="password-input"
                     name="password"
-                    placeholder="Enter password"
+                    placeholder="Enter GitHub Token"
                     autocomplete="current-password"
                 />
                 <button id="login-button" type="submit">Enter</button>
@@ -291,202 +461,57 @@
     <div id="wiki-container">
         <div id="header">
             <h1>🌿 Vivarium</h1>
-            <button id="logout-button">Logout</button>
+            <div id="header-actions">
+                <button id="logout-button">Logout</button>
+            </div>
         </div>
         <div id="main-content">
             <div id="sidebar">
-                <h2>Pages</h2>
-                <div id="page-list"></div>
+                <div id="search-container">
+                    <input 
+                        type="text" 
+                        id="search-box" 
+                        placeholder="Search pages..."
+                        autocomplete="off"
+                    />
+                    <div id="search-results"></div>
+                </div>
+                <div id="pages-container">
+                    <h2>Pages</h2>
+                    <div id="page-list"></div>
+                </div>
             </div>
-            <div id="content"></div>
+            <div id="content-wrapper">
+                <div id="view-mode">
+                    <div id="page-header">
+                        <button id="edit-button">Edit</button>
+                    </div>
+                    <div id="content"></div>
+                </div>
+                <div id="edit-mode">
+                    <div style="display: flex; justify-content: flex-end; margin-bottom: 15px;">
+                        <button id="cancel-edit-button">Cancel</button>
+                    </div>
+                    <div id="editor-toolbar">
+                        <button class="toolbar-button" onclick="insertMarkdown('**', '**')" title="Bold"><b>B</b></button>
+                        <button class="toolbar-button" onclick="insertMarkdown('*', '*')" title="Italic"><i>I</i></button>
+                        <button class="toolbar-button" onclick="insertMarkdown('# ', '')" title="Heading">H1</button>
+                        <button class="toolbar-button" onclick="insertMarkdown('## ', '')" title="Heading 2">H2</button>
+                        <button class="toolbar-button" onclick="insertMarkdown('### ', '')" title="Heading 3">H3</button>
+                        <button class="toolbar-button" onclick="insertMarkdown('[', '](url)')" title="Link">Link</button>
+                        <button class="toolbar-button" onclick="document.getElementById('image-upload').click()" title="Upload Image">Image</button>
+                        <button class="toolbar-button" onclick="insertMarkdown('`', '`')" title="Inline Code">&lt;/&gt;</button>
+                        <button class="toolbar-button" onclick="insertMarkdown('- ', '')" title="List Item">• List</button>
+                    </div>
+                    <input type="file" id="image-upload" accept="image/*" style="display: none;" onchange="handleImageUpload(event)" />
+                    <textarea id="markdown-editor"></textarea>
+                    <button id="save-button" class="primary">Save to GitHub</button>
+                    <div id="status-message"></div>
+                </div>
+            </div>
         </div>
     </div>
 
-    <script>
-        let wikiData = null;
-        let currentPassword = null;
-        let currentPage = null;
-
-        async function loadManifest() {
-            const response = await fetch('manifest.enc');
-            return await response.text();
-        }
-
-        function decryptManifest(encryptedManifest, password) {
-            try {
-                const decrypted = CryptoJS.AES.decrypt(encryptedManifest, password);
-                const manifestStr = decrypted.toString(CryptoJS.enc.Utf8);
-                if (!manifestStr) return null;
-                return JSON.parse(manifestStr);
-            } catch (e) {
-                return null;
-            }
-        }
-
-        function decryptContent(encryptedContent, password) {
-            try {
-                const decrypted = CryptoJS.AES.decrypt(encryptedContent, password);
-                return decrypted.toString(CryptoJS.enc.Utf8);
-            } catch (e) {
-                return null;
-            }
-        }
-
-        const expandedParents = new Set();
-        
-        function renderPageItem(pageId, isChild = false) {
-            const page = wikiData.pages.find(p => p.id === pageId);
-            if (!page) return null;
-            
-            const hasChildren = page.children && page.children.length > 0;
-            const isExpanded = expandedParents.has(pageId);
-            
-            const item = document.createElement('div');
-            item.className = 'page-tree-item';
-            
-            if (hasChildren) {
-                const parent = document.createElement('div');
-                parent.className = 'page-parent';
-                
-                const expandIcon = document.createElement('span');
-                expandIcon.className = 'expand-icon';
-                expandIcon.textContent = isExpanded ? '▼' : '▶';
-                parent.appendChild(expandIcon);
-                
-                const link = document.createElement('a');
-                link.href = '#';
-                link.className = isChild ? 'child-link' : 'page-link';
-                if (currentPage === page.id) {
-                    link.classList.add('active');
-                }
-                link.textContent = page.title;
-                link.onclick = (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    loadPage(page.id);
-                };
-                parent.appendChild(link);
-                
-                parent.onclick = () => {
-                    if (isExpanded) {
-                        expandedParents.delete(pageId);
-                    } else {
-                        expandedParents.add(pageId);
-                    }
-                    renderSidebar();
-                };
-                
-                item.appendChild(parent);
-                
-                const childrenContainer = document.createElement('div');
-                childrenContainer.className = 'page-children' + (isExpanded ? ' expanded' : '');
-                
-                page.children.forEach(childId => {
-                    const childItem = renderPageItem(childId, true);
-                    if (childItem) {
-                        childrenContainer.appendChild(childItem);
-                    }
-                });
-                
-                item.appendChild(childrenContainer);
-            } else {
-                const link = document.createElement('a');
-                link.href = '#';
-                link.className = isChild ? 'child-link' : 'page-link';
-                if (currentPage === page.id) {
-                    link.classList.add('active');
-                }
-                link.textContent = page.title;
-                link.onclick = (e) => {
-                    e.preventDefault();
-                    loadPage(page.id);
-                };
-                item.appendChild(link);
-            }
-            
-            return item;
-        }
-        
-        function renderSidebar() {
-            const pageList = document.getElementById('page-list');
-            pageList.innerHTML = '';
-            
-            wikiData.tree.forEach(pageId => {
-                const item = renderPageItem(pageId);
-                if (item) {
-                    pageList.appendChild(item);
-                }
-            });
-        }
-
-        function loadPage(pageId) {
-            const page = wikiData.pages.find(p => p.id === pageId);
-            if (!page) return;
-            
-            const content = decryptContent(page.content, currentPassword);
-            if (!content) {
-                alert('Failed to decrypt page content');
-                return;
-            }
-            
-            currentPage = pageId;
-            document.getElementById('content').innerHTML = content;
-            renderSidebar();
-            
-            sessionStorage.setItem('currentPage', pageId);
-        }
-
-        async function login() {
-            const password = document.getElementById('password-input').value;
-            const errorMsg = document.getElementById('error-message');
-            
-            errorMsg.style.display = 'none';
-            
-            const encryptedManifest = await loadManifest();
-            const manifest = decryptManifest(encryptedManifest, password);
-            
-            if (!manifest) {
-                errorMsg.style.display = 'block';
-                return;
-            }
-            
-            currentPassword = password;
-            wikiData = manifest;
-            
-            sessionStorage.setItem('wikiPassword', password);
-            
-            document.getElementById('login-screen').style.display = 'none';
-            document.getElementById('wiki-container').style.display = 'block';
-            
-            renderSidebar();
-            
-            const lastPage = sessionStorage.getItem('currentPage') || 'home';
-            loadPage(lastPage);
-        }
-
-        function logout() {
-            sessionStorage.removeItem('wikiPassword');
-            sessionStorage.removeItem('currentPage');
-            currentPassword = null;
-            wikiData = null;
-            currentPage = null;
-            
-            document.getElementById('login-screen').style.display = 'flex';
-            document.getElementById('wiki-container').style.display = 'none';
-            document.getElementById('password-input').value = '';
-        }
-
-        document.getElementById('login-button').addEventListener('click', login);
-        document.getElementById('password-input').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') login();
-        });
-        document.getElementById('logout-button').addEventListener('click', logout);
-
-        const savedPassword = sessionStorage.getItem('wikiPassword');
-        if (savedPassword) {
-            document.getElementById('password-input').value = savedPassword;
-            login();
-        }
-    </script>
+    <script src="wiki.js"></script>
 </body>
 </html>
