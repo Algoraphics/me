@@ -1,32 +1,11 @@
 import * as React from "react";
 import styled from "styled-components";
+import { TabLink, Section, } from "./styles";
 
-const ArtSection = styled.div`
-    display: block;
-    flex-justify: center;
-    flex-direction: column;
-`
-
-const ArtLink = styled.a`
-    text-decoration: none;
-    &:visited {
-        color: goldenrod;
-    }
-    &:link {
-        color: yellow;
-    }
-    &:hover {
-        font-weight: bold;
-    }
-`
-
-const SlimePreview = styled.div`
+const SlimePreview = styled.div<{ width: string }>`
     display: inline-block;
     border-style: solid;
     border-color: #212121;
-    &:hover {
-        border-color: yellow;
-    }
     height: fit-content;
     width: ${(props) => props.width};
 `
@@ -65,7 +44,7 @@ const FractalBox = styled.div`
   justify-content: space-around;
 `
 
-const FractalImg = styled.img`
+const FractalImg = styled.img<{ isZoom: boolean; zoomType: string }>`
   user-select: none;
   flex: 0 9%;
   margin-bottom: 2%;
@@ -73,28 +52,24 @@ const FractalImg = styled.img`
   ${(props) => props.isZoom && props.zoomType};
 `
 
-const PreviewImg = styled.img`
-  margin-top: -270;
-  margin-right: -450;
-`
 
-const PreviewImgMobile = styled.img`
-  margin-top: -150;
-`
-
-const FractalGallery = (props) => {
-    const [zoomImg, setZoomImg] = React.useState("none");
-    const targetProp = props.isMobile ? "transform: scale(3);" : "transform: scale(6);";
+const FractalGallery = (props: { isMobile: boolean; zoomImg: string; setZoomImg: (img: string) => void }) => {
+    const { isMobile, zoomImg, setZoomImg } = props;
+    const targetProp = isMobile ? "transform: scale(3);" : "transform: scale(6);";
 
     const images = [];
     for (let i = 1; i <= 30; ++i) {
-        if (props.isMobile) {
+        if (isMobile) {
             i++;
         }
         let path = "PsychoPics/Screenshot (" + i + ").png";
         let id = "fractalImg" + i;
-        images.push(<FractalImg key={i} id={id} src={path} height={props.isMobile ? "160" : "100"} zoomType={targetProp}
-            onClick={() => { (zoomImg === id) ? setZoomImg("none") : setZoomImg(id) }} isZoom={zoomImg === id} />);
+        images.push(<FractalImg key={i} id={id} src={path} height={isMobile ? "160" : "100"} zoomType={targetProp}
+            onClick={(e) => { 
+                e.stopPropagation();
+                (zoomImg === id) ? setZoomImg("none") : setZoomImg(id);
+            }} 
+            isZoom={zoomImg === id} />);
     }
     return (
         <FractalBox>
@@ -105,39 +80,33 @@ const FractalGallery = (props) => {
 
 const videoDimensions = { mobile: { width: "285", height: "150" }, desktop: {width : "500", height : "270"}}
 
-const VideoElement = (props) => {
+const VideoElement = (props: { isMobile: boolean }) => {
     if (props.isMobile) {
         return (
-            <>
-                <video id="slimeMobile" loop autoPlay height={videoDimensions.mobile.height} width={videoDimensions.mobile.width} preload="true">
-                    <source src="SlimePreviewCroppedCompress.mp4" type="video/mp4" />
-                    Your browser does not support this preview video.Click to see the full experience.
-                </video >
-                <PreviewImgMobile id="previewImg" src="SlimePreviewImg.JPG" height={videoDimensions.mobile.height} width="280" title="Waiting for video to load" />
-            </>
+            <video id="slimeMobile" loop autoPlay muted height={videoDimensions.mobile.height} width={videoDimensions.mobile.width} preload="auto">
+                <source src="SlimePreviewCroppedCompress.mp4" type="video/mp4" />
+                Your browser does not support this preview video.
+            </video>
         );
     }
-    else return (
-        <div>
-            <video id="slimeDesktop" loop height={videoDimensions.desktop.height} width={videoDimensions.desktop.width} preload="true"
-                onMouseOver={event => event.target.play()}
-                onMouseOut={event => event.target.pause()}>
-                <source src="SlimePreviewCroppedCompress.mp4" type="video/mp4" />
-            </video>
-            <PreviewImg id="previewImg" src="SlimePreviewImg.JPG" height="260" width={videoDimensions.desktop.width} title="Waiting for video to load" />
-        </div>
+    return (
+        <video id="slimeDesktop" loop autoPlay muted height={videoDimensions.desktop.height} width={videoDimensions.desktop.width} preload="auto">
+            <source src="SlimePreviewCroppedCompress.mp4" type="video/mp4" />
+        </video>
     );
-        
 }
 
-const Art = (props) => {
-    let { isMobile } = props;
+const Art = (props: { 
+    isMobile: boolean; 
+    onTabChange?: (tab: string) => void;
+    zoomImg?: string;
+    setZoomImg?: (img: string) => void;
+}) => {
+    let { isMobile, onTabChange, zoomImg = "none", setZoomImg = () => {} } = props;
 
     var slimePreview = (
         <SlimePreview width={isMobile ? "285" : "500"}>
-            <ArtLink href="http://www.slime-freighter.glitch.me" target="_blank">
-                <VideoElement isMobile={isMobile} />
-            </ArtLink>
+            <VideoElement isMobile={isMobile} />
         </SlimePreview>
     );
 
@@ -169,14 +138,11 @@ const Art = (props) => {
     );
 
     return (
-        <ArtSection>
+        <Section>
             My main creative work has been these audio-visual experiences using various WebXR technologies.
             I love that users can immerse themselves to their comfort level from anywhere.
-            <br /><br />
-                If you have a VR headset, you can get them running in Firefox. See <ArtLink href="https://aframe.io/" target="_blank"><u>aframe.io</u></ArtLink> for more details.
             <h2>Slime Freighter</h2>
-            <ArtLink href="http://www.slime-freighter.glitch.me" target="_blank"><u>Slime Freighter</u></ArtLink> is
-                    an immersive VR music video set to "Side of the Road" by Big Black Delta.
+            <b>Slime Freighter</b> is an immersive VR music video set to "Side of the Road" by Big Black Delta.
             <br /><br />
             {isMobile ? slimeBoxMobile : slimeBoxDesktop}
                 Assets in this video were handmade using GLSL shaders and WebGL geometry,
@@ -188,16 +154,14 @@ const Art = (props) => {
             <FractalText>
                 A fun side-effect of the Slime Freighter video was discovering the potential of fractal visualizations using GLSL shaders.
                     <br /><br />
-                <ArtLink href="http://www.psycho-bubbles.glitch.me" target="_blank"><u>Opal & Bismuth</u></ArtLink> are my attempt to create a visualizer that will always show something new.
+                <b>Opal & Bismuth</b> are my attempt to create a visualizer that will always show something new.
                     They use the same basic algorithms, but Opal is based on circular geometry while Bismuth is rectangular.
                     <br /><br />
-                    Click the link in their name to see the full VR app with both visualizers and some other small works.
-                    <br /><br />
-                    An interactive Bismuth preview is available on the <b>Demo</b> tab, or you can browse the gallery below to see samples of both visualizers. <b> Click to Zoom! </b>
+                    An interactive Bismuth preview is available in the {onTabChange ? <TabLink onClick={() => onTabChange("Demo")}>Demo</TabLink> : <b>Demo</b>}, or you can browse the gallery below to see samples of both visualizers. <b> Click to Zoom! </b>
                 <br /><br />
             </FractalText>
-            <FractalGallery isMobile={isMobile} />
-        </ArtSection>
+            <FractalGallery isMobile={isMobile} zoomImg={zoomImg} setZoomImg={setZoomImg} />
+        </Section>
     );
 }
 

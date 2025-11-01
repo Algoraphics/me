@@ -1,5 +1,6 @@
 import * as React from "react";
 import styled from "styled-components";
+import { Icon } from "./styles";
 
 const ControlButton = styled.button`
     outline: none;
@@ -20,7 +21,7 @@ const ControlButton = styled.button`
     }
 `
 
-const ControlButtonGroup = styled.div`
+const ControlButtonGroup = styled.div<{ isActive: boolean }>`
     opacity: 0;
     top: 40;
     position: fixed;
@@ -36,9 +37,6 @@ const ControlButtonGroup = styled.div`
     `};
 `
 
-const ControlIcon = styled.img`
-    padding: 5px;
-`
 
 const controlTypes = ["visible", "rewind", "pause", "play", "fastForward", "mouse", "powerDown", "powerUp"];
 
@@ -77,12 +75,12 @@ const controlMap = {
     },
 };
 
-const ControlButtons = (props) => {
+const ControlButtons = (props: { isMobile: boolean; isActive: boolean }) => {
     return (
         <ControlButtonGroup id="controlbuttons" isActive={props.isActive}>
             {controlTypes.map((type) => (
                 <ControlButton id="controlbutton" key={type}>{controlMap[type].hover}
-                    <ControlIcon src={controlMap[type].path} title={controlMap[type].hover} height={props.isMobile ? "25px" : "40px"} />
+                    <Icon src={controlMap[type].path} title={controlMap[type].hover} height={props.isMobile ? "25px" : "40px"} />
                 </ControlButton>
             ))}
         </ControlButtonGroup>
@@ -90,7 +88,7 @@ const ControlButtons = (props) => {
 }
 
 
-const ControlPanel = (props) => {
+const ControlPanel = (props: { isMobile: boolean; isActive: boolean }) => {
     let { isMobile, isActive } = props;
     return (
         <ControlButtons isMobile={isMobile} isActive={isActive} />

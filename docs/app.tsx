@@ -1,9 +1,11 @@
+import React from 'react';
+import { createRoot } from 'react-dom/client';
 import { Website } from "./Website";
 
-declare var require: any
+document.body.style.margin = '0 0 0 0';
 
-var React = require('react');
-var ReactDOM = require('react-dom');
-
-document.body.style.margin = '0 0 0 0'
-ReactDOM.render(<Website />, document.getElementById('root'));
+const container = document.getElementById('root');
+if (container) {
+    const root = createRoot(container);
+    root.render(<Website />);
+}

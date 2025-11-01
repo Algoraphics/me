@@ -1,7 +1,8 @@
 import * as React from "react";
 import styled from "styled-components";
+import { TabLink, Icon } from "./styles";
 
-const InfoIcon = styled.img`
+const InfoIcon = styled(Icon)`
     height: 25px;
     padding-bottom: 3px;
     vertical-align: middle;
@@ -12,7 +13,7 @@ const DemoText = styled.div`
     max-width: 680px;
 `
 
-const DemoPage = (props) => {
+const DemoPage = (props: { isMobile: boolean; onTabChange?: (tab: string) => void }) => {
     return (
         <DemoText>
             This is a little interactive demo of "Bismuth." Hit the control buttons above to play around!
@@ -34,24 +35,18 @@ const DemoPage = (props) => {
             <br />
             <InfoIcon src="websiteIcons/PowerDownWhite.png" />&nbsp;&nbsp; Reduce complexity (if things get a bit slow)
             <br /><br />
-            See the <b>Art</b> tab to learn more about this visual.
+            See {props.onTabChange ? <TabLink onClick={() => props.onTabChange!("Art")}>Art</TabLink> : <b>Art</b>} to learn more about this visual.
         </DemoText>);
 }
 
-export class Demo extends React.Component {
-    props: any;
-
-    constructor(props) {
-        super(props);
-    }
-
+export class Demo extends React.Component<{ isMobile: boolean; onTabChange?: (tab: string) => void }> {
     componentDidMount() {
         window.scrollTo(0, 0)
     }
 
     render() {
         return (
-            <DemoPage isMobile={this.props.isMobile} />
+            <DemoPage isMobile={this.props.isMobile} onTabChange={this.props.onTabChange} />
         );
     }
 }

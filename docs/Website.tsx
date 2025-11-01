@@ -1,104 +1,42 @@
 import React, { useState } from "react";
-import styled from "styled-components";
 import './styles.css';
 import AboutMe from './AboutMe';
 import Work from './Work';
 import Art from './Art';
 import ControlPanel from './ControlPanel';
 import { Demo } from './Demo';
-
-declare var require: any
-var React = require('react');
-
-const FullWindow = styled.div`
-  padding: 0 0 250 0;
-  position: relative;
-  z-index: 1;
-`
-
-const Window = styled.div`
-  background-color: #212121;
-  color: white;
-  font-size: ${(props) => props.fontSize};
-  padding: 40 25;
-  max-width: 75%;
-  margin: auto;
-  border-radius: ${(props) => props.radius};
-  transition: 1s ease;
-  transition-property: opacity;
-  transform-origin: top;
-  ${(props) => props.demoActive && `    
-    opacity: 0 !important;
-  `};
-`;
-
-const TabPage = styled.div`
-  max-width: ${(props) => props.maxWidth};
-  min-height: 100vh;
-`;
-
-const Tab = styled.button`
-  padding: ${(props) => props.padding};
-  font-size: 15px;
-  font-weight: bold;
-  cursor: pointer;
-  border-width: thin;
-  border-style: ${(props) => props.border};
-  outline: 0;
-  background: #575757;
-  color: white;
-  white-space: nowrap;
-  border-bottom: 2px solid;
-  border-color: #575757;
-  &:hover {
-    border-color: yellow;
-  }
-  ${({ activeTab }) =>
-        activeTab &&
-        `
-    background: yellow;
-    color: black;
-    border: 0;
-  `}
-`;
-
-const TabButtons = styled.div`
-    display: flex;
-    justify-content: center;
-`;
-
-const FixedButtons = styled.div`
-    z-index: 5;
-    position: fixed;
-`
+import { FullWindow, Window, TabPage, Tab, TabButtons, FixedButtons } from './styles';
 
 /* Get matching react component based on clicked tab */
-const getWindow = (topic, isMobile) => {
-    var text = "";
+const getWindow = (
+    topic: string, 
+    isMobile: boolean, 
+    onTabChange: (tab: string) => void,
+    zoomImg: string,
+    setZoomImg: (img: string) => void
+) => {
     if (topic === "About Me") {
-        text = <AboutMe isMobile={isMobile} />
+        return <AboutMe isMobile={isMobile} onTabChange={onTabChange} />
     }
     else if (topic === "Work") {
-        text = <Work isMobile={isMobile} />
+        return <Work isMobile={isMobile} />
     }
     else if (topic === "Art") {
-        text = <Art isMobile={isMobile} />
+        return <Art isMobile={isMobile} onTabChange={onTabChange} zoomImg={zoomImg} setZoomImg={setZoomImg} />
     }
     else if (topic === "Demo") {
-        text = <Demo isMobile={isMobile} />
+        return <Demo isMobile={isMobile} onTabChange={onTabChange} />
     }
-    else {
-        text = topic;
-    }
-    return text;
+    return <>{topic}</>;
 }
 
 const tabs = ["About Me", "Work", "Art", "Demo"];
 
 /* Manage current tab and control panel display */
-const TabGroup = (props) => {
+const TabGroup = (props: { isMobile: boolean; zoomImg: string; setZoomImg: (img: string) => void }) => {
     const [activeTab, setActiveTab] = useState(tabs[0]);
     const [activeDemo, setActiveDemo] = useState(false);
+    const { zoomImg, setZoomImg } = props;
 
     document.addEventListener("mousedown", (event) => {
         var target = event.target;
@@ -137,7 +75,7 @@ const TabGroup = (props) => {
                 fontSize={props.isMobile ? "14px" : "17px"}
                 radius={props.isMobile ? "0%" : "2%"}
             >
-                {getWindow(activeTab, props.isMobile)}
+                {getWindow(activeTab, props.isMobile, setActiveTab, zoomImg, setZoomImg)}
             </Window>
         </TabPage>
     );
@@ -149,27 +87,34 @@ const WebsiteContainer = () => {
         height: window.innerHeight,
         width: window.innerWidth
     })
+    const [zoomImg, setZoomImg] = useState("none");
+
     React.useEffect(() => {
         function handleResize() {
             setDimensions({
                 height: window.innerHeight,
                 width: window.innerWidth
             })
+        }
 
+        function handleClick() {
+            setZoomImg("none");
         }
 
         window.addEventListener('resize', handleResize)
+        document.addEventListener('click', handleClick)
 
-        return _ => {
+        return () => {
             window.removeEventListener('resize', handleResize)
+            document.removeEventListener('click', handleClick)
         }
-    })
+    }, [])
 
     const isMobile = dimensions.width <= 1000;
     return (
         <>
             <FullWindow id="FullWindow">
-                <TabGroup isMobile={isMobile} />
+                <TabGroup isMobile={isMobile} zoomImg={zoomImg} setZoomImg={setZoomImg} />
             </FullWindow>
         </>
     );

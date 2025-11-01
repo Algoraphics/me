@@ -1,17 +1,20 @@
+const path = require('path');
+
 module.exports = {
     devtool: 'source-map',
-    entry: "./app.tsx",
+    entry: path.resolve(__dirname, 'app.tsx'),
     mode: "development",
     output: {
-        filename: "./app-bundle.js"
+        filename: "app-bundle.js",
+        path: path.resolve(__dirname, 'dist')
     },
     resolve: {
-        extensions: ['.Webpack.js', '.web.js', '.ts', '.js', '.jsx', '.tsx']
+        extensions: ['.ts', '.tsx', '.js', '.jsx']
     },
     module: {
         rules: [
             {
-                test: /\.tsx$/,
+                test: /\.tsx?$/,
                 exclude: /(node_modules|bower_components)/,
                 use: {
                     loader: 'ts-loader'
@@ -22,12 +25,8 @@ module.exports = {
                 use: ['style-loader', 'css-loader'],
             },
             {
-                test: /\.(png|jpg|gif)$/i,
-                use: [
-                    {
-                        loader: 'url-loader'
-                    },
-                ],
+                test: /\.(png|jpg|gif|mp4)$/i,
+                type: 'asset/inline'
             }
         ]
     }

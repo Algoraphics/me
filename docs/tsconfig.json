@@ -2,22 +2,20 @@
   "compilerOptions": {
     "jsx": "react",
     "noImplicitAny": false,
-    "module": "commonjs",
+    "module": "esnext",
+    "moduleResolution": "node",
     "noEmitOnError": true,
     "removeComments": false,
     "sourceMap": true,
-    "target": "ES2016"
+    "target": "ES2020",
+    "lib": ["ES2020", "DOM"],
+    "esModuleInterop": true,
+    "skipLibCheck": true
   },
   "exclude": [
     "node_modules"
   ],
-  "files": [
-    "app.tsx",
-    "Website.tsx",
-    "AboutMe.tsx",
-    "Work.tsx",
-    "Art.tsx",
-    "Demo.tsx",
-    "ControlPanel.tsx"
+  "include": [
+    "*.tsx"
   ]
 }
