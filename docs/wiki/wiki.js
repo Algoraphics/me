@@ -1,42 +1,27 @@
 const REPO_OWNER = 'Algoraphics';
 const REPO_NAME = 'Vivarium';
 const CONTENT_PATH = 'content';
+const IMAGES_PATH = 'images';
 
-let wikiData = null;
-let currentPassword = null;
-let currentPage = null;
 let githubToken = null;
+let wikiData = null;
+let currentPage = null;
 let originalMarkdown = '';
-let deployCheckInterval = null;
-let lastDeployTime = 0;
 let isEditMode = false;
-let imageMeta = {};
+let isNewPage = false;
+let isMoveMode = false;
+let pageToMove = null;
 let searchIndex = {};
 let searchDebounceTimer = null;
 
-async function loadManifest() {
-    const response = await fetch('manifest.enc');
-    return await response.text();
-}
+const md = window.markdownit ? window.markdownit({
+    html: true,
+    linkify: true,
+    typographer: true
+}) : null;
 
-function decryptManifest(encryptedManifest, password) {
-    try {
-        const decrypted = CryptoJS.AES.decrypt(encryptedManifest, password);
-        const manifestStr = decrypted.toString(CryptoJS.enc.Utf8);
-        if (!manifestStr) return null;
-        return JSON.parse(manifestStr);
-    } catch (e) {
-        return null;
-    }
-}
-
-function decryptContent(encryptedContent, password) {
-    try {
-        const decrypted = CryptoJS.AES.decrypt(encryptedContent, password);
-        return decrypted.toString(CryptoJS.enc.Utf8);
-    } catch (e) {
-        return null;
-    }
+if (!md) {
+    console.error('markdown-it library not loaded');
 }
 
 let expandedParents = new Set();
@@ -52,8 +37,88 @@ function loadExpandedState() {
     }
 }
 
+async function githubAPI(endpoint, options = {}) {
+    const response = await fetch(`https://api.github.com${endpoint}`, {
+        ...options,
+        headers: {
+            'Authorization': `token ${githubToken}`,
+            'Accept': 'application/vnd.github.v3+json',
+            ...options.headers
+        }
+    });
+    
+    if (!response.ok) {
+        throw new Error(`GitHub API error: ${response.status}`);
+    }
+    
+    return response.json();
+}
+
+async function loadWikiFromGitHub() {
+    const tree = await githubAPI(`/repos/${REPO_OWNER}/${REPO_NAME}/git/trees/main?recursive=1`);
+    
+    const markdownFiles = tree.tree
+        .filter(item => item.path.startsWith(CONTENT_PATH + '/') && item.path.endsWith('.md'))
+        .sort((a, b) => a.path.localeCompare(b.path));
+    
+    const pages = [];
+    const pagesById = {};
+    
+    for (const file of markdownFiles) {
+        const pageId = file.path.replace(CONTENT_PATH + '/', '').replace(/\.md$/, '');
+        const parts = pageId.split('/');
+        const parentId = parts.length > 1 ? parts.slice(0, -1).join('/') : null;
+        
+        const blob = await githubAPI(`/repos/${REPO_OWNER}/${REPO_NAME}/git/blobs/${file.sha}`);
+        const markdown = atob(blob.content.replace(/\n/g, ''));
+        const title = markdown.match(/^#\s+(.+)$/m)?.[1] || parts[parts.length - 1];
+        
+        const page = {
+            id: pageId,
+            title: title,
+            markdown: markdown,
+            sha: file.sha,
+            parentId: parentId,
+            children: []
+        };
+        
+        pages.push(page);
+        pagesById[pageId] = page;
+    }
+    
+    const tree_root = [];
+    pages.forEach(page => {
+        if (page.parentId && pagesById[page.parentId]) {
+            pagesById[page.parentId].children.push(page.id);
+        } else if (!page.parentId) {
+            tree_root.push(page.id);
+        }
+    });
+    
+    return { pages, pagesById, tree: tree_root };
+}
+
+function buildSearchIndex() {
+    console.log('Building search index...');
+    searchIndex = {};
+    
+    wikiData.pages.forEach(page => {
+        const htmlContent = md.render(page.markdown);
+        const plainText = htmlContent.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
+        
+        searchIndex[page.id] = {
+            title: page.title,
+            plainText: plainText,
+            lowerTitle: page.title.toLowerCase(),
+            lowerText: plainText.toLowerCase()
+        };
+    });
+    
+    console.log('Search index built');
+}
+
 function renderPageItem(pageId, isChild = false) {
-    const page = wikiData.pages.find(p => p.id === pageId);
+    const page = wikiData.pagesById[pageId];
     if (!page) return null;
     
     const hasChildren = page.children && page.children.length > 0;
@@ -162,7 +227,7 @@ function setupInternalLinks() {
     
     links.forEach(link => {
         const href = link.getAttribute('href');
-        if (href && (href.endsWith('.md') || !href.startsWith('http'))) {
+        if (href && (href.endsWith('.md') || (!href.startsWith('http') && !href.startsWith('#')))) {
             const pageId = href.replace(/\.md$/, '').replace(/^\.\.\//, '');
             
             const page = wikiData.pages.find(p => p.id === pageId || p.id.endsWith('/' + pageId));
@@ -177,51 +242,24 @@ function setupInternalLinks() {
     });
 }
 
-async function loadImageMeta() {
-    try {
-        const response = await fetch('images/meta.enc');
-        const encryptedMeta = await response.text();
-        const decrypted = CryptoJS.AES.decrypt(encryptedMeta, currentPassword);
-        const metaStr = decrypted.toString(CryptoJS.enc.Utf8);
-        if (metaStr) {
-            imageMeta = JSON.parse(metaStr);
-        }
-    } catch (error) {
-        console.log('No image metadata found');
-    }
-}
-
-async function decryptAndLoadImages() {
+async function loadImages() {
     const images = document.querySelectorAll('#content img');
     
     for (const img of images) {
         const src = img.getAttribute('src');
         if (src && src.includes('../images/')) {
             const imageName = src.split('/').pop();
-            
-            if (imageMeta[imageName]) {
-                img.width = imageMeta[imageName].width;
-                img.height = imageMeta[imageName].height;
-                img.style.maxWidth = '100%';
-                img.style.height = 'auto';
-            }
-            
-            const encryptedPath = src.replace(imageName, imageName + '.enc');
+            const imagePath = `${IMAGES_PATH}/${imageName}`;
             
             try {
-                const response = await fetch(encryptedPath);
-                const encryptedData = await response.text();
-                const decrypted = CryptoJS.AES.decrypt(encryptedData, currentPassword);
-                const base64Image = decrypted.toString(CryptoJS.enc.Utf8);
-                
-                if (base64Image) {
-                    const blob = await fetch('data:image/*;base64,' + base64Image).then(r => r.blob());
-                    const blobUrl = URL.createObjectURL(blob);
-                    img.src = blobUrl;
-                }
+                const data = await githubAPI(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/${imagePath}`);
+                const base64Image = data.content.replace(/\n/g, '');
+                const blob = await fetch('data:image/*;base64,' + base64Image).then(r => r.blob());
+                const blobUrl = URL.createObjectURL(blob);
+                img.src = blobUrl;
             } catch (error) {
-                console.error('Failed to decrypt image:', imageName, error);
-                img.alt = '[Image failed to decrypt]';
+                console.error('Failed to load image:', imageName, error);
+                img.alt = '[Image failed to load]';
             }
         }
     }
@@ -233,129 +271,109 @@ function loadPage(pageId) {
         closeEditMode();
     }
     
-    const page = wikiData.pages.find(p => p.id === pageId);
+    const page = wikiData.pagesById[pageId];
     if (!page) return;
     
-    const content = decryptContent(page.content, currentPassword);
-    if (!content) {
-        alert('Failed to decrypt page content');
-        return;
-    }
-    
     currentPage = pageId;
-    document.getElementById('content').innerHTML = content;
+    const htmlContent = md.render(page.markdown);
+    document.getElementById('content').innerHTML = htmlContent;
     renderSidebar();
     
+    if (isMoveMode) {
+        updateMoveButtons();
+    }
+    
     setupInternalLinks();
-    decryptAndLoadImages();
+    loadImages();
     
     sessionStorage.setItem('currentPage', pageId);
-    checkDeployStatus();
     
     const draft = loadDraft(pageId);
-    if (draft) {
+    if (draft && !isMoveMode) {
         enterEditMode(draft);
     }
 }
 
 async function login() {
-    const token = document.getElementById('password-input').value;
+    const token = document.getElementById('token-input').value;
     const errorMsg = document.getElementById('error-message');
+    const loadingMsg = document.getElementById('loading-message');
     
     errorMsg.style.display = 'none';
+    loadingMsg.style.display = 'block';
     
-    const encryptedManifest = await loadManifest();
-    const manifest = decryptManifest(encryptedManifest, token);
-    
-    if (!manifest) {
-        errorMsg.style.display = 'block';
-        return;
-    }
-    
-    currentPassword = token;
     githubToken = token;
-    wikiData = manifest;
     
-    sessionStorage.setItem('wikiPassword', token);
-    localStorage.setItem('githubToken', token);
-    
-    document.getElementById('login-screen').style.display = 'none';
-    document.getElementById('wiki-container').style.display = 'block';
-    
-    loadExpandedState();
-    renderSidebar();
-    buildSearchIndex();
-    
-    const lastPage = sessionStorage.getItem('currentPage') || 'home';
-    await loadImageMeta();
-    loadPage(lastPage);
-    startDeployPolling();
+    try {
+        const cachedData = localStorage.getItem('wikiDataCache');
+        if (cachedData) {
+            wikiData = JSON.parse(cachedData);
+            console.log('Loaded from cache');
+        } else {
+            wikiData = await loadWikiFromGitHub();
+            localStorage.setItem('wikiDataCache', JSON.stringify(wikiData));
+            console.log('Loaded from GitHub');
+        }
+        
+        sessionStorage.setItem('githubToken', token);
+        localStorage.setItem('githubToken', token);
+        
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('wiki-container').style.display = 'block';
+        document.documentElement.style.visibility = 'visible';
+        
+        loadExpandedState();
+        renderSidebar();
+        buildSearchIndex();
+        
+        const lastPage = sessionStorage.getItem('currentPage') || 'home';
+        loadPage(lastPage);
+        updateMoveButtons();
+        
+        if (cachedData) {
+            loadWikiFromGitHub().then(freshData => {
+                if (JSON.stringify(freshData) !== cachedData) {
+                    localStorage.setItem('wikiDataCache', JSON.stringify(freshData));
+                    console.log('Updated cache with fresh data');
+                }
+            }).catch(err => console.log('Background refresh failed:', err));
+        }
+    } catch (error) {
+        console.error('Login failed:', error);
+        loadingMsg.style.display = 'none';
+        errorMsg.style.display = 'block';
+        document.getElementById('login-form').style.display = 'block';
+        document.documentElement.style.visibility = 'visible';
+        githubToken = null;
+    }
 }
 
 function logout() {
-    stopDeployPolling();
-    sessionStorage.removeItem('wikiPassword');
+    sessionStorage.removeItem('githubToken');
     sessionStorage.removeItem('currentPage');
-    currentPassword = null;
+    githubToken = null;
     wikiData = null;
     currentPage = null;
     
     document.getElementById('login-screen').style.display = 'flex';
     document.getElementById('wiki-container').style.display = 'none';
-    document.getElementById('password-input').value = '';
-}
-
-async function githubAPI(endpoint, options = {}) {
-    const response = await fetch(`https://api.github.com${endpoint}`, {
-        ...options,
-        headers: {
-            'Authorization': `token ${githubToken}`,
-            'Accept': 'application/vnd.github.v3+json',
-            ...options.headers
-        }
-    });
-    
-    if (!response.ok) {
-        throw new Error(`GitHub API error: ${response.status}`);
-    }
-    
-    return response.json();
-}
-
-function checkGitHubToken() {
-    githubToken = localStorage.getItem('githubToken');
-}
-
-function promptForToken() {
-    const token = prompt('Enter your GitHub Personal Access Token:\n\nCreate one at: https://github.com/settings/tokens\n\nNeeds: repo permissions');
-    if (token) {
-        githubToken = token;
-        localStorage.setItem('githubToken', token);
-        return true;
-    }
-    return false;
+    document.getElementById('token-input').value = '';
 }
 
 async function enterEditMode(draftContent = null) {
-    const page = wikiData.pages.find(p => p.id === currentPage);
-    const filePath = `${CONTENT_PATH}/${currentPage}.md`;
+    const page = wikiData.pagesById[currentPage];
     
-    try {
-        if (!draftContent) {
-            const data = await githubAPI(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/${filePath}`);
-            originalMarkdown = atob(data.content);
-            document.getElementById('markdown-editor').value = originalMarkdown;
-        } else {
-            document.getElementById('markdown-editor').value = draftContent;
-        }
-        
-        document.getElementById('view-mode').style.display = 'none';
-        document.getElementById('edit-mode').style.display = 'block';
-        document.getElementById('edit-button').textContent = 'View';
-        isEditMode = true;
-    } catch (error) {
-        alert('Failed to load file for editing: ' + error.message + '\n\nMake sure your token has repo access.');
+    if (!draftContent) {
+        originalMarkdown = page.markdown;
+        document.getElementById('markdown-editor').value = page.markdown;
+    } else {
+        document.getElementById('markdown-editor').value = draftContent;
     }
+    
+    document.getElementById('view-mode').style.display = 'none';
+    document.getElementById('edit-mode').style.display = 'block';
+    document.getElementById('edit-button').textContent = 'View';
+    isEditMode = true;
 }
 
 function closeEditMode() {
@@ -365,6 +383,111 @@ function closeEditMode() {
     document.getElementById('status-message').className = '';
     document.getElementById('status-message').textContent = '';
     isEditMode = false;
+    isNewPage = false;
+}
+
+function startNewPage() {
+    isNewPage = true;
+    originalMarkdown = '';
+    
+    document.getElementById('markdown-editor').value = '# \n\n';
+    document.getElementById('view-mode').style.display = 'none';
+    document.getElementById('edit-mode').style.display = 'block';
+    document.getElementById('edit-button').textContent = 'View';
+    isEditMode = true;
+    updateMoveButtons();
+    
+    setTimeout(() => {
+        const editor = document.getElementById('markdown-editor');
+        editor.focus();
+        editor.setSelectionRange(2, 2);
+    }, 100);
+}
+
+function startMoveMode() {
+    isMoveMode = true;
+    pageToMove = currentPage;
+    updateMoveButtons();
+}
+
+function cancelMoveMode() {
+    isMoveMode = false;
+    pageToMove = null;
+    updateMoveButtons();
+}
+
+function updateMoveButtons() {
+    const moveBtn = document.getElementById('move-button');
+    const newPageBtn = document.getElementById('new-page-button');
+    const editBtn = document.getElementById('edit-button');
+    
+    if (isMoveMode) {
+        if (currentPage === pageToMove) {
+            moveBtn.style.display = 'none';
+        } else {
+            moveBtn.style.display = 'inline-block';
+            moveBtn.textContent = 'Place Here';
+        }
+        newPageBtn.style.display = 'none';
+        editBtn.textContent = 'Cancel Move';
+    } else {
+        moveBtn.style.display = 'inline-block';
+        moveBtn.textContent = 'Move';
+        newPageBtn.style.display = 'inline-block';
+        editBtn.textContent = isEditMode ? 'View' : 'Edit';
+    }
+}
+
+async function executeMove(newParentId) {
+    const oldPath = `${CONTENT_PATH}/${pageToMove}.md`;
+    const oldParts = pageToMove.split('/');
+    const pageName = oldParts[oldParts.length - 1];
+    const newPageId = newParentId ? `${newParentId}/${pageName}` : pageName;
+    const newPath = `${CONTENT_PATH}/${newPageId}.md`;
+    
+    if (oldPath === newPath) {
+        showStatus('Page is already in this location', 'error');
+        cancelMoveMode();
+        return;
+    }
+    
+    try {
+        showStatus('Moving page...', 'success');
+        
+        const oldData = await githubAPI(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/${oldPath}`);
+        const content = atob(oldData.content.replace(/\n/g, ''));
+        
+        await githubAPI(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/${newPath}`, {
+            method: 'PUT',
+            body: JSON.stringify({
+                message: `Move ${pageToMove} to ${newPageId}`,
+                content: btoa(content)
+            })
+        });
+        
+        await githubAPI(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/${oldPath}`, {
+            method: 'DELETE',
+            body: JSON.stringify({
+                message: `Delete old location of ${pageToMove}`,
+                sha: oldData.sha
+            })
+        });
+        
+        localStorage.removeItem('wikiDataCache');
+        wikiData = await loadWikiFromGitHub();
+        localStorage.setItem('wikiDataCache', JSON.stringify(wikiData));
+        buildSearchIndex();
+        
+        currentPage = newPageId;
+        cancelMoveMode();
+        renderSidebar();
+        loadPage(currentPage);
+        
+        showStatus('Page moved!', 'success');
+    } catch (error) {
+        showStatus('Failed to move: ' + error.message, 'error');
+        cancelMoveMode();
+    }
 }
 
 function cancelEdit() {
@@ -376,19 +499,54 @@ function cancelEdit() {
         }
     }
     
-    if (currentPage) {
+    if (currentPage && !isNewPage) {
         clearDraft(currentPage);
     }
     closeEditMode();
 }
 
+function generateFilename(content) {
+    const h1Match = content.match(/^#\s+(.+)$/m);
+    if (h1Match) {
+        return h1Match[1].toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-|-$/g, '');
+    }
+    
+    const firstText = content.trim().substring(0, 50)
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '');
+    
+    return firstText || 'untitled';
+}
+
+async function checkFilenameExists(basePath, filename) {
+    try {
+        await githubAPI(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/${basePath}/${filename}.md`);
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
+async function getUniqueFilename(basePath, filename) {
+    let finalName = filename;
+    let counter = 1;
+    
+    while (await checkFilenameExists(basePath, finalName)) {
+        finalName = `${filename}-${counter}`;
+        counter++;
+    }
+    
+    return finalName;
+}
+
 async function saveEdit() {
     const newContent = document.getElementById('markdown-editor').value;
-    const commitMsg = `Update ${currentPage}`;
-    const filePath = `${CONTENT_PATH}/${currentPage}.md`;
     
-    if (newContent === originalMarkdown) {
-        showStatus('No changes to save', 'error');
+    if (!newContent.trim()) {
+        showStatus('Page cannot be empty', 'error');
         return;
     }
     
@@ -396,27 +554,67 @@ async function saveEdit() {
         document.getElementById('save-button').disabled = true;
         showStatus('Saving to GitHub...', 'success');
         
-        const currentData = await githubAPI(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/${filePath}`);
+        let filePath, commitMsg, sha;
+        
+        if (isNewPage) {
+            const parentPath = currentPage ? `${CONTENT_PATH}/${currentPage}` : CONTENT_PATH;
+            const baseName = generateFilename(newContent);
+            const uniqueName = await getUniqueFilename(parentPath, baseName);
+            const newPageId = currentPage ? `${currentPage}/${uniqueName}` : uniqueName;
+            
+            filePath = `${CONTENT_PATH}/${newPageId}.md`;
+            commitMsg = `Create ${newPageId}`;
+            sha = null;
+        } else {
+            filePath = `${CONTENT_PATH}/${currentPage}.md`;
+            commitMsg = `Update ${currentPage}`;
+            
+            if (newContent === originalMarkdown) {
+                showStatus('No changes to save', 'error');
+                document.getElementById('save-button').disabled = false;
+                return;
+            }
+            
+            const currentData = await githubAPI(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/${filePath}`);
+            sha = currentData.sha;
+        }
         
         await githubAPI(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/${filePath}`, {
             method: 'PUT',
             body: JSON.stringify({
                 message: commitMsg,
                 content: btoa(newContent),
-                sha: currentData.sha
+                sha: sha
             })
         });
         
-        setEditTime(currentPage);
-        clearDraft(currentPage);
-        checkDeployStatus();
+        localStorage.removeItem('wikiDataCache');
         
-        showStatus('Saved! Wiki will rebuild in ~1 minute. Edit button will re-enable when deploy completes.', 'success');
+        wikiData = await loadWikiFromGitHub();
+        localStorage.setItem('wikiDataCache', JSON.stringify(wikiData));
+        buildSearchIndex();
+        
+        if (isNewPage) {
+            const newPageId = filePath.replace(`${CONTENT_PATH}/`, '').replace(/\.md$/, '');
+            currentPage = newPageId;
+        } else {
+            wikiData.pagesById[currentPage].markdown = newContent;
+            const title = newContent.match(/^#\s+(.+)$/m)?.[1] || currentPage.split('/').pop();
+            wikiData.pagesById[currentPage].title = title;
+        }
+        
+        originalMarkdown = newContent;
+        clearDraft(currentPage);
+        isNewPage = false;
+        
+        showStatus('Saved!', 'success');
         
         setTimeout(() => {
             closeEditMode();
+            renderSidebar();
+            loadPage(currentPage);
             document.getElementById('save-button').disabled = false;
-        }, 2000);
+        }, 1500);
     } catch (error) {
         showStatus('Failed to save: ' + error.message, 'error');
         document.getElementById('save-button').disabled = false;
@@ -427,60 +625,6 @@ function showStatus(message, type = '') {
     const statusEl = document.getElementById('status-message');
     statusEl.textContent = message;
     statusEl.className = type;
-}
-
-function getEditTimes() {
-    const stored = localStorage.getItem('pageEditTimes');
-    return stored ? JSON.parse(stored) : {};
-}
-
-function setEditTime(pageId) {
-    const editTimes = getEditTimes();
-    editTimes[pageId] = Date.now();
-    localStorage.setItem('pageEditTimes', JSON.stringify(editTimes));
-}
-
-async function checkDeployStatus() {
-    try {
-        const response = await fetch('deploy-timestamp.json?t=' + Date.now());
-        const data = await response.json();
-        lastDeployTime = data.deployTime;
-        
-        if (!currentPage) return;
-        
-        const editTimes = getEditTimes();
-        const lastEditTime = editTimes[currentPage] || 0;
-        
-        const deployPending = lastEditTime > lastDeployTime;
-        const editButton = document.getElementById('edit-button');
-        
-        if (deployPending) {
-            editButton.disabled = true;
-            editButton.textContent = 'Deploy pending...';
-        } else {
-            if (document.getElementById('edit-mode').style.display !== 'block') {
-                editButton.disabled = false;
-                editButton.textContent = 'Edit';
-            }
-        }
-    } catch (error) {
-        console.log('Failed to check deploy status:', error);
-    }
-}
-
-function startDeployPolling() {
-    if (deployCheckInterval) {
-        clearInterval(deployCheckInterval);
-    }
-    checkDeployStatus();
-    deployCheckInterval = setInterval(checkDeployStatus, 10000);
-}
-
-function stopDeployPolling() {
-    if (deployCheckInterval) {
-        clearInterval(deployCheckInterval);
-        deployCheckInterval = null;
-    }
 }
 
 function insertMarkdown(before, after) {
@@ -495,25 +639,6 @@ function insertMarkdown(before, after) {
     const newCursorPos = selectedText ? start + newText.length : start + before.length;
     editor.focus();
     editor.setSelectionRange(newCursorPos, newCursorPos);
-}
-
-function buildSearchIndex() {
-    console.log('Building search index...');
-    searchIndex = {};
-    
-    wikiData.pages.forEach(page => {
-        const decryptedContent = decryptContent(page.content, currentPassword);
-        const plainText = decryptedContent ? decryptedContent.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ') : '';
-        
-        searchIndex[page.id] = {
-            title: page.title,
-            plainText: plainText,
-            lowerTitle: page.title.toLowerCase(),
-            lowerText: plainText.toLowerCase()
-        };
-    });
-    
-    console.log('Search index built');
 }
 
 function searchPages(query) {
@@ -555,7 +680,10 @@ function searchPages(query) {
     resultsContainer.innerHTML = '';
     
     if (results.length > 0) {
-        results.forEach(({ page, snippet }) => {
+        const limitedResults = results.slice(0, 5);
+        const hasMore = results.length > 5;
+        
+        limitedResults.forEach(({ page, snippet }) => {
             const resultDiv = document.createElement('div');
             resultDiv.className = 'search-result';
             resultDiv.onclick = () => {
@@ -578,6 +706,16 @@ function searchPages(query) {
             
             resultsContainer.appendChild(resultDiv);
         });
+        
+        if (hasMore) {
+            const moreDiv = document.createElement('div');
+            moreDiv.style.color = '#999';
+            moreDiv.style.padding = '10px';
+            moreDiv.style.fontSize = '0.9em';
+            moreDiv.textContent = `...and ${results.length - 5} more results`;
+            resultsContainer.appendChild(moreDiv);
+        }
+        
         resultsContainer.classList.add('active');
     } else {
         resultsContainer.innerHTML = '<div style="color: #999; padding: 10px;">No results found</div>';
@@ -598,11 +736,6 @@ async function handleImageUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
     
-    if (!githubToken) {
-        promptForToken();
-        if (!githubToken) return;
-    }
-    
     if (file.size > 5 * 1024 * 1024) {
         showStatus('Image too large! Max 5MB', 'error');
         return;
@@ -615,7 +748,7 @@ async function handleImageUpload(event) {
         reader.onload = async (e) => {
             const base64Content = e.target.result.split(',')[1];
             const fileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-            const imagePath = `images/${fileName}`;
+            const imagePath = `${IMAGES_PATH}/${fileName}`;
             
             try {
                 let sha = null;
@@ -651,17 +784,27 @@ async function handleImageUpload(event) {
 }
 
 document.getElementById('login-button').addEventListener('click', login);
-document.getElementById('password-input').addEventListener('keypress', (e) => {
+document.getElementById('token-input').addEventListener('keypress', (e) => {
     if (e.key === 'Enter') login();
 });
 document.getElementById('logout-button').addEventListener('click', logout);
 document.getElementById('edit-button').addEventListener('click', () => {
-    if (isEditMode) {
+    if (isMoveMode) {
+        cancelMoveMode();
+    } else if (isEditMode) {
         cancelEdit();
     } else {
         enterEditMode();
     }
 });
+document.getElementById('move-button').addEventListener('click', () => {
+    if (isMoveMode && currentPage !== pageToMove) {
+        executeMove(currentPage);
+    } else {
+        startMoveMode();
+    }
+});
+document.getElementById('new-page-button').addEventListener('click', startNewPage);
 document.getElementById('cancel-edit-button').addEventListener('click', cancelEdit);
 document.getElementById('save-button').addEventListener('click', saveEdit);
 
@@ -676,11 +819,16 @@ document.getElementById('search-box').addEventListener('input', (e) => {
     debouncedSearch(e.target.value);
 });
 
-const savedPassword = sessionStorage.getItem('wikiPassword');
-if (savedPassword) {
-    document.getElementById('password-input').value = savedPassword;
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && isMoveMode) {
+        cancelMoveMode();
+    }
+});
+
+const savedToken = sessionStorage.getItem('githubToken');
+if (savedToken) {
+    document.getElementById('token-input').value = savedToken;
+    document.getElementById('login-form').style.display = 'none';
+    document.getElementById('loading-message').style.display = 'block';
     login();
 }
-
-checkGitHubToken();
-
