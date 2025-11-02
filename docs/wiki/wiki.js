@@ -10,7 +10,6 @@ let originalMarkdown = '';
 let deployCheckInterval = null;
 let lastDeployTime = 0;
 let isEditMode = false;
-let isNewPage = false;
 let imageMeta = {};
 let searchIndex = {};
 let searchDebounceTimer = null;
@@ -363,29 +362,9 @@ function closeEditMode() {
     document.getElementById('view-mode').style.display = 'block';
     document.getElementById('edit-mode').style.display = 'none';
     document.getElementById('edit-button').textContent = 'Edit';
-    document.getElementById('new-page-button').style.display = 'inline-block';
     document.getElementById('status-message').className = '';
     document.getElementById('status-message').textContent = '';
     isEditMode = false;
-    isNewPage = false;
-}
-
-function startNewPage() {
-    isNewPage = true;
-    originalMarkdown = '';
-    
-    document.getElementById('markdown-editor').value = '# \n\n';
-    document.getElementById('view-mode').style.display = 'none';
-    document.getElementById('edit-mode').style.display = 'block';
-    document.getElementById('edit-button').textContent = 'View';
-    document.getElementById('new-page-button').style.display = 'none';
-    isEditMode = true;
-    
-    setTimeout(() => {
-        const editor = document.getElementById('markdown-editor');
-        editor.focus();
-        editor.setSelectionRange(2, 2);
-    }, 100);
 }
 
 function cancelEdit() {
@@ -397,54 +376,19 @@ function cancelEdit() {
         }
     }
     
-    if (currentPage && !isNewPage) {
+    if (currentPage) {
         clearDraft(currentPage);
     }
     closeEditMode();
 }
 
-function generateFilename(content) {
-    const h1Match = content.match(/^#\s+(.+)$/m);
-    if (h1Match) {
-        return h1Match[1].toLowerCase()
-            .replace(/[^a-z0-9]+/g, '-')
-            .replace(/^-|-$/g, '');
-    }
-    
-    const firstText = content.trim().substring(0, 50)
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-|-$/g, '');
-    
-    return firstText || 'untitled';
-}
-
-async function checkFilenameExists(basePath, filename) {
-    try {
-        await githubAPI(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/${basePath}/${filename}.md`);
-        return true;
-    } catch (e) {
-        return false;
-    }
-}
-
-async function getUniqueFilename(basePath, filename) {
-    let finalName = filename;
-    let counter = 1;
-    
-    while (await checkFilenameExists(basePath, finalName)) {
-        finalName = `${filename}-${counter}`;
-        counter++;
-    }
-    
-    return finalName;
-}
-
 async function saveEdit() {
     const newContent = document.getElementById('markdown-editor').value;
+    const commitMsg = `Update ${currentPage}`;
+    const filePath = `${CONTENT_PATH}/${currentPage}.md`;
     
-    if (!newContent.trim()) {
-        showStatus('Page cannot be empty', 'error');
+    if (newContent === originalMarkdown) {
+        showStatus('No changes to save', 'error');
         return;
     }
     
@@ -452,67 +396,27 @@ async function saveEdit() {
         document.getElementById('save-button').disabled = true;
         showStatus('Saving to GitHub...', 'success');
         
-        let filePath, commitMsg, sha;
-        
-        if (isNewPage) {
-            const parentPath = currentPage ? `${CONTENT_PATH}/${currentPage}` : CONTENT_PATH;
-            const baseName = generateFilename(newContent);
-            const uniqueName = await getUniqueFilename(parentPath, baseName);
-            const newPageId = currentPage ? `${currentPage}/${uniqueName}` : uniqueName;
-            
-            filePath = `${CONTENT_PATH}/${newPageId}.md`;
-            commitMsg = `Create ${newPageId}`;
-            sha = null;
-        } else {
-            filePath = `${CONTENT_PATH}/${currentPage}.md`;
-            commitMsg = `Update ${currentPage}`;
-            
-            if (newContent === originalMarkdown) {
-                showStatus('No changes to save', 'error');
-                document.getElementById('save-button').disabled = false;
-                return;
-            }
-            
-            const currentData = await githubAPI(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/${filePath}`);
-            sha = currentData.sha;
-        }
+        const currentData = await githubAPI(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/${filePath}`);
         
         await githubAPI(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/${filePath}`, {
             method: 'PUT',
             body: JSON.stringify({
                 message: commitMsg,
                 content: btoa(newContent),
-                sha: sha
+                sha: currentData.sha
             })
         });
         
-        localStorage.removeItem('wikiDataCache');
-        
-        wikiData = await loadWikiFromGitHub();
-        localStorage.setItem('wikiDataCache', JSON.stringify(wikiData));
-        buildSearchIndex();
-        
-        if (isNewPage) {
-            const newPageId = filePath.replace(`${CONTENT_PATH}/`, '').replace(/\.md$/, '');
-            currentPage = newPageId;
-        } else {
-            wikiData.pagesById[currentPage].markdown = newContent;
-            const title = newContent.match(/^#\s+(.+)$/m)?.[1] || currentPage.split('/').pop();
-            wikiData.pagesById[currentPage].title = title;
-        }
-        
-        originalMarkdown = newContent;
+        setEditTime(currentPage);
         clearDraft(currentPage);
-        isNewPage = false;
+        checkDeployStatus();
         
-        showStatus('Saved!', 'success');
+        showStatus('Saved! Wiki will rebuild in ~1 minute. Edit button will re-enable when deploy completes.', 'success');
         
         setTimeout(() => {
             closeEditMode();
-            renderSidebar();
-            loadPage(currentPage);
             document.getElementById('save-button').disabled = false;
-        }, 1500);
+        }, 2000);
     } catch (error) {
         showStatus('Failed to save: ' + error.message, 'error');
         document.getElementById('save-button').disabled = false;
@@ -758,7 +662,6 @@ document.getElementById('edit-button').addEventListener('click', () => {
         enterEditMode();
     }
 });
-document.getElementById('new-page-button').addEventListener('click', startNewPage);
 document.getElementById('cancel-edit-button').addEventListener('click', cancelEdit);
 document.getElementById('save-button').addEventListener('click', saveEdit);
 
