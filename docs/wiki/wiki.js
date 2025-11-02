@@ -16,7 +16,7 @@ let searchDebounceTimer = null;
 let isFullyIndexed = false;
 
 const md = window.markdownit ? window.markdownit({
-    html: true,
+    html: false,
     linkify: true,
     typographer: true
 }) : null;
@@ -83,8 +83,8 @@ async function loadWikiFromGitHub() {
             loaded: false
         };
         
-        pages.push(page);
         pagesById[pageId] = page;
+        pages.push(page);
     });
     
     const tree_root = [];
@@ -116,7 +116,7 @@ async function fetchPageContent(pageId) {
         localStorage.setItem('wikiDataCache', JSON.stringify(wikiData));
         return page;
     } catch (error) {
-        console.error('[Fetch Error]', pageId, error);
+        console.error('Failed to load page:', pageId, error);
         return null;
     }
 }
@@ -129,26 +129,13 @@ async function loadAllPagesForSearch() {
     const unloadedPages = wikiData.pages.filter(p => !p.loaded);
     
     const batchSize = 20;
-    let successCount = 0;
-    let errorCount = 0;
     
     for (let i = 0; i < unloadedPages.length; i += batchSize) {
         const batch = unloadedPages.slice(i, i + batchSize);
-        const results = await Promise.allSettled(batch.map(p => fetchPageContent(p.id)));
-        
-        results.forEach((r, idx) => {
-            if (r.status === 'fulfilled' && r.value) {
-                successCount++;
-            } else {
-                errorCount++;
-                console.error('[Batch Error]', batch[idx].id, r.reason);
-            }
-        });
+        await Promise.allSettled(batch.map(p => fetchPageContent(p.id)));
         
         const progress = Math.min(i + batchSize, unloadedPages.length);
         indexBtn.textContent = `Loading... ${progress}/${unloadedPages.length}`;
-        
-        const actualLoaded = wikiData.pages.filter(p => p.loaded).length;
     }
     
     updateSearchIndex();
@@ -275,8 +262,14 @@ function renderSidebar() {
 function saveDraft() {
     if (!isEditMode || !currentPage) return;
     const editorContent = document.getElementById('markdown-editor').value;
+    const page = wikiData.pagesById[currentPage];
+    
     const drafts = JSON.parse(localStorage.getItem('pageDrafts') || '{}');
-    drafts[currentPage] = editorContent;
+    drafts[currentPage] = {
+        content: editorContent,
+        baseSha: page.sha,
+        timestamp: Date.now()
+    };
     localStorage.setItem('pageDrafts', JSON.stringify(drafts));
 }
 
@@ -385,7 +378,7 @@ async function loadPage(pageId) {
     
     const draft = loadDraft(pageId);
     if (draft && !isMoveMode) {
-        enterEditMode(draft);
+        enterEditMode(draft.content || draft, draft);
     }
 }
 
@@ -403,6 +396,12 @@ async function login() {
         const cachedData = localStorage.getItem('wikiDataCache');
         if (cachedData) {
             wikiData = JSON.parse(cachedData);
+            
+            wikiData.pagesById = {};
+            wikiData.pages.forEach(page => {
+                wikiData.pagesById[page.id] = page;
+            });
+            
             console.log('Loaded from cache');
         } else {
             wikiData = await loadWikiFromGitHub();
@@ -411,7 +410,6 @@ async function login() {
         }
         
         sessionStorage.setItem('githubToken', token);
-        localStorage.setItem('githubToken', token);
         
         document.getElementById('login-screen').style.display = 'none';
         document.getElementById('wiki-container').style.display = 'block';
@@ -456,17 +454,24 @@ function logout() {
     githubToken = null;
     wikiData = null;
     currentPage = null;
+    isFullyIndexed = false;
     
     document.getElementById('login-screen').style.display = 'flex';
     document.getElementById('wiki-container').style.display = 'none';
     document.getElementById('token-input').value = '';
 }
 
-async function enterEditMode(draftContent = null) {
+async function enterEditMode(draftContent = null, draftObj = null) {
     const page = wikiData.pagesById[currentPage];
     
     if (!page.loaded && !draftContent) {
         await fetchPageContent(currentPage);
+    }
+    
+    let hasConflict = false;
+    if (draftObj && draftObj.baseSha && draftObj.baseSha !== page.sha) {
+        hasConflict = true;
+        showStatus('⚠️ Warning: Page was updated since this draft was created. Save may overwrite remote changes.', 'error');
     }
     
     if (!draftContent) {
@@ -480,12 +485,17 @@ async function enterEditMode(draftContent = null) {
     document.getElementById('edit-mode').style.display = 'block';
     document.getElementById('edit-button').textContent = 'View';
     isEditMode = true;
+    
+    if (hasConflict) {
+        document.getElementById('save-button').style.background = '#cc6600';
+    }
 }
 
 function closeEditMode() {
     document.getElementById('view-mode').style.display = 'block';
     document.getElementById('edit-mode').style.display = 'none';
     document.getElementById('edit-button').textContent = 'Edit';
+    document.getElementById('save-button').style.background = '';
     document.getElementById('status-message').className = '';
     document.getElementById('status-message').textContent = '';
     isEditMode = false;
@@ -732,6 +742,15 @@ async function saveEdit() {
     if (!newContent.trim()) {
         showStatus('Page cannot be empty', 'error');
         return;
+    }
+    
+    const draft = loadDraft(currentPage);
+    const page = wikiData.pagesById[currentPage];
+    
+    if (draft && draft.baseSha && draft.baseSha !== page.sha && !isNewPage) {
+        if (!confirm('⚠️ WARNING: This page was updated since your draft was created.\n\nSaving will OVERWRITE the remote changes.\n\nAre you sure you want to continue?')) {
+            return;
+        }
     }
     
     try {
@@ -1008,6 +1027,31 @@ document.getElementById('search-box').addEventListener('input', (e) => {
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && isMoveMode) {
         cancelMoveMode();
+    }
+});
+
+async function checkForUpdatesOnFocus() {
+    if (!wikiData || !githubToken) return;
+    
+    try {
+        const freshData = await loadWikiFromGitHub();
+        const currentPageData = wikiData.pagesById[currentPage];
+        const freshPageData = freshData.pagesById[currentPage];
+        
+        if (currentPageData && freshPageData && currentPageData.sha !== freshPageData.sha) {
+            showStatus('⚠️ This page was updated remotely. Reload to see changes.', 'error');
+            
+            currentPageData.sha = freshPageData.sha;
+            localStorage.setItem('wikiDataCache', JSON.stringify(wikiData));
+        }
+    } catch (error) {
+        console.log('Background sync check failed:', error);
+    }
+}
+
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && wikiData) {
+        checkForUpdatesOnFocus();
     }
 });
 
