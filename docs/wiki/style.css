@@ -133,12 +133,14 @@
         
         #edit-mode {
             display: none;
+            margin: -30px;
+            padding: 0;
         }
         
         #editor-toolbar {
             display: flex;
             gap: 5px;
-            margin-bottom: 10px;
+            margin: 0 10px 10px 10px;
             flex-wrap: wrap;
             padding: 10px;
             background: #1a1a1a;
@@ -174,10 +176,10 @@
             border: 2px solid #575757;
             border-radius: 6px;
             padding: 15px;
+            margin-bottom: 15px;
             font-family: 'Courier New', monospace;
             font-size: 14px;
             line-height: 1.6;
-            margin-bottom: 15px;
         }
         
         #markdown-editor:focus {
@@ -185,9 +187,18 @@
             border-color: #ffd700;
         }
         
+        #save-button {
+            margin: 0 10px 10px 10px;
+        }
+        
+        #cancel-edit-button {
+            margin: 10px 10px 0 0;
+        }
+        
         #status-message {
             padding: 10px;
             border-radius: 6px;
+            margin: 10px;
             margin-top: 10px;
             display: none;
         }
@@ -293,11 +304,11 @@
         
         .page-link {
             display: block;
-            padding: 10px;
+            padding: 3px 10px 3px 5px;
             color: #e0e0e0;
             text-decoration: none;
             border-radius: 4px;
-            margin-bottom: 5px;
+            margin-bottom: 2px;
             transition: background 0.2s;
         }
         
@@ -311,7 +322,7 @@
         }
         
         .page-tree-item {
-            margin-bottom: 5px;
+            margin-bottom: 2px;
         }
         
         .page-parent {
@@ -322,15 +333,21 @@
         }
         
         .expand-icon {
-            width: 20px;
-            text-align: center;
-            margin-right: 5px;
-            font-size: 12px;
+            width: 10px;
+            text-align: left;
+            margin-right: 4px;
+            font-size: 10px;
             color: #ffd700;
+            flex-shrink: 0;
+        }
+        
+        .page-parent .page-link,
+        .page-parent .child-link {
+            padding-left: 5px;
         }
         
         .page-children {
-            margin-left: 25px;
+            margin-left: 12px;
             margin-top: 5px;
             display: none;
         }
@@ -341,11 +358,11 @@
         
         .child-link {
             display: block;
-            padding: 8px 10px;
+            padding: 2px 10px 2px 19px;
             color: #b0b0b0;
             text-decoration: none;
             border-radius: 4px;
-            margin-bottom: 3px;
+            margin-bottom: 1px;
             transition: background 0.2s;
         }
         

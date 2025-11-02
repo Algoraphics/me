@@ -360,7 +360,6 @@ async function loadPage(pageId) {
     if (!page.loaded) {
         document.getElementById('content').innerHTML = '<p style="color: #999;">Loading...</p>';
         await fetchPageContent(pageId);
-        renderSidebar();
         updateSearchIndex();
     }
     
