@@ -64,11 +64,14 @@
             </div>
             <div id="content-wrapper">
                 <div id="view-mode">
-                    <div id="page-header" style="display: flex; gap: 10px; justify-content: flex-end;">
-                        <button id="delete-button" style="background: #8b0000;">Delete</button>
-                        <button id="move-button">Move</button>
-                        <button id="new-page-button">Add Child</button>
-                        <button id="edit-button">Edit</button>
+                    <div id="page-header" style="display: flex; gap: 10px; justify-content: space-between; align-items: center;">
+                        <div id="page-status"></div>
+                        <div style="display: flex; gap: 10px;">
+                            <button id="delete-button" style="background: #8b0000;">Delete</button>
+                            <button id="move-button">Move</button>
+                            <button id="new-page-button">Add Child</button>
+                            <button id="edit-button">Edit</button>
+                        </div>
                     </div>
                     <div id="content"></div>
                 </div>

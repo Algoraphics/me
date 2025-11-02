@@ -407,6 +407,16 @@
             margin-bottom: 15px;
         }
         
+        #page-status {
+            color: #ff6b6b;
+            font-size: 14px;
+            padding: 5px 10px;
+        }
+        
+        #page-status.success {
+            color: #90ee90;
+        }
+        
         #content {
             min-height: 200px;
         }

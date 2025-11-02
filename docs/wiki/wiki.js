@@ -464,6 +464,9 @@ function logout() {
     document.getElementById('login-screen').style.display = 'flex';
     document.getElementById('wiki-container').style.display = 'none';
     document.getElementById('token-input').value = '';
+    document.getElementById('login-form').style.display = 'block';
+    document.getElementById('loading-message').style.display = 'none';
+    document.getElementById('error-message').style.display = 'none';
 }
 
 async function enterEditMode(draftContent = null, draftObj = null) {
@@ -526,6 +529,12 @@ function startNewPage() {
 }
 
 function startMoveMode() {
+    const page = wikiData.pagesById[currentPage];
+    if (page.children && page.children.length > 0) {
+        showStatus('Cannot move pages with children. Use Git.', 'error');
+        return;
+    }
+    
     isMoveMode = true;
     pageToMove = currentPage;
     updateMoveButtons();
@@ -654,6 +663,11 @@ async function executeMove(newParentId) {
 
 async function deletePage() {
     const page = wikiData.pagesById[currentPage];
+    
+    if (page.children && page.children.length > 0) {
+        showStatus('Cannot delete pages with children. Delete children first.', 'error');
+        return;
+    }
     
     if (!confirm(`Are you sure you want to delete "${page.title}"?\n\nThis cannot be undone!`)) {
         return;
@@ -830,9 +844,25 @@ async function saveEdit() {
 }
 
 function showStatus(message, type = '') {
-    const statusEl = document.getElementById('status-message');
-    statusEl.textContent = message;
-    statusEl.className = type;
+    const editStatus = document.getElementById('status-message');
+    if (editStatus) {
+        editStatus.textContent = message;
+        editStatus.className = type;
+    }
+    
+    const pageStatus = document.getElementById('page-status');
+    if (pageStatus) {
+        pageStatus.textContent = message;
+        pageStatus.className = type;
+        if (message) {
+            setTimeout(() => {
+                if (pageStatus.textContent === message) {
+                    pageStatus.textContent = '';
+                    pageStatus.className = '';
+                }
+            }, 5000);
+        }
+    }
 }
 
 function insertMarkdown(before, after) {
