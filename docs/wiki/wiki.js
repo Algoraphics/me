@@ -494,6 +494,8 @@ async function login() {
 function logout() {
     sessionStorage.removeItem('githubToken');
     sessionStorage.removeItem('currentPage');
+    localStorage.clear();
+    
     githubToken = null;
     wikiData = null;
     currentPage = null;
