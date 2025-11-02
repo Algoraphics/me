@@ -407,21 +407,30 @@ async function login() {
     try {
         await githubAPI('/user');
         
+        const freshData = await loadWikiFromGitHub();
         const cachedData = localStorage.getItem('wikiDataCache');
+        
         if (cachedData) {
-            wikiData = JSON.parse(cachedData);
+            const cached = JSON.parse(cachedData);
+            const cachedPagesById = {};
+            cached.pages.forEach(p => cachedPagesById[p.id] = p);
             
-            wikiData.pagesById = {};
-            wikiData.pages.forEach(page => {
-                wikiData.pagesById[page.id] = page;
+            freshData.pages.forEach(freshPage => {
+                const cachedPage = cachedPagesById[freshPage.id];
+                if (cachedPage && cachedPage.loaded && cachedPage.sha === freshPage.sha) {
+                    freshPage.markdown = cachedPage.markdown;
+                    freshPage.title = cachedPage.title;
+                    freshPage.loaded = true;
+                }
             });
             
-            console.log('Loaded from cache');
+            console.log('Loaded fresh tree, merged with cached content');
         } else {
-            wikiData = await loadWikiFromGitHub();
-            localStorage.setItem('wikiDataCache', JSON.stringify(wikiData));
             console.log('Loaded from GitHub');
         }
+        
+        wikiData = freshData;
+        localStorage.setItem('wikiDataCache', JSON.stringify(wikiData));
         
         sessionStorage.setItem('githubToken', token);
         
@@ -443,15 +452,6 @@ async function login() {
         const lastPage = sessionStorage.getItem('currentPage') || 'home';
         loadPage(lastPage);
         updateMoveButtons();
-        
-        if (cachedData) {
-            loadWikiFromGitHub().then(freshData => {
-                if (JSON.stringify(freshData) !== cachedData) {
-                    localStorage.setItem('wikiDataCache', JSON.stringify(freshData));
-                    console.log('Updated cache with fresh data');
-                }
-            }).catch(err => console.log('Background refresh failed:', err));
-        }
     } catch (error) {
         console.error('Login failed:', error);
         loadingMsg.style.display = 'none';
