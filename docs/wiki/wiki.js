@@ -14,6 +14,7 @@ let pageToMove = null;
 let searchIndex = {};
 let searchDebounceTimer = null;
 let isFullyIndexed = false;
+let currentBlobUrls = [];
 
 const md = window.markdownit ? window.markdownit({
     html: false,
@@ -307,6 +308,11 @@ function setupInternalLinks() {
     });
 }
 
+function revokeBlobUrls() {
+    currentBlobUrls.forEach(url => URL.revokeObjectURL(url));
+    currentBlobUrls = [];
+}
+
 async function loadImages() {
     const images = document.querySelectorAll('#content img');
     
@@ -322,6 +328,7 @@ async function loadImages() {
                 const blob = await fetch('data:image/*;base64,' + base64Image).then(r => r.blob());
                 const blobUrl = URL.createObjectURL(blob);
                 img.src = blobUrl;
+                currentBlobUrls.push(blobUrl);
             } catch (error) {
                 console.error('Failed to load image:', imageName, error);
                 img.alt = '[Image failed to load]';
@@ -346,6 +353,8 @@ async function loadPage(pageId) {
         saveDraft();
         closeEditMode();
     }
+    
+    revokeBlobUrls();
     
     const page = wikiData.pagesById[pageId];
     if (!page) return;
