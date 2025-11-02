@@ -561,8 +561,13 @@ async function executeMove(newParentId) {
         return;
     }
     
+    const moveBtn = document.getElementById('move-button');
+    const oldBtnText = moveBtn.textContent;
+    
     try {
-        showStatus('Moving page...', 'success');
+        moveBtn.textContent = 'Placing...';
+        moveBtn.disabled = true;
+        showStatus('Moving page to new location...', 'success');
         
         const oldData = await githubAPI(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/${oldPath}`);
         const content = atob(oldData.content.replace(/\n/g, ''));
@@ -575,6 +580,8 @@ async function executeMove(newParentId) {
             })
         });
         
+        showStatus('Removing from old location...', 'success');
+        
         await githubAPI(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/${oldPath}`, {
             method: 'DELETE',
             body: JSON.stringify({
@@ -583,18 +590,49 @@ async function executeMove(newParentId) {
             })
         });
         
-        localStorage.removeItem('wikiDataCache');
-        wikiData = await loadWikiFromGitHub();
+        showStatus('Updating local data...', 'success');
+        
+        const page = wikiData.pagesById[pageToMove];
+        const oldParentId = page.parentId;
+        const newParentId_actual = newParentId;
+        
+        if (oldParentId && wikiData.pagesById[oldParentId]) {
+            wikiData.pagesById[oldParentId].children = wikiData.pagesById[oldParentId].children.filter(id => id !== pageToMove);
+        } else {
+            wikiData.tree = wikiData.tree.filter(id => id !== pageToMove);
+        }
+        
+        delete wikiData.pagesById[pageToMove];
+        
+        page.id = newPageId;
+        page.parentId = newParentId_actual;
+        wikiData.pagesById[newPageId] = page;
+        
+        if (newParentId_actual && wikiData.pagesById[newParentId_actual]) {
+            wikiData.pagesById[newParentId_actual].children.push(newPageId);
+        } else {
+            wikiData.tree.push(newPageId);
+        }
+        
+        const pageIndex = wikiData.pages.findIndex(p => p.id === pageToMove || p.id === newPageId);
+        if (pageIndex !== -1) {
+            wikiData.pages[pageIndex] = page;
+        }
+        
         localStorage.setItem('wikiDataCache', JSON.stringify(wikiData));
-        buildSearchIndex();
         
         currentPage = newPageId;
+        expandAncestors(newPageId);
         cancelMoveMode();
         renderSidebar();
         loadPage(currentPage);
         
+        moveBtn.textContent = oldBtnText;
+        moveBtn.disabled = false;
         showStatus('Page moved!', 'success');
     } catch (error) {
+        moveBtn.textContent = oldBtnText;
+        moveBtn.disabled = false;
         showStatus('Failed to move: ' + error.message, 'error');
         cancelMoveMode();
     }
@@ -624,7 +662,7 @@ async function deletePage() {
         localStorage.removeItem('wikiDataCache');
         wikiData = await loadWikiFromGitHub();
         localStorage.setItem('wikiDataCache', JSON.stringify(wikiData));
-        buildSearchIndex();
+        updateSearchIndex();
         
         const newPage = page.parentId || wikiData.tree[0] || 'home';
         currentPage = null;
@@ -739,7 +777,7 @@ async function saveEdit() {
         
         wikiData = await loadWikiFromGitHub();
         localStorage.setItem('wikiDataCache', JSON.stringify(wikiData));
-        buildSearchIndex();
+        updateSearchIndex();
         
         if (isNewPage) {
             const newPageId = filePath.replace(`${CONTENT_PATH}/`, '').replace(/\.md$/, '');
