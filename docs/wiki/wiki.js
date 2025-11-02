@@ -23,6 +23,9 @@ const md = window.markdownit ? window.markdownit({
 
 if (!md) {
     console.error('markdown-it library not loaded');
+    document.addEventListener('DOMContentLoaded', () => {
+        document.body.innerHTML = '<div style="color: red; padding: 20px;">Error: markdown-it library failed to load</div>';
+    });
 }
 
 let expandedParents = new Set();
@@ -393,6 +396,8 @@ async function login() {
     githubToken = token;
     
     try {
+        await githubAPI('/user');
+        
         const cachedData = localStorage.getItem('wikiDataCache');
         if (cachedData) {
             wikiData = JSON.parse(cachedData);

@@ -26,6 +26,7 @@
             border-radius: 12px;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
             text-align: center;
+            max-width: 400px;
         }
         
         #login-box h1 {
@@ -35,20 +36,20 @@
         }
         
         #login-form {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+            display: block;
         }
         
         #token-input {
-            width: 300px;
+            width: 100%;
+            max-width: 300px;
             padding: 12px;
             font-size: 16px;
             border: 2px solid #575757;
             border-radius: 6px;
             background: #1a1a1a;
             color: #e0e0e0;
-            margin-bottom: 20px;
+            margin: 0 auto 20px auto;
+            display: block;
         }
         
         #token-input:focus {
@@ -63,7 +64,8 @@
         }
         
         #login-button {
-            width: 300px;
+            width: 100%;
+            max-width: 300px;
             padding: 12px;
             font-size: 16px;
             font-weight: bold;
@@ -73,6 +75,8 @@
             border-radius: 6px;
             cursor: pointer;
             transition: background 0.3s;
+            display: block;
+            margin: 0 auto;
         }
         
         #login-button:hover {
