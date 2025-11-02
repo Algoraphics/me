@@ -314,20 +314,46 @@ function revokeBlobUrls() {
 }
 
 async function loadImages() {
-    const images = document.querySelectorAll('#content img');
+    const images = document.querySelectorAll('#content img[data-src]');
     
     for (const img of images) {
-        const src = img.getAttribute('src');
-        if (src && src.includes('../images/')) {
-            const imageName = src.split('/').pop();
+        const dataSrc = img.getAttribute('data-src');
+        if (dataSrc && dataSrc.includes('images/')) {
+            const imageName = dataSrc.split('/').pop();
             const imagePath = `${IMAGES_PATH}/${imageName}`;
             
             try {
-                const data = await githubAPI(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/${imagePath}`);
-                const base64Image = data.content.replace(/\n/g, '');
-                const blob = await fetch('data:image/*;base64,' + base64Image).then(r => r.blob());
-                const blobUrl = URL.createObjectURL(blob);
-                img.src = blobUrl;
+                const contentsData = await githubAPI(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/${imagePath}`);
+                
+                let blobSha;
+                if (contentsData.encoding === 'base64' && contentsData.content) {
+                    const base64Image = contentsData.content.replace(/[\n\r]/g, '');
+                    const byteCharacters = atob(base64Image);
+                    const byteNumbers = new Array(byteCharacters.length);
+                    for (let i = 0; i < byteCharacters.length; i++) {
+                        byteNumbers[i] = byteCharacters.charCodeAt(i);
+                    }
+                    const byteArray = new Uint8Array(byteNumbers);
+                    const blob = new Blob([byteArray], { type: 'image/jpeg' });
+                    const blobUrl = URL.createObjectURL(blob);
+                    img.src = blobUrl;
+                } else {
+                    blobSha = contentsData.sha;
+                    const blobData = await githubAPI(`/repos/${REPO_OWNER}/${REPO_NAME}/git/blobs/${blobSha}`);
+                    
+                    const base64Image = blobData.content.replace(/[\n\r]/g, '');
+                    const byteCharacters = atob(base64Image);
+                    const byteNumbers = new Array(byteCharacters.length);
+                    for (let i = 0; i < byteCharacters.length; i++) {
+                        byteNumbers[i] = byteCharacters.charCodeAt(i);
+                    }
+                    const byteArray = new Uint8Array(byteNumbers);
+                    const blob = new Blob([byteArray], { type: 'image/jpeg' });
+                    const blobUrl = URL.createObjectURL(blob);
+                    img.src = blobUrl;
+                }
+                
+                img.removeAttribute('data-src');
                 currentBlobUrls.push(blobUrl);
             } catch (error) {
                 console.error('Failed to load image:', imageName, error);
@@ -368,7 +394,10 @@ async function loadPage(pageId) {
         updateSearchIndex();
     }
     
-    const htmlContent = md.render(page.markdown);
+    let htmlContent = md.render(page.markdown);
+    
+    htmlContent = htmlContent.replace(/<img src="images\//g, '<img data-src="images/');
+    
     document.getElementById('content').innerHTML = htmlContent;
     renderSidebar();
     
@@ -384,7 +413,7 @@ async function loadPage(pageId) {
     }
     
     setupInternalLinks();
-    loadImages();
+    await loadImages();
     
     sessionStorage.setItem('currentPage', pageId);
     
@@ -1014,8 +1043,8 @@ async function handleImageUpload(event) {
                     })
                 });
                 
-                const relativeImagePath = `../images/${fileName}`;
-                insertMarkdown(`![${file.name}](`, `${relativeImagePath})`);
+                const imagePath = `images/${fileName}`;
+                insertMarkdown(`![${file.name}](`, `${imagePath})`);
                 
                 showStatus('Image uploaded!', 'success');
                 event.target.value = '';

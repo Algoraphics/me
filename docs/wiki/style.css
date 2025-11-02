@@ -456,6 +456,11 @@
             background: none;
         }
         
+        #content img {
+            max-width: 100%;
+            height: auto;
+        }
+        
         @media (max-width: 768px) {
             #main-content {
                 flex-direction: column;
@@ -464,5 +469,16 @@
             #sidebar {
                 min-width: 100%;
                 max-height: 300px;
+            }
+            
+            #page-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+            
+            #page-status {
+                width: 100%;
+                text-align: left;
             }
         }
