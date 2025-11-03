@@ -693,34 +693,17 @@ async function executeMove(newParentId) {
         
         showStatus('Updating local data...', 'success');
         
-        const page = wikiData.pagesById[pageToMove];
-        const oldParentId = page.parentId;
-        const newParentId_actual = newParentId;
-        
-        if (oldParentId && wikiData.pagesById[oldParentId]) {
-            wikiData.pagesById[oldParentId].children = wikiData.pagesById[oldParentId].children.filter(id => id !== pageToMove);
-        } else {
-            wikiData.tree = wikiData.tree.filter(id => id !== pageToMove);
-        }
-        
-        delete wikiData.pagesById[pageToMove];
-        
-        page.id = newPageId;
-        page.parentId = newParentId_actual;
-        wikiData.pagesById[newPageId] = page;
-        
-        if (newParentId_actual && wikiData.pagesById[newParentId_actual]) {
-            wikiData.pagesById[newParentId_actual].children.push(newPageId);
-        } else {
-            wikiData.tree.push(newPageId);
-        }
-        
-        const pageIndex = wikiData.pages.findIndex(p => p.id === pageToMove || p.id === newPageId);
-        if (pageIndex !== -1) {
-            wikiData.pages[pageIndex] = page;
-        }
-        
+        localStorage.removeItem('wikiDataCache');
+        wikiData = await loadWikiFromGitHub();
         localStorage.setItem('wikiDataCache', JSON.stringify(wikiData));
+        
+        const newPage = wikiData.pagesById[newPageId];
+        if (newPage) {
+            newPage.markdown = content;
+            newPage.loaded = true;
+            const title = content.match(/^#\s+(.+)$/m)?.[1] || pageName;
+            newPage.title = title;
+        }
         
         currentPage = newPageId;
         expandAncestors(newPageId);
@@ -896,10 +879,19 @@ async function saveEdit() {
         if (isNewPage) {
             const newPageId = filePath.replace(`${CONTENT_PATH}/`, '').replace(/\.md$/, '');
             currentPage = newPageId;
+            const page = wikiData.pagesById[newPageId];
+            if (page) {
+                page.markdown = newContent;
+                page.loaded = true;
+                const title = newContent.match(/^#\s+(.+)$/m)?.[1] || newPageId.split('/').pop();
+                page.title = title;
+            }
         } else {
-            wikiData.pagesById[currentPage].markdown = newContent;
+            const page = wikiData.pagesById[currentPage];
+            page.markdown = newContent;
+            page.loaded = true;
             const title = newContent.match(/^#\s+(.+)$/m)?.[1] || currentPage.split('/').pop();
-            wikiData.pagesById[currentPage].title = title;
+            page.title = title;
         }
         
         originalMarkdown = newContent;
