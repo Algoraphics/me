@@ -15,6 +15,9 @@ let searchIndex = {};
 let searchDebounceTimer = null;
 let isFullyIndexed = false;
 let currentBlobUrls = [];
+let autoSaveTimer = null;
+let editStartSha = null;
+let lastKnownRemoteSha = {};
 
 const md = window.markdownit ? window.markdownit({
     html: false,
@@ -57,6 +60,37 @@ async function githubAPI(endpoint, options = {}) {
     }
     
     return response.json();
+}
+
+async function syncCurrentPageWithRemote() {
+    if (!currentPage || !wikiData || !githubToken) return null;
+    
+    try {
+        const filePath = `${CONTENT_PATH}/${currentPage}.md`;
+        const remoteData = await githubAPI(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/${filePath}`);
+        const page = wikiData.pagesById[currentPage];
+        
+        if (lastKnownRemoteSha[currentPage] !== remoteData.sha && page.sha !== remoteData.sha) {
+            lastKnownRemoteSha[currentPage] = remoteData.sha;
+            
+            if (isEditMode) {
+                showStatus('⚠️ This page was updated remotely while editing. Save will overwrite!', 'error');
+                document.getElementById('save-button').style.background = '#cc6600';
+            } else {
+                showStatus('⚠️ Page updated remotely. Cancel edit and reload to see changes.', 'error');
+            }
+            
+            page.sha = remoteData.sha;
+            localStorage.setItem('wikiDataCache', JSON.stringify(wikiData));
+            
+            return remoteData.sha;
+        }
+        
+        return page.sha;
+    } catch (error) {
+        console.log('Remote sync check failed:', error);
+        return null;
+    }
 }
 
 async function loadWikiFromGitHub() {
@@ -266,12 +300,12 @@ function renderSidebar() {
 function saveDraft() {
     if (!isEditMode || !currentPage) return;
     const editorContent = document.getElementById('markdown-editor').value;
-    const page = wikiData.pagesById[currentPage];
     
     const drafts = JSON.parse(localStorage.getItem('pageDrafts') || '{}');
+    
     drafts[currentPage] = {
         content: editorContent,
-        baseSha: page.sha,
+        baseSha: editStartSha,
         timestamp: Date.now()
     };
     localStorage.setItem('pageDrafts', JSON.stringify(drafts));
@@ -494,7 +528,9 @@ async function login() {
 function logout() {
     sessionStorage.removeItem('githubToken');
     sessionStorage.removeItem('currentPage');
-    localStorage.clear();
+    localStorage.removeItem('wikiDataCache');
+    localStorage.removeItem('pageDrafts');
+    localStorage.removeItem('expandedParents');
     
     githubToken = null;
     wikiData = null;
@@ -516,10 +552,15 @@ async function enterEditMode(draftContent = null, draftObj = null) {
         await fetchPageContent(currentPage);
     }
     
+    await syncCurrentPageWithRemote();
+    
+    editStartSha = page.sha;
+    
     let hasConflict = false;
     if (draftObj && draftObj.baseSha && draftObj.baseSha !== page.sha) {
         hasConflict = true;
         showStatus('⚠️ Warning: Page was updated since this draft was created. Save may overwrite remote changes.', 'error');
+        document.getElementById('save-button').style.background = '#cc6600';
     }
     
     if (!draftContent) {
@@ -533,10 +574,6 @@ async function enterEditMode(draftContent = null, draftObj = null) {
     document.getElementById('edit-mode').style.display = 'block';
     document.getElementById('edit-button').textContent = 'View';
     isEditMode = true;
-    
-    if (hasConflict) {
-        document.getElementById('save-button').style.background = '#cc6600';
-    }
 }
 
 function closeEditMode() {
@@ -548,6 +585,7 @@ function closeEditMode() {
     document.getElementById('status-message').textContent = '';
     isEditMode = false;
     isNewPage = false;
+    editStartSha = null;
 }
 
 function startNewPage() {
@@ -803,11 +841,10 @@ async function saveEdit() {
         return;
     }
     
-    const draft = loadDraft(currentPage);
     const page = wikiData.pagesById[currentPage];
     
-    if (draft && draft.baseSha && draft.baseSha !== page.sha && !isNewPage) {
-        if (!confirm('⚠️ WARNING: This page was updated since your draft was created.\n\nSaving will OVERWRITE the remote changes.\n\nAre you sure you want to continue?')) {
+    if (editStartSha && editStartSha !== page.sha && !isNewPage) {
+        if (!confirm('⚠️ WARNING: This page was updated remotely since you started editing.\n\nSaving will OVERWRITE the remote changes.\n\nAre you sure you want to continue?')) {
             return;
         }
     }
@@ -878,7 +915,11 @@ async function saveEdit() {
             document.getElementById('save-button').disabled = false;
         }, 1500);
     } catch (error) {
-        showStatus('Failed to save: ' + error.message, 'error');
+        if (error.message.includes('409')) {
+            showStatus('⚠️ Save failed: Remote was updated. Cancel/stash this edit and refresh to get latest.', 'error');
+        } else {
+            showStatus('Failed to save: ' + error.message, 'error');
+        }
         document.getElementById('save-button').disabled = false;
     }
 }
@@ -1045,8 +1086,8 @@ async function handleImageUpload(event) {
                     })
                 });
                 
-                const imagePath = `images/${fileName}`;
-                insertMarkdown(`![${file.name}](`, `${imagePath})`);
+                const relativeImagePath = `images/${fileName}`;
+                insertMarkdown(`![${file.name}](`, `${relativeImagePath})`);
                 
                 showStatus('Image uploaded!', 'success');
                 event.target.value = '';
@@ -1088,6 +1129,15 @@ document.getElementById('new-page-button').addEventListener('click', startNewPag
 document.getElementById('cancel-edit-button').addEventListener('click', cancelEdit);
 document.getElementById('save-button').addEventListener('click', saveEdit);
 
+document.getElementById('markdown-editor').addEventListener('input', () => {
+    if (autoSaveTimer) {
+        clearTimeout(autoSaveTimer);
+    }
+    autoSaveTimer = setTimeout(() => {
+        saveDraft();
+    }, 2000);
+});
+
 document.getElementById('markdown-editor').addEventListener('keydown', (e) => {
     if ((e.metaKey || e.ctrlKey) && e.key === 's') {
         e.preventDefault();
@@ -1105,28 +1155,9 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
-async function checkForUpdatesOnFocus() {
-    if (!wikiData || !githubToken) return;
-    
-    try {
-        const freshData = await loadWikiFromGitHub();
-        const currentPageData = wikiData.pagesById[currentPage];
-        const freshPageData = freshData.pagesById[currentPage];
-        
-        if (currentPageData && freshPageData && currentPageData.sha !== freshPageData.sha) {
-            showStatus('⚠️ This page was updated remotely. Reload to see changes.', 'error');
-            
-            currentPageData.sha = freshPageData.sha;
-            localStorage.setItem('wikiDataCache', JSON.stringify(wikiData));
-        }
-    } catch (error) {
-        console.log('Background sync check failed:', error);
-    }
-}
-
 document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && wikiData) {
-        checkForUpdatesOnFocus();
+    if (!document.hidden && wikiData && currentPage) {
+        syncCurrentPageWithRemote();
     }
 });
 
