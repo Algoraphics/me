@@ -628,9 +628,25 @@ function updateMoveButtons() {
     const newPageBtn = document.getElementById('new-page-button');
     const editBtn = document.getElementById('edit-button');
     
+    if (!deleteBtn || !moveBtn || !newPageBtn || !editBtn) {
+        return;
+    }
+    
+    if (!currentPage || !wikiData || !wikiData.pagesById) {
+        deleteBtn.style.display = 'none';
+        moveBtn.style.display = 'none';
+        return;
+    }
+    
     const page = wikiData.pagesById[currentPage];
+    if (!page) {
+        deleteBtn.style.display = 'none';
+        moveBtn.style.display = 'none';
+        return;
+    }
+    
     const isHomePage = currentPage === 'home';
-    const hasChildren = page && page.children && page.children.length > 0;
+    const hasChildren = page.children && page.children.length > 0;
     const canMoveOrDelete = !isHomePage && !hasChildren;
     
     if (isMoveMode) {
