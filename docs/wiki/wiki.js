@@ -442,9 +442,7 @@ async function loadPage(pageId) {
         }
     }, 100);
     
-    if (isMoveMode) {
-        updateMoveButtons();
-    }
+    updateMoveButtons();
     
     setupInternalLinks();
     await loadImages();
@@ -630,6 +628,11 @@ function updateMoveButtons() {
     const newPageBtn = document.getElementById('new-page-button');
     const editBtn = document.getElementById('edit-button');
     
+    const page = wikiData.pagesById[currentPage];
+    const isHomePage = currentPage === 'home';
+    const hasChildren = page && page.children && page.children.length > 0;
+    const canMoveOrDelete = !isHomePage && !hasChildren;
+    
     if (isMoveMode) {
         deleteBtn.style.display = 'none';
         if (currentPage === pageToMove) {
@@ -641,8 +644,8 @@ function updateMoveButtons() {
         newPageBtn.style.display = 'none';
         editBtn.textContent = 'Cancel Move';
     } else {
-        deleteBtn.style.display = 'inline-block';
-        moveBtn.style.display = 'inline-block';
+        deleteBtn.style.display = canMoveOrDelete ? 'inline-block' : 'none';
+        moveBtn.style.display = canMoveOrDelete ? 'inline-block' : 'none';
         moveBtn.textContent = 'Move';
         newPageBtn.style.display = 'inline-block';
         editBtn.textContent = isEditMode ? 'View' : 'Edit';
