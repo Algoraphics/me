@@ -182,18 +182,29 @@ function formatNotificationMessage(days) {
         return '🌊 **Tide Pooling Report**\n\nNo good tide pooling days found in the next month.';
     }
     
+    const formattedDays = days.map(day => ({
+        dateStr: formatTideDate(day.date),
+        timeStr: formatTideTime(day.tideTime),
+        heightStr: day.tideHeight.toFixed(2),
+        isWeekend: day.isWeekend,
+        isSuperLow: day.tideHeight <= SUPER_LOW_TIDE_THRESHOLD
+    }));
+    
+    const maxDateLen = Math.max(...formattedDays.map(d => d.dateStr.length));
+    const maxTimeLen = Math.max(...formattedDays.map(d => d.timeStr.length));
+    
     let message = '🌊 **Good Tide Pooling Days - Next Month**\n\n';
     
-    days.forEach(day => {
-        const dateStr = formatTideDate(day.date);
-        const timeStr = formatTideTime(day.tideTime);
-        const heightStr = day.tideHeight.toFixed(2);
+    formattedDays.forEach(day => {
+        const paddedDate = day.dateStr.padEnd(maxDateLen, ' ');
+        const paddedTime = day.timeStr.padEnd(maxTimeLen, ' ');
+        const paddedHeight = day.heightStr.padStart(5, ' ');
         
         let icons = '';
         if (day.isWeekend) icons += '⭐ ';
-        if (day.tideHeight <= SUPER_LOW_TIDE_THRESHOLD) icons += '🐙 ';
+        if (day.isSuperLow) icons += '🐙';
         
-        message += `**${dateStr}** - ${timeStr} - ${heightStr} ft ${icons}\n`;
+        message += `**${paddedDate}**    ${paddedTime}    ${paddedHeight} ft  ${icons}\n`;
     });
     
     message += `\nView calendar: https://ethanrabb.com/tides\n`;
