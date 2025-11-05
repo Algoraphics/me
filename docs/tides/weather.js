@@ -18,7 +18,7 @@ const SUPER_LOW_TIDE_THRESHOLD = -0.5;
 async function fetchTideData() {
     const now = new Date();
     const endDate = new Date(now);
-    endDate.setMonth(endDate.getMonth() + 3);
+    endDate.setMonth(endDate.getMonth() + 6);
     
     const startDateStr = formatDateForAPI(now);
     const endDateStr = formatDateForAPI(endDate);
@@ -134,7 +134,7 @@ async function analyzeGoodTidePoolingDays() {
     try {
         const now = new Date();
         const endDate = new Date(now);
-        endDate.setMonth(endDate.getMonth() + 3);
+        endDate.setMonth(endDate.getMonth() + 6);
         
         const [tides, sunsetMap] = await Promise.all([
             fetchTideData(),

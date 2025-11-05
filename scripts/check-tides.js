@@ -193,7 +193,7 @@ function formatNotificationMessage(days) {
     const maxDateLen = Math.max(...formattedDays.map(d => d.dateStr.length));
     const maxTimeLen = Math.max(...formattedDays.map(d => d.timeStr.length));
     
-    let message = '🌊 **Good Tide Pooling Days - Next Month**\n\n';
+    let message = '🌊 **Good Tide Pooling Days - Next Month**\n\n```\n';
     
     formattedDays.forEach(day => {
         const paddedDate = day.dateStr.padEnd(maxDateLen, ' ');
@@ -204,10 +204,10 @@ function formatNotificationMessage(days) {
         if (day.isWeekend) icons += '⭐ ';
         if (day.isSuperLow) icons += '🐙';
         
-        message += `**${paddedDate}**    ${paddedTime}    ${paddedHeight} ft  ${icons}\n`;
+        message += `${paddedDate}    ${paddedTime}    ${paddedHeight} ft  ${icons}\n`;
     });
     
-    message += `\nView calendar: https://ethanrabb.com/tides\n`;
+    message += `\`\`\`\nView calendar: https://ethanrabb.com/tides\n`;
     message += `⭐ = Weekend | 🐙 = Super low tide (< -0.5 ft)`;
     
     return message;
