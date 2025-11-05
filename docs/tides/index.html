@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SF Tide Pooling</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🌊 SF Tide Pooling Guide</h1>
+            <div id="last-updated"></div>
+        </header>
+
+        <main>
+            <section class="tide-pooling">
+                <h2>Good Tide Pooling Days</h2>
+                <div id="tide-loading" class="tide-status">Loading tide data...</div>
+                <div id="tide-error" class="tide-status" style="display: none;">Unable to load tide data</div>
+                <div class="tide-list" id="tide-container">
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="weather.js"></script>
+</body>
+</html>
+

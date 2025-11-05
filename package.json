@@ -1,0 +1,13 @@
+{
+  "name": "ethan-personal-site",
+  "version": "1.0.0",
+  "description": "Personal website with automated notifications",
+  "scripts": {
+    "check-tides": "node scripts/check-tides.js"
+  },
+  "dependencies": {
+    "node-fetch": "^2.7.0"
+  },
+  "type": "commonjs"
+}
+
