@@ -209,7 +209,8 @@ function formatNotificationMessage(days) {
     });
     
     message += `\`\`\`\nView calendar: https://ethanrabb.com/tides\n`;
-    message += `⭐ = Weekend | 🐙 = Super low tide (< -0.5 ft)`;
+    message += `⭐ = Weekend | 🐙 = Super low tide (< -0.5 ft)\n\n`;
+    message += `<@720028244795195493>`;
     
     return message;
 }
