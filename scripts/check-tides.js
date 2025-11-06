@@ -165,7 +165,8 @@ function formatTideDate(date) {
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     
-    return `${months[date.getMonth()]} ${date.getDate()} (${days[date.getDay()]})`;
+    const day = String(date.getDate()).padStart(2, ' ');
+    return `${months[date.getMonth()]} ${day} (${days[date.getDay()]})`;
 }
 
 function formatTideTime(date) {
