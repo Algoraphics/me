@@ -205,7 +205,7 @@ function formatNotificationMessage(days) {
         if (day.isWeekend) icons += '⭐ ';
         if (day.isSuperLow) icons += '🐙';
         
-        message += `${paddedDate}    ${paddedTime}    ${paddedHeight} ft  ${icons}\n`;
+        message += `${paddedDate}  ${paddedTime}  ${paddedHeight}ft ${icons}\n`;
     });
     
     message += `\`\`\`\nView calendar: https://ethanrabb.com/tides\n`;
