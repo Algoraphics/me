@@ -6,6 +6,7 @@
     <title>Vivarium</title>
     <script src="markdown-it.min.js"></script>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="../emoji/blob-emoji.css">
     <script>
         if (sessionStorage.getItem('githubToken')) {
             document.documentElement.style.visibility = 'hidden';
@@ -15,7 +16,7 @@
 <body>
     <div id="login-screen">
         <div id="login-box">
-            <h1>🌿 Vivarium</h1>
+            <h1><img src="../emoji/blob/emoji_u1f33f.svg" class="blob-emoji"> Vivarium</h1>
             <form id="login-form" onsubmit="return false;">
                 <input 
                     type="text" 
@@ -40,7 +41,7 @@
 
     <div id="wiki-container">
         <div id="header">
-            <h1>🌿 Vivarium</h1>
+            <h1><img src="../emoji/blob/emoji_u1f33f.svg" class="blob-emoji"> Vivarium</h1>
             <div id="header-actions">
                 <button id="index-button">Index</button>
                 <button id="logout-button">Logout</button>

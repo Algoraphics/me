@@ -2,10 +2,13 @@ const path = require('path');
 
 module.exports = {
     devtool: 'source-map',
-    entry: path.resolve(__dirname, 'app.tsx'),
+    entry: {
+        app: path.resolve(__dirname, 'app.tsx'),
+        activities: path.resolve(__dirname, 'activities/activities.tsx')
+    },
     mode: "development",
     output: {
-        filename: "app-bundle.js",
+        filename: "[name]-bundle.js",
         path: path.resolve(__dirname, 'dist')
     },
     resolve: {
