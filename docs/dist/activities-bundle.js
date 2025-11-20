@@ -51338,12 +51338,12 @@ function LoginScreen({ onLogin }) {
     return (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { id: "login-screen" },
         react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { id: "login-box" },
             react__WEBPACK_IMPORTED_MODULE_0___default().createElement("h1", null, "Activities"),
-            react__WEBPACK_IMPORTED_MODULE_0___default().createElement("form", { onSubmit: (e) => { e.preventDefault(); handleLogin(); } },
+            react__WEBPACK_IMPORTED_MODULE_0___default().createElement("form", { id: "login-form", onSubmit: (e) => { e.preventDefault(); handleLogin(); } },
                 react__WEBPACK_IMPORTED_MODULE_0___default().createElement("input", { type: "text", name: "username", value: "activities", autoComplete: "username", style: { display: 'none' } }),
-                react__WEBPACK_IMPORTED_MODULE_0___default().createElement("input", { type: "password", value: token, onChange: (e) => setToken(e.target.value), name: "password", placeholder: "Enter GitHub Token", autoComplete: "current-password", style: { display: loading ? 'none' : 'block' } }),
-                react__WEBPACK_IMPORTED_MODULE_0___default().createElement("button", { type: "submit", style: { display: loading ? 'none' : 'block' } }, "Enter")),
-            error && react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { id: "error-message", style: { display: 'block' } }, "Bad Password."),
-            loading && react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { id: "loading-message", style: { display: 'block' } }, "Loading activities..."))));
+                react__WEBPACK_IMPORTED_MODULE_0___default().createElement("input", { type: "password", id: "token-input", value: token, onChange: (e) => setToken(e.target.value), name: "password", placeholder: "Enter GitHub Token", autoComplete: "current-password" }),
+                react__WEBPACK_IMPORTED_MODULE_0___default().createElement("button", { id: "login-button", type: "submit" }, "Enter")),
+            react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { id: "error-message", style: { display: error ? 'block' : 'none' } }, "Bad Password."),
+            react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { id: "loading-message", style: { display: loading ? 'block' : 'none' } }, "Loading activities..."))));
 }
 const WEATHER_OPTIONS = [
     { value: 'sun', src: '../emoji/blob/emoji_u2600.svg', label: 'Sun', alt: '☀️' },

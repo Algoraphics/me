@@ -134,7 +134,7 @@ function LoginScreen({ onLogin }: { onLogin: (token: string, data: ActivitiesDat
         <div id="login-screen">
             <div id="login-box">
                 <h1>Activities</h1>
-                <form onSubmit={(e) => { e.preventDefault(); handleLogin(); }}>
+                <form id="login-form" onSubmit={(e) => { e.preventDefault(); handleLogin(); }}>
                     <input 
                         type="text" 
                         name="username"
@@ -144,17 +144,17 @@ function LoginScreen({ onLogin }: { onLogin: (token: string, data: ActivitiesDat
                     />
                     <input 
                         type="password" 
+                        id="token-input"
                         value={token}
                         onChange={(e) => setToken(e.target.value)}
                         name="password"
                         placeholder="Enter GitHub Token"
                         autoComplete="current-password"
-                        style={{ display: loading ? 'none' : 'block' }}
                     />
-                    <button type="submit" style={{ display: loading ? 'none' : 'block' }}>Enter</button>
+                    <button id="login-button" type="submit">Enter</button>
                 </form>
-                {error && <div id="error-message" style={{ display: 'block' }}>Bad Password.</div>}
-                {loading && <div id="loading-message" style={{ display: 'block' }}>Loading activities...</div>}
+                <div id="error-message" style={{ display: error ? 'block' : 'none' }}>Bad Password.</div>
+                <div id="loading-message" style={{ display: loading ? 'block' : 'none' }}>Loading activities...</div>
             </div>
         </div>
     );
