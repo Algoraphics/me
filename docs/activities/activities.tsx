@@ -6,6 +6,8 @@ const REPO_OWNER = 'Algoraphics';
 const REPO_NAME = 'Vivarium';
 const ACTIVITIES_PATH = 'activities/activities.json';
 
+const DEV_MODE = false;
+
 
 interface Activity {
     name: string;
@@ -101,7 +103,7 @@ function LoginScreen({ onLogin }: { onLogin: (token: string, data: ActivitiesDat
     const [loading, setLoading] = useState(false);
     
     useEffect(() => {
-        const savedToken = sessionStorage.getItem('activitiesGithubToken');
+        const savedToken = sessionStorage.getItem('githubToken');
         if (savedToken) {
             setToken(savedToken);
             handleLogin(savedToken);
@@ -117,7 +119,7 @@ function LoginScreen({ onLogin }: { onLogin: (token: string, data: ActivitiesDat
             await githubAPI(loginToken, '/user');
             const data = await fetchActivities(loginToken, true);
             
-            sessionStorage.setItem('activitiesGithubToken', loginToken);
+            sessionStorage.setItem('githubToken', loginToken);
             document.documentElement.style.visibility = 'visible';
             onLogin(loginToken, data);
         } catch (err) {
@@ -1101,7 +1103,7 @@ function ActivitiesApp() {
     };
     
     const handleLogout = () => {
-        sessionStorage.removeItem('activitiesGithubToken');
+        sessionStorage.removeItem('githubToken');
         localStorage.removeItem('activitiesCache');
         setIsLoggedIn(false);
         setToken('');

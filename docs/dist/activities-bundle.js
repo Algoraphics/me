@@ -51244,6 +51244,7 @@ __webpack_require__.r(__webpack_exports__);
 const REPO_OWNER = 'Algoraphics';
 const REPO_NAME = 'Vivarium';
 const ACTIVITIES_PATH = 'activities/activities.json';
+const DEV_MODE = false;
 async function githubAPI(token, endpoint, options = {}) {
     const response = await fetch(`https://api.github.com${endpoint}`, {
         ...options,
@@ -51310,7 +51311,7 @@ function LoginScreen({ onLogin }) {
     const [error, setError] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)(false);
     const [loading, setLoading] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)(false);
     (0,react__WEBPACK_IMPORTED_MODULE_0__.useEffect)(() => {
-        const savedToken = sessionStorage.getItem('activitiesGithubToken');
+        const savedToken = sessionStorage.getItem('githubToken');
         if (savedToken) {
             setToken(savedToken);
             handleLogin(savedToken);
@@ -51323,7 +51324,7 @@ function LoginScreen({ onLogin }) {
         try {
             await githubAPI(loginToken, '/user');
             const data = await fetchActivities(loginToken, true);
-            sessionStorage.setItem('activitiesGithubToken', loginToken);
+            sessionStorage.setItem('githubToken', loginToken);
             document.documentElement.style.visibility = 'visible';
             onLogin(loginToken, data);
         }
@@ -51918,7 +51919,7 @@ function ActivitiesApp() {
         setIsLoggedIn(true);
     };
     const handleLogout = () => {
-        sessionStorage.removeItem('activitiesGithubToken');
+        sessionStorage.removeItem('githubToken');
         localStorage.removeItem('activitiesCache');
         setIsLoggedIn(false);
         setToken('');
