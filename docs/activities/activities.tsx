@@ -728,8 +728,8 @@ function ActivityCard({
                         {activity.timeCommitment && (
                             <span className="activity-tag">
                                 {activity.timeCommitment.min === activity.timeCommitment.max 
-                                    ? `${activity.timeCommitment.min}hours`
-                                    : `${activity.timeCommitment.min}-${activity.timeCommitment.max}hours`
+                                    ? `${activity.timeCommitment.min} hours`
+                                    : `${activity.timeCommitment.min}-${activity.timeCommitment.max} hours`
                                 }
                             </span>
                         )}
