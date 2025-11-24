@@ -51301,7 +51301,13 @@ async function fetchActivities(token, useCache = true) {
     }
     console.log('Fetching activities from GitHub...');
     const fileData = await githubAPI(token, `/repos/${REPO_OWNER}/${REPO_NAME}/contents/${ACTIVITIES_PATH}`);
-    const content = atob(fileData.content.replace(/\n/g, ''));
+    const base64Content = fileData.content.replace(/\n/g, '');
+    const binaryString = atob(base64Content);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+    }
+    const content = new TextDecoder('utf-8').decode(bytes);
     const activities = JSON.parse(content);
     setCachedActivities(activities);
     return activities;
@@ -51323,7 +51329,9 @@ function LoginScreen({ onLogin }) {
         setLoading(true);
         try {
             await githubAPI(loginToken, '/user');
-            const data = await fetchActivities(loginToken, true);
+            // Clear cache and fetch fresh data on login
+            invalidateCache();
+            const data = await fetchActivities(loginToken, false);
             sessionStorage.setItem('githubToken', loginToken);
             document.documentElement.style.visibility = 'visible';
             onLogin(loginToken, data);
@@ -51339,7 +51347,7 @@ function LoginScreen({ onLogin }) {
         react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { id: "login-box" },
             react__WEBPACK_IMPORTED_MODULE_0___default().createElement("h1", null, "Activities"),
             react__WEBPACK_IMPORTED_MODULE_0___default().createElement("form", { id: "login-form", onSubmit: (e) => { e.preventDefault(); handleLogin(); } },
-                react__WEBPACK_IMPORTED_MODULE_0___default().createElement("input", { type: "text", name: "username", value: "activities", autoComplete: "username", style: { display: 'none' } }),
+                react__WEBPACK_IMPORTED_MODULE_0___default().createElement("input", { type: "text", name: "username", defaultValue: "activities", autoComplete: "username", style: { display: 'none' }, readOnly: true }),
                 react__WEBPACK_IMPORTED_MODULE_0___default().createElement("input", { type: "password", id: "token-input", value: token, onChange: (e) => setToken(e.target.value), name: "password", placeholder: "Enter GitHub Token", autoComplete: "current-password" }),
                 react__WEBPACK_IMPORTED_MODULE_0___default().createElement("button", { id: "login-button", type: "submit" }, "Enter")),
             react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { id: "error-message", style: { display: error ? 'block' : 'none' } }, "Bad Password."),
@@ -51367,6 +51375,20 @@ const SETTING_OPTIONS = [
     { value: 'home', src: '../emoji/blob/emoji_u1f3e1.svg', label: 'Home', alt: '🏡' },
 ];
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const MONTH_DATA = [
+    { name: 'Jan', emoji: '../emoji/blob/emoji_u26c4.svg' }, // ⛄ snowman
+    { name: 'Feb', emoji: '../emoji/blob/emoji_u1f496.svg' }, // 💖 sparkling heart
+    { name: 'Mar', emoji: '../emoji/blob/emoji_u1f340.svg' }, // 🍀 four leaf clover
+    { name: 'Apr', emoji: '../emoji/blob/emoji_u1f327.svg' }, // 🌧️ rain
+    { name: 'May', emoji: '../emoji/blob/emoji_u1f337.svg' }, // 🌷 tulip
+    { name: 'Jun', emoji: '../emoji/blob/emoji_u1f3d6.svg' }, // 🏖️ beach
+    { name: 'Jul', emoji: '../emoji/blob/emoji_u1f386.svg' }, // 🎆 firework
+    { name: 'Aug', emoji: '../emoji/blob/emoji_u1f33e.svg' }, // 🌾 ear of rice
+    { name: 'Sep', emoji: '../emoji/blob/emoji_u1f342.svg' }, // 🍂 fallen leaves
+    { name: 'Oct', emoji: '../emoji/blob/emoji_u1f383.svg' }, // 🎃 pumpkin
+    { name: 'Nov', emoji: '../emoji/blob/emoji_u1f983.svg' }, // 🦃 turkey
+    { name: 'Dec', emoji: '../emoji/blob/emoji_u1f384.svg' } // 🎄 christmas tree
+];
 const toggleStyles = {
     display: 'flex',
     flexWrap: 'wrap',
@@ -51472,15 +51494,77 @@ function MonthsToggleGroup({ value, onChange }) {
     return (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "mui-toggle-container" },
         react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_mui_material__WEBPACK_IMPORTED_MODULE_2__["default"], { value: value, onChange: (e, v) => onChange(v || []), sx: { ...toggleStyles, '& .MuiToggleButton-root': { ...toggleStyles['& .MuiToggleButton-root'], fontSize: '13px', padding: '8px 10px' } } }, MONTH_NAMES.map(month => (react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_mui_material__WEBPACK_IMPORTED_MODULE_3__["default"], { value: month, key: month }, month))))));
 }
-function MonthsSlider({ value, onChange, isRange }) {
-    const monthMarks = MONTH_NAMES.map((name, i) => ({ value: i, label: name }));
-    return (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "mui-slider-container" },
-        react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_mui_material__WEBPACK_IMPORTED_MODULE_4__["default"], { value: value, onChange: (e, v) => onChange(v), min: 0, max: 11, step: 1, marks: monthMarks, valueLabelDisplay: "off", track: isRange !== false ? 'normal' : false, sx: {
-                color: '#20c997',
-                '& .MuiSlider-markLabel': { color: '#b0b0b0', fontSize: '11px' },
-                '& .MuiSlider-mark': { backgroundColor: '#575757' },
-                '& .MuiSlider-rail': { backgroundColor: '#3d3d3d' }
-            } })));
+function MonthSelector({ selectedMonths, onChange, isFilter = false }) {
+    const [selectionState, setSelectionState] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)({
+        firstMonth: null,
+        secondMonth: null
+    });
+    // Calculate range from first to second month (with wrap-around)
+    const calculateRange = (start, end) => {
+        const range = [];
+        let current = start;
+        while (true) {
+            range.push(current);
+            if (current === end)
+                break;
+            current = (current + 1) % 12;
+        }
+        return range;
+    };
+    const handleMonthClick = (monthIndex) => {
+        if (isFilter) {
+            // Filter mode: single month selection
+            const monthName = MONTH_DATA[monthIndex].name;
+            const newSelection = selectedMonths.includes(monthName) ? [] : [monthName];
+            onChange(newSelection);
+        }
+        else {
+            // Form mode: range selection logic
+            if (selectionState.firstMonth === null) {
+                // First selection
+                setSelectionState({ firstMonth: monthIndex, secondMonth: null });
+                onChange([MONTH_DATA[monthIndex].name]);
+            }
+            else if (selectionState.secondMonth === null && monthIndex !== selectionState.firstMonth) {
+                // Second selection - calculate range
+                const range = calculateRange(selectionState.firstMonth, monthIndex);
+                const monthNames = range.map(i => MONTH_DATA[i].name);
+                setSelectionState({ firstMonth: selectionState.firstMonth, secondMonth: monthIndex });
+                onChange(monthNames);
+            }
+            else {
+                // Third selection or clicking same month - reset and start over
+                setSelectionState({ firstMonth: monthIndex, secondMonth: null });
+                onChange([MONTH_DATA[monthIndex].name]);
+            }
+        }
+    };
+    const isMonthSelected = (monthIndex) => {
+        return selectedMonths.includes(MONTH_DATA[monthIndex].name);
+    };
+    const getMonthState = (monthIndex) => {
+        if (isFilter) {
+            // Filter mode: only show selected state
+            return isMonthSelected(monthIndex) ? 'selected' : 'none';
+        }
+        else {
+            // Form mode: show range selection states
+            if (selectionState.firstMonth === monthIndex)
+                return 'first';
+            if (selectionState.secondMonth === monthIndex)
+                return 'second';
+            if (isMonthSelected(monthIndex))
+                return 'selected';
+            return 'none';
+        }
+    };
+    return (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "month-selector" },
+        react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "month-grid" }, MONTH_DATA.map((month, index) => {
+            const state = getMonthState(index);
+            return (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("button", { key: month.name, type: "button", className: `month-button ${state}`, onClick: () => handleMonthClick(index) },
+                react__WEBPACK_IMPORTED_MODULE_0___default().createElement("img", { src: month.emoji, className: "month-emoji blob-emoji", alt: month.name }),
+                react__WEBPACK_IMPORTED_MODULE_0___default().createElement("span", { className: "month-name" }, month.name)));
+        }))));
 }
 function PeopleSlider({ value, onChange, isRange }) {
     const peopleMarks = [1, 2, 3, 4, 5, 6, 7, 8].map(v => ({ value: v, label: v.toString() }));
@@ -51508,44 +51592,7 @@ function TimeCommitmentSlider({ value, onChange, isRange }) {
                 '& .MuiSlider-valueLabel': { backgroundColor: '#20c997' }
             } })));
 }
-function TimeOfDaySlider({ value, onChange }) {
-    const timeMarks = [6, 9, 12, 15, 18, 21, 24].map(i => {
-        if (i === 12)
-            return { value: i, label: '12pm' };
-        if (i === 24)
-            return { value: i, label: '12am' };
-        if (i < 12)
-            return { value: i, label: `${i}am` };
-        return { value: i, label: `${i - 12}pm` };
-    });
-    return (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "mui-slider-container" },
-        react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_mui_material__WEBPACK_IMPORTED_MODULE_4__["default"], { value: value, onChange: (e, v) => onChange(v), min: 6, max: 24, step: 0.5, marks: timeMarks, valueLabelDisplay: "auto", valueLabelFormat: (v) => {
-                const hours = Math.floor(v);
-                const minutes = Math.round((v % 1) * 60);
-                let displayHour = hours;
-                let period = 'am';
-                if (hours === 24) {
-                    displayHour = 12;
-                }
-                else if (hours === 12) {
-                    displayHour = 12;
-                    period = 'pm';
-                }
-                else if (hours > 12) {
-                    displayHour = hours - 12;
-                    period = 'pm';
-                }
-                return minutes > 0 ? `${displayHour}:${minutes.toString().padStart(2, '0')}${period}` : `${displayHour}${period}`;
-            }, sx: {
-                color: '#20c997',
-                '& .MuiSlider-markLabel': { color: '#b0b0b0', fontSize: '11px' },
-                '& .MuiSlider-mark': { backgroundColor: '#575757' },
-                '& .MuiSlider-rail': { backgroundColor: '#3d3d3d' },
-                '& .MuiSlider-valueLabel': { backgroundColor: '#20c997' }
-            } })));
-}
-function FiltersPanel({ weatherFilter, setWeatherFilter, monthsFilter, setMonthsFilter, peopleMin, setPeopleMin, timeCommitMax, setTimeCommitMax, fitnessFilter, setFitnessFilter, settingFilter, setSettingFilter, timeOfDayRange, setTimeOfDayRange, expandedSections, setExpandedSections, onClear }) {
-    const [panelCollapsed, setPanelCollapsed] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)(false);
+function FiltersPanel({ weatherFilter, setWeatherFilter, monthsFilter, setMonthsFilter, hideYearRound, setHideYearRound, peopleMin, setPeopleMin, timeCommitMax, setTimeCommitMax, fitnessFilter, setFitnessFilter, settingFilter, setSettingFilter, expandedSections, setExpandedSections, panelCollapsed, setPanelCollapsed, onClear }) {
     const toggleSection = (section) => {
         const newExpanded = new Set(expandedSections);
         if (newExpanded.has(section)) {
@@ -51556,7 +51603,7 @@ function FiltersPanel({ weatherFilter, setWeatherFilter, monthsFilter, setMonths
         }
         setExpandedSections(newExpanded);
     };
-    const allSections = ['weather', 'fitness', 'setting', 'months', 'timeCommit', 'timeOfDay', 'people'];
+    const allSections = ['weather', 'fitness', 'setting', 'months', 'timeCommit', 'people'];
     const allCollapsed = expandedSections.size === 0;
     const toggleAllSections = () => {
         if (allCollapsed) {
@@ -51570,7 +51617,7 @@ function FiltersPanel({ weatherFilter, setWeatherFilter, monthsFilter, setMonths
         react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { id: "filter-header", onClick: () => setPanelCollapsed(!panelCollapsed) },
             react__WEBPACK_IMPORTED_MODULE_0___default().createElement("h2", null, "Filters"),
             react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { style: { display: 'flex', gap: '8px', alignItems: 'center' } },
-                react__WEBPACK_IMPORTED_MODULE_0___default().createElement("button", { id: "collapse-filters-button", onClick: (e) => { e.stopPropagation(); toggleAllSections(); } }, allCollapsed ? 'Expand All' : 'Collapse All'),
+                react__WEBPACK_IMPORTED_MODULE_0___default().createElement("button", { id: "collapse-filters-button", onClick: (e) => { e.stopPropagation(); toggleAllSections(); } }, allCollapsed ? 'Enable All' : 'Disable All'),
                 react__WEBPACK_IMPORTED_MODULE_0___default().createElement("button", { id: "clear-filters-button", onClick: (e) => { e.stopPropagation(); onClear(); } }, "Reset All"),
                 react__WEBPACK_IMPORTED_MODULE_0___default().createElement("button", { id: "toggle-filters-button" }, "\u25BC"))),
         react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { id: "filter-content" },
@@ -51597,19 +51644,17 @@ function FiltersPanel({ weatherFilter, setWeatherFilter, monthsFilter, setMonths
                     react__WEBPACK_IMPORTED_MODULE_0___default().createElement("span", null, "Months"),
                     react__WEBPACK_IMPORTED_MODULE_0___default().createElement("span", { className: "accordion-icon" }, "\u25BC")),
                 react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "filter-accordion-content" },
-                    react__WEBPACK_IMPORTED_MODULE_0___default().createElement(MonthsSlider, { value: monthsFilter, onChange: setMonthsFilter, isRange: false }))),
+                    react__WEBPACK_IMPORTED_MODULE_0___default().createElement(MonthSelector, { selectedMonths: monthsFilter, onChange: setMonthsFilter, isFilter: true }),
+                    react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { style: { marginTop: '6px', display: 'flex', justifyContent: 'center' } },
+                        react__WEBPACK_IMPORTED_MODULE_0___default().createElement("label", { style: { display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '14px', color: '#b0b0b0' } },
+                            react__WEBPACK_IMPORTED_MODULE_0___default().createElement("input", { type: "checkbox", checked: hideYearRound, onChange: (e) => setHideYearRound(e.target.checked), className: "custom-checkbox" }),
+                            "Disable year-round activities")))),
             react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: `filter-section ${!expandedSections.has('timeCommit') ? 'collapsed' : ''}` },
                 react__WEBPACK_IMPORTED_MODULE_0___default().createElement("h3", { className: "filter-accordion-header", onClick: () => toggleSection('timeCommit') },
                     react__WEBPACK_IMPORTED_MODULE_0___default().createElement("span", null, "Max Time Commitment"),
                     react__WEBPACK_IMPORTED_MODULE_0___default().createElement("span", { className: "accordion-icon" }, "\u25BC")),
                 react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "filter-accordion-content" },
                     react__WEBPACK_IMPORTED_MODULE_0___default().createElement(TimeCommitmentSlider, { value: timeCommitMax, onChange: setTimeCommitMax, isRange: false }))),
-            react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: `filter-section ${!expandedSections.has('timeOfDay') ? 'collapsed' : ''}` },
-                react__WEBPACK_IMPORTED_MODULE_0___default().createElement("h3", { className: "filter-accordion-header", onClick: () => toggleSection('timeOfDay') },
-                    react__WEBPACK_IMPORTED_MODULE_0___default().createElement("span", null, "Time of Day"),
-                    react__WEBPACK_IMPORTED_MODULE_0___default().createElement("span", { className: "accordion-icon" }, "\u25BC")),
-                react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "filter-accordion-content" },
-                    react__WEBPACK_IMPORTED_MODULE_0___default().createElement(TimeOfDaySlider, { value: timeOfDayRange, onChange: setTimeOfDayRange }))),
             react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: `filter-section ${!expandedSections.has('people') ? 'collapsed' : ''}` },
                 react__WEBPACK_IMPORTED_MODULE_0___default().createElement("h3", { className: "filter-accordion-header", onClick: () => toggleSection('people') },
                     react__WEBPACK_IMPORTED_MODULE_0___default().createElement("span", null, "Number of People"),
@@ -51617,24 +51662,44 @@ function FiltersPanel({ weatherFilter, setWeatherFilter, monthsFilter, setMonths
                 react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "filter-accordion-content" },
                     react__WEBPACK_IMPORTED_MODULE_0___default().createElement(PeopleSlider, { value: peopleMin, onChange: setPeopleMin, isRange: false }))))));
 }
+function SearchBar({ searchQuery, onSearchChange }) {
+    return (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "search-container" },
+        react__WEBPACK_IMPORTED_MODULE_0___default().createElement("input", { type: "text", placeholder: "Search...", value: searchQuery, onChange: (e) => onSearchChange(e.target.value), className: "search-input" })));
+}
 function ActivityCard({ activityId, activity, expanded, onToggle, onEdit }) {
-    // Convert URLs in text to clickable links
-    const linkifyText = (text) => {
-        const urlRegex = /(https?:\/\/[^\s]+)/g;
-        return text.replace(urlRegex, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+    // Convert URLs in text to clickable links, emojis to blob emojis, and newlines to <br>
+    const processText = (text) => {
+        // First convert newlines to <br> tags
+        let processedText = text.replace(/\n/g, '<br>');
+        // Then convert URLs to links
+        processedText = processedText.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+        // Finally convert emojis to blob emojis
+        processedText = processedText.replace(/[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F700}-\u{1F77F}]|[\u{1F780}-\u{1F7FF}]|[\u{1F800}-\u{1F8FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, (match) => {
+            const codePoint = match.codePointAt(0);
+            if (codePoint) {
+                const hex = codePoint.toString(16).toLowerCase().padStart(4, '0');
+                return `<img src="../emoji/blob/emoji_u${hex}.svg" class="blob-emoji" alt="${match}" style="display: inline; vertical-align: middle;">`;
+            }
+            return match;
+        });
+        return processedText;
     };
     return (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: `activity-card ${expanded ? 'expanded' : ''}`, "data-activity-id": activityId, onClick: onToggle },
         react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "activity-header" },
             react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", null,
-                react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "activity-name" }, activity.name),
+                react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "activity-name", dangerouslySetInnerHTML: { __html: processText(activity.name) } }),
                 react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "activity-tags" },
-                    activity.setting && (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("span", { className: "activity-tag" }, activity.setting.charAt(0).toUpperCase() + activity.setting.slice(1))),
+                    activity.setting && (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("span", { className: "activity-tag" },
+                        react__WEBPACK_IMPORTED_MODULE_0___default().createElement("img", { src: SETTING_OPTIONS.find(opt => opt.value === activity.setting)?.src || '../emoji/blob/emoji_u1f3e1.svg', className: "blob-emoji tag-emoji", alt: activity.setting, title: activity.setting.charAt(0).toUpperCase() + activity.setting.slice(1) }))),
                     activity.fitnessLevel && (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("span", { className: "activity-tag" }, activity.fitnessLevel.charAt(0).toUpperCase() + activity.fitnessLevel.slice(1))),
+                    activity.timeCommitment && (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("span", { className: "activity-tag" }, activity.timeCommitment.min === activity.timeCommitment.max
+                        ? `${activity.timeCommitment.min}hours`
+                        : `${activity.timeCommitment.min}-${activity.timeCommitment.max}hours`)),
                     activity.distance && (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("span", { className: "activity-tag" }, activity.distance)))),
             react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { style: { display: 'flex', alignItems: 'center', gap: '10px' } },
                 expanded && (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("button", { className: "edit-activity-button", onClick: (e) => { e.stopPropagation(); onEdit(); } }, "Edit")),
                 react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "expand-icon" }, "\u25B6"))),
-        react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "activity-description", dangerouslySetInnerHTML: { __html: linkifyText(activity.description) }, onClick: (e) => e.stopPropagation() }),
+        react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "activity-description", dangerouslySetInnerHTML: { __html: processText(activity.description) }, onClick: (e) => e.stopPropagation() }),
         react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "activity-details", onClick: (e) => e.stopPropagation() },
             activity.idealWeather && activity.idealWeather.length > 0 && (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "detail-item" },
                 react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "detail-label" }, "Ideal weather"),
@@ -51645,12 +51710,6 @@ function ActivityCard({ activityId, activity, expanded, onToggle, onEdit }) {
             activity.months && activity.months.length > 0 && (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "detail-item" },
                 react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "detail-label" }, "Best Months"),
                 react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "detail-value" }, activity.months.join(', ')))),
-            activity.timeOfDay && (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "detail-item" },
-                react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "detail-label" }, "Time of Day"),
-                react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "detail-value" },
-                    activity.timeOfDay.start,
-                    " - ",
-                    activity.timeOfDay.end))),
             activity.numPeople && (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "detail-item" },
                 react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "detail-label" }, "Number of People"),
                 react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "detail-value" },
@@ -51666,6 +51725,8 @@ function ActivityCard({ activityId, activity, expanded, onToggle, onEdit }) {
                     " hours"))))));
 }
 function ActivityList({ activities, expandedActivities, onToggle, onEdit, filters }) {
+    console.log('🎨 ActivityList rendering with:', Object.keys(activities).length, 'activities');
+    console.log('📝 Activity names in render:', Object.values(activities).map(a => a.name));
     const activityMatchesFilters = (activity) => {
         if (filters.weather.length > 0) {
             const hasIdealMatch = activity.idealWeather &&
@@ -51679,6 +51740,19 @@ function ActivityList({ activities, expandedActivities, onToggle, onEdit, filter
         }
         if (filters.months.length > 0) {
             if (!activity.months || !activity.months.some(m => filters.months.includes(m))) {
+                return false;
+            }
+        }
+        if (filters.hideYearRound) {
+            if (activity.months && activity.months.length === 12) {
+                return false;
+            }
+        }
+        if (filters.searchQuery) {
+            const query = filters.searchQuery.toLowerCase();
+            const nameMatch = activity.name.toLowerCase().includes(query);
+            const descMatch = activity.description.toLowerCase().includes(query);
+            if (!nameMatch && !descMatch) {
                 return false;
             }
         }
@@ -51708,33 +51782,20 @@ function ActivityList({ activities, expandedActivities, onToggle, onEdit, filter
                 return false;
             }
         }
-        if (filters.timeOfDayStart !== null || filters.timeOfDayEnd !== null) {
-            if (!activity.timeOfDay)
-                return false;
-            const activityStart = parseInt(activity.timeOfDay.start.split(':')[0]) + parseInt(activity.timeOfDay.start.split(':')[1]) / 60;
-            const activityEnd = parseInt(activity.timeOfDay.end.split(':')[0]) + parseInt(activity.timeOfDay.end.split(':')[1]) / 60;
-            if (filters.timeOfDayStart !== null && activityEnd < filters.timeOfDayStart)
-                return false;
-            if (filters.timeOfDayEnd !== null && activityStart > filters.timeOfDayEnd)
-                return false;
-        }
         return true;
     };
     const filteredIds = Object.keys(activities).filter(id => activityMatchesFilters(activities[id]));
-    const shuffleArray = (array) => {
-        const shuffled = [...array];
-        for (let i = shuffled.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-        }
-        return shuffled;
-    };
-    const [shuffledIds] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)(() => shuffleArray(filteredIds));
-    const displayIds = shuffledIds.filter(id => filteredIds.includes(id));
+    console.log('🔍 After filtering:', filteredIds.length, 'activities match filters');
+    console.log('📝 Filtered activity names:', filteredIds.map(id => activities[id].name));
+    // Sort activities alphabetically by name
+    const sortedIds = filteredIds.sort((a, b) => activities[a].name.localeCompare(activities[b].name));
+    const displayIds = sortedIds;
     if (displayIds.length === 0) {
         return (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { id: "activities-list" },
             react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { id: "loading-activities" }, "No activities match the current filters.")));
     }
+    console.log('🎭 About to render', displayIds.length, 'ActivityCard components');
+    console.log('🆔 Display IDs:', displayIds);
     return (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { id: "activities-list" }, displayIds.map(id => (react__WEBPACK_IMPORTED_MODULE_0___default().createElement(ActivityCard, { key: id, activityId: id, activity: activities[id], expanded: expandedActivities.has(id), onToggle: () => onToggle(id), onEdit: () => onEdit(id, activities[id]) })))));
 }
 function AddActivityForm({ onClose, onSave, onDelete, editingActivity, token }) {
@@ -51743,38 +51804,30 @@ function AddActivityForm({ onClose, onSave, onDelete, editingActivity, token }) 
         description: '',
         idealWeather: [],
         avoidWeather: [],
-        monthsRange: [0, 11],
-        timeOfDay: [9, 17],
-        people: [2, 6],
+        selectedMonths: [],
+        people: [1, 8],
         fitnessLevel: 'easy',
         setting: 'wilderness',
-        timeCommitment: [2, 4]
+        timeCommitment: [2, 4],
+        reverseWeather: false
     });
     const [status, setStatus] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)(null);
     const [deleteConfirm, setDeleteConfirm] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)(false);
     (0,react__WEBPACK_IMPORTED_MODULE_0__.useEffect)(() => {
         if (editingActivity) {
             const act = editingActivity.activity;
-            const startHour = parseInt(act.timeOfDay.start.split(':')[0]) + parseInt(act.timeOfDay.start.split(':')[1]) / 60;
-            const endHour = parseInt(act.timeOfDay.end.split(':')[0]) + parseInt(act.timeOfDay.end.split(':')[1]) / 60;
-            let monthRange = [0, 11];
-            if (act.months && act.months.length > 0) {
-                const monthIndices = act.months.map(m => MONTH_NAMES.indexOf(m)).filter(i => i >= 0);
-                if (monthIndices.length > 0) {
-                    monthRange = [Math.min(...monthIndices), Math.max(...monthIndices)];
-                }
-            }
+            const selectedMonths = act.months || [];
             setFormData({
                 name: act.name,
                 description: act.description,
                 idealWeather: act.idealWeather || [],
                 avoidWeather: act.avoidWeather || [],
-                monthsRange: monthRange,
-                timeOfDay: [startHour, endHour],
+                selectedMonths: selectedMonths,
                 people: [act.numPeople.min, act.numPeople.max],
                 fitnessLevel: act.fitnessLevel,
                 setting: act.setting,
-                timeCommitment: [act.timeCommitment.min, act.timeCommitment.max]
+                timeCommitment: [act.timeCommitment.min, act.timeCommitment.max],
+                reverseWeather: false
             });
         }
         else {
@@ -51783,12 +51836,12 @@ function AddActivityForm({ onClose, onSave, onDelete, editingActivity, token }) 
                 description: '',
                 idealWeather: [],
                 avoidWeather: [],
-                monthsRange: [0, 11],
-                timeOfDay: [9, 17],
-                people: [2, 6],
+                selectedMonths: [],
+                people: [1, 8],
                 fitnessLevel: 'easy',
                 setting: 'wilderness',
-                timeCommitment: [2, 4]
+                timeCommitment: [2, 4],
+                reverseWeather: false
             });
         }
         setDeleteConfirm(false);
@@ -51796,19 +51849,23 @@ function AddActivityForm({ onClose, onSave, onDelete, editingActivity, token }) 
     }, [editingActivity]);
     const handleSubmit = async (e) => {
         e.preventDefault();
+        // Validate required fields
+        if (!formData.name.trim()) {
+            setStatus({ message: 'Activity name is required', type: 'error' });
+            return;
+        }
         const formatTime = (hours) => {
             const h = Math.floor(hours);
             const m = Math.round((hours % 1) * 60);
             return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
         };
-        const selectedMonths = MONTH_NAMES.slice(formData.monthsRange[0], formData.monthsRange[1] + 1);
+        const selectedMonths = formData.selectedMonths;
         const activity = {
             name: formData.name,
             description: formData.description,
             idealWeather: formData.idealWeather,
             avoidWeather: formData.avoidWeather,
             months: selectedMonths,
-            timeOfDay: { start: formatTime(formData.timeOfDay[0]), end: formatTime(formData.timeOfDay[1]) },
             numPeople: { min: formData.people[0], max: formData.people[1] },
             distance: '',
             fitnessLevel: formData.fitnessLevel,
@@ -51858,8 +51915,27 @@ function AddActivityForm({ onClose, onSave, onDelete, editingActivity, token }) 
                     react__WEBPACK_IMPORTED_MODULE_0___default().createElement("label", null, "Should do this if weather is..."),
                     react__WEBPACK_IMPORTED_MODULE_0___default().createElement(WeatherToggleGroup, { value: formData.idealWeather, onChange: (v) => setFormData({ ...formData, idealWeather: v }) })),
                 react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "form-group" },
-                    react__WEBPACK_IMPORTED_MODULE_0___default().createElement("label", null, "Don't do this if weather is..."),
-                    react__WEBPACK_IMPORTED_MODULE_0___default().createElement(WeatherToggleGroup, { value: formData.avoidWeather, onChange: (v) => setFormData({ ...formData, avoidWeather: v }) })),
+                    react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' } },
+                        react__WEBPACK_IMPORTED_MODULE_0___default().createElement("label", null, "Don't do this if weather is..."),
+                        react__WEBPACK_IMPORTED_MODULE_0___default().createElement("label", { style: { display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '12px', color: '#b0b0b0' } },
+                            react__WEBPACK_IMPORTED_MODULE_0___default().createElement("input", { type: "checkbox", checked: formData.reverseWeather, onChange: (e) => {
+                                    const isReverse = e.target.checked;
+                                    setFormData({
+                                        ...formData,
+                                        reverseWeather: isReverse,
+                                        avoidWeather: isReverse
+                                            ? WEATHER_OPTIONS.map(opt => opt.value).filter(w => !formData.idealWeather.includes(w))
+                                            : []
+                                    });
+                                }, className: "custom-checkbox" }),
+                            "Reverse")),
+                    react__WEBPACK_IMPORTED_MODULE_0___default().createElement(WeatherToggleGroup, { value: formData.avoidWeather, onChange: (v) => {
+                            setFormData({ ...formData, avoidWeather: v });
+                            // If reverse is checked, update it based on manual changes
+                            if (formData.reverseWeather) {
+                                setFormData(prev => ({ ...prev, reverseWeather: false }));
+                            }
+                        } })),
                 react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "form-group" },
                     react__WEBPACK_IMPORTED_MODULE_0___default().createElement("label", null, "Fitness Level"),
                     react__WEBPACK_IMPORTED_MODULE_0___default().createElement(FitnessToggleGroup, { value: formData.fitnessLevel, onChange: (v) => setFormData({ ...formData, fitnessLevel: v }), singleSelect: true })),
@@ -51868,13 +51944,10 @@ function AddActivityForm({ onClose, onSave, onDelete, editingActivity, token }) 
                     react__WEBPACK_IMPORTED_MODULE_0___default().createElement(SettingToggleGroup, { value: formData.setting, onChange: (v) => setFormData({ ...formData, setting: v }), singleSelect: true })),
                 react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "form-group" },
                     react__WEBPACK_IMPORTED_MODULE_0___default().createElement("label", null, "Months"),
-                    react__WEBPACK_IMPORTED_MODULE_0___default().createElement(MonthsSlider, { value: formData.monthsRange, onChange: (v) => setFormData({ ...formData, monthsRange: v }) })),
+                    react__WEBPACK_IMPORTED_MODULE_0___default().createElement(MonthSelector, { selectedMonths: formData.selectedMonths, onChange: (months) => setFormData({ ...formData, selectedMonths: months }) })),
                 react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "form-group" },
                     react__WEBPACK_IMPORTED_MODULE_0___default().createElement("label", null, "Time Commitment"),
                     react__WEBPACK_IMPORTED_MODULE_0___default().createElement(TimeCommitmentSlider, { value: formData.timeCommitment, onChange: (v) => setFormData({ ...formData, timeCommitment: v }) })),
-                react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "form-group" },
-                    react__WEBPACK_IMPORTED_MODULE_0___default().createElement("label", null, "Time of Day"),
-                    react__WEBPACK_IMPORTED_MODULE_0___default().createElement(TimeOfDaySlider, { value: formData.timeOfDay, onChange: (v) => setFormData({ ...formData, timeOfDay: v }) })),
                 react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "form-group" },
                     react__WEBPACK_IMPORTED_MODULE_0___default().createElement("label", null, "Number of People"),
                     react__WEBPACK_IMPORTED_MODULE_0___default().createElement(PeopleSlider, { value: formData.people, onChange: (v) => setFormData({ ...formData, people: v }) })),
@@ -51893,24 +51966,29 @@ function ActivitiesApp() {
     const [currentView, setCurrentView] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)('list');
     const [editingActivity, setEditingActivity] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)(null);
     const [weatherFilter, setWeatherFilter] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)([]);
-    const [monthsFilter, setMonthsFilter] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)(() => new Date().getMonth());
+    const [monthsFilter, setMonthsFilter] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)([]);
+    const [hideYearRound, setHideYearRound] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)(false);
     const [peopleMin, setPeopleMin] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)(2);
     const [timeCommitMax, setTimeCommitMax] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)(4);
     const [fitnessFilter, setFitnessFilter] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)([]);
     const [settingFilter, setSettingFilter] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)([]);
-    const [timeOfDayRange, setTimeOfDayRange] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)([6, 24]);
-    const [expandedSections, setExpandedSections] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)(new Set(['weather', 'fitness', 'setting', 'months', 'timeCommit', 'timeOfDay', 'people']));
+    const [expandedSections, setExpandedSections] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)(new Set(['weather', 'fitness', 'setting', 'months', 'timeCommit', 'people']));
+    const [panelCollapsed, setPanelCollapsed] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)(() => {
+        // Collapse filter panel by default on mobile
+        return window.innerWidth <= 768;
+    });
+    const [searchQuery, setSearchQuery] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)('');
     const filters = {
         weather: expandedSections.has('weather') ? weatherFilter : [],
-        months: expandedSections.has('months') ? MONTH_NAMES.slice(0, monthsFilter + 1) : [],
+        months: expandedSections.has('months') ? monthsFilter : [],
+        hideYearRound: expandedSections.has('months') ? hideYearRound : false,
         peopleMin: expandedSections.has('people') ? peopleMin : null,
         peopleMax: null,
         timeMin: null,
         timeMax: expandedSections.has('timeCommit') ? timeCommitMax : null,
         fitness: expandedSections.has('fitness') ? fitnessFilter : [],
         settings: expandedSections.has('setting') ? settingFilter : [],
-        timeOfDayStart: expandedSections.has('timeOfDay') ? timeOfDayRange[0] : null,
-        timeOfDayEnd: expandedSections.has('timeOfDay') ? timeOfDayRange[1] : null
+        searchQuery: searchQuery.trim()
     };
     const handleLogin = (loginToken, data) => {
         setToken(loginToken);
@@ -51947,6 +52025,30 @@ function ActivitiesApp() {
         setCurrentView('list');
         setEditingActivity(null);
     };
+    const refreshActivities = async (fallbackData) => {
+        console.log('🔄 refreshActivities() called');
+        console.log('📊 Current activities count:', activities ? Object.keys(activities).length : 'null');
+        console.log('📦 Fallback data count:', fallbackData ? Object.keys(fallbackData).length : 'none');
+        try {
+            console.log('🌐 Fetching fresh data from GitHub...');
+            const freshData = await fetchActivities(token, false); // Force fresh fetch
+            console.log('✅ Fresh data received:', Object.keys(freshData).length, 'activities');
+            console.log('📝 Fresh activity names:', Object.values(freshData).map(a => a.name));
+            setActivities(freshData);
+            console.log('🎯 State updated with fresh data');
+            return freshData;
+        }
+        catch (error) {
+            console.error('❌ Failed to refresh activities:', error);
+            // Use fallback data if provided
+            if (fallbackData) {
+                console.log('🔄 Using fallback data instead');
+                setActivities(fallbackData);
+                console.log('📝 Fallback activity names:', Object.values(fallbackData).map(a => a.name));
+            }
+            return null;
+        }
+    };
     const generateActivityId = (name) => {
         return name.toLowerCase()
             .replace(/[^a-z0-9]+/g, '-')
@@ -51965,12 +52067,19 @@ function ActivitiesApp() {
             method: 'PUT',
             body: JSON.stringify({
                 message: `${existingId ? 'Update' : 'Add'} activity: ${activity.name}`,
-                content: btoa(newContent),
+                content: btoa(unescape(encodeURIComponent(newContent))),
                 sha: currentSha
             })
         });
+        console.log('💾 Save successful to GitHub!');
+        console.log('📄 New SHA:', result.content.sha);
         setFileSha(result.content.sha);
+        console.log('🗑️ Invalidating cache...');
         invalidateCache();
+        console.log('📊 Updated data contains:', Object.keys(updatedData).length, 'activities');
+        console.log('📝 Updated activity names:', Object.values(updatedData).map(a => a.name));
+        // Update state directly with the data we just saved
+        console.log('🎯 Updating state with saved data...');
         setActivities(updatedData);
         handleBackToList();
     };
@@ -51986,23 +52095,26 @@ function ActivitiesApp() {
             method: 'PUT',
             body: JSON.stringify({
                 message: `Delete activity: ${activities[id].name}`,
-                content: btoa(newContent),
+                content: btoa(unescape(encodeURIComponent(newContent))),
                 sha: currentSha
             })
         });
         setFileSha(result.content.sha);
         invalidateCache();
+        // Update state directly with the remaining activities
+        console.log('🗑️ Updating state after deletion...');
         setActivities(remaining);
         handleBackToList();
     };
     const handleClearFilters = () => {
         setWeatherFilter([]);
-        setMonthsFilter(new Date().getMonth());
+        setMonthsFilter([]);
+        setHideYearRound(false);
         setPeopleMin(2);
+        setSearchQuery('');
         setTimeCommitMax(4);
         setFitnessFilter([]);
         setSettingFilter([]);
-        setTimeOfDayRange([6, 24]);
     };
     if (!isLoggedIn) {
         return react__WEBPACK_IMPORTED_MODULE_0___default().createElement(LoginScreen, { onLogin: handleLogin });
@@ -52020,11 +52132,15 @@ function ActivitiesApp() {
     return (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { id: "activities-container", style: { display: 'block' } },
         react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { id: "header" },
             react__WEBPACK_IMPORTED_MODULE_0___default().createElement("h1", null, "Activities"),
+            react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "search-desktop" },
+                react__WEBPACK_IMPORTED_MODULE_0___default().createElement(SearchBar, { searchQuery: searchQuery, onSearchChange: setSearchQuery })),
             react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { id: "header-actions" },
                 react__WEBPACK_IMPORTED_MODULE_0___default().createElement("button", { id: "add-activity-button", onClick: handleAddActivity }, "Add Activity"),
                 react__WEBPACK_IMPORTED_MODULE_0___default().createElement("button", { id: "logout-button", onClick: handleLogout }, "Logout"))),
+        react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "search-mobile" },
+            react__WEBPACK_IMPORTED_MODULE_0___default().createElement(SearchBar, { searchQuery: searchQuery, onSearchChange: setSearchQuery })),
         react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { id: "main-content" },
-            react__WEBPACK_IMPORTED_MODULE_0___default().createElement(FiltersPanel, { weatherFilter: weatherFilter, setWeatherFilter: setWeatherFilter, monthsFilter: monthsFilter, setMonthsFilter: setMonthsFilter, peopleMin: peopleMin, setPeopleMin: setPeopleMin, timeCommitMax: timeCommitMax, setTimeCommitMax: setTimeCommitMax, fitnessFilter: fitnessFilter, setFitnessFilter: setFitnessFilter, settingFilter: settingFilter, setSettingFilter: setSettingFilter, timeOfDayRange: timeOfDayRange, setTimeOfDayRange: setTimeOfDayRange, expandedSections: expandedSections, setExpandedSections: setExpandedSections, onClear: handleClearFilters }),
+            react__WEBPACK_IMPORTED_MODULE_0___default().createElement(FiltersPanel, { weatherFilter: weatherFilter, setWeatherFilter: setWeatherFilter, monthsFilter: monthsFilter, setMonthsFilter: setMonthsFilter, hideYearRound: hideYearRound, setHideYearRound: setHideYearRound, peopleMin: peopleMin, setPeopleMin: setPeopleMin, timeCommitMax: timeCommitMax, setTimeCommitMax: setTimeCommitMax, fitnessFilter: fitnessFilter, setFitnessFilter: setFitnessFilter, settingFilter: settingFilter, setSettingFilter: setSettingFilter, expandedSections: expandedSections, setExpandedSections: setExpandedSections, panelCollapsed: panelCollapsed, setPanelCollapsed: setPanelCollapsed, onClear: handleClearFilters }),
             activities && (react__WEBPACK_IMPORTED_MODULE_0___default().createElement(ActivityList, { activities: activities, expandedActivities: expandedActivities, onToggle: handleToggleActivity, onEdit: handleEditActivity, filters: filters })))));
 }
 const rootElement = document.getElementById('root');
