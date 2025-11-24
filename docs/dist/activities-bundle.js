@@ -51618,6 +51618,11 @@ function FiltersPanel({ weatherFilter, setWeatherFilter, monthsFilter, setMonths
                     react__WEBPACK_IMPORTED_MODULE_0___default().createElement(PeopleSlider, { value: peopleMin, onChange: setPeopleMin, isRange: false }))))));
 }
 function ActivityCard({ activityId, activity, expanded, onToggle, onEdit }) {
+    // Convert URLs in text to clickable links
+    const linkifyText = (text) => {
+        const urlRegex = /(https?:\/\/[^\s]+)/g;
+        return text.replace(urlRegex, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+    };
     return (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: `activity-card ${expanded ? 'expanded' : ''}`, "data-activity-id": activityId, onClick: onToggle },
         react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "activity-header" },
             react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", null,
@@ -51629,8 +51634,8 @@ function ActivityCard({ activityId, activity, expanded, onToggle, onEdit }) {
             react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { style: { display: 'flex', alignItems: 'center', gap: '10px' } },
                 expanded && (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("button", { className: "edit-activity-button", onClick: (e) => { e.stopPropagation(); onEdit(); } }, "Edit")),
                 react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "expand-icon" }, "\u25B6"))),
-        react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "activity-description", dangerouslySetInnerHTML: { __html: activity.description } }),
-        react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "activity-details" },
+        react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "activity-description", dangerouslySetInnerHTML: { __html: linkifyText(activity.description) }, onClick: (e) => e.stopPropagation() }),
+        react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "activity-details", onClick: (e) => e.stopPropagation() },
             activity.idealWeather && activity.idealWeather.length > 0 && (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "detail-item" },
                 react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "detail-label" }, "Ideal weather"),
                 react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "detail-value" }, activity.idealWeather.join(', ')))),
@@ -51732,7 +51737,7 @@ function ActivityList({ activities, expandedActivities, onToggle, onEdit, filter
     }
     return (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { id: "activities-list" }, displayIds.map(id => (react__WEBPACK_IMPORTED_MODULE_0___default().createElement(ActivityCard, { key: id, activityId: id, activity: activities[id], expanded: expandedActivities.has(id), onToggle: () => onToggle(id), onEdit: () => onEdit(id, activities[id]) })))));
 }
-function AddActivityModal({ show, onClose, onSave, onDelete, editingActivity, token }) {
+function AddActivityForm({ onClose, onSave, onDelete, editingActivity, token }) {
     const [formData, setFormData] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)({
         name: '',
         description: '',
@@ -51788,7 +51793,7 @@ function AddActivityModal({ show, onClose, onSave, onDelete, editingActivity, to
         }
         setDeleteConfirm(false);
         setStatus(null);
-    }, [editingActivity, show]);
+    }, [editingActivity]);
     const handleSubmit = async (e) => {
         e.preventDefault();
         const formatTime = (hours) => {
@@ -51840,14 +51845,8 @@ function AddActivityModal({ show, onClose, onSave, onDelete, editingActivity, to
             }
         }
     };
-    if (!show)
-        return null;
-    return (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "modal active", onClick: (e) => { if (e.target === e.currentTarget)
-            onClose(); } },
-        react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "modal-content" },
-            react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "modal-header" },
-                react__WEBPACK_IMPORTED_MODULE_0___default().createElement("h2", null, editingActivity ? `Editing: ${editingActivity.activity.name}` : 'Add New Activity'),
-                react__WEBPACK_IMPORTED_MODULE_0___default().createElement("button", { onClick: onClose }, "\u00D7")),
+    return (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "form-container" },
+        react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "form-content" },
             react__WEBPACK_IMPORTED_MODULE_0___default().createElement("form", { onSubmit: handleSubmit },
                 react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "form-group" },
                     react__WEBPACK_IMPORTED_MODULE_0___default().createElement("label", null, "Activity Name *"),
@@ -51891,7 +51890,7 @@ function ActivitiesApp() {
     const [activities, setActivities] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)(null);
     const [fileSha, setFileSha] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)(null);
     const [expandedActivities, setExpandedActivities] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)(new Set());
-    const [showModal, setShowModal] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)(false);
+    const [currentView, setCurrentView] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)('list');
     const [editingActivity, setEditingActivity] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)(null);
     const [weatherFilter, setWeatherFilter] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)([]);
     const [monthsFilter, setMonthsFilter] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)(() => new Date().getMonth());
@@ -51938,11 +51937,15 @@ function ActivitiesApp() {
     };
     const handleEditActivity = (id, activity) => {
         setEditingActivity({ id, activity });
-        setShowModal(true);
+        setCurrentView('edit');
     };
     const handleAddActivity = () => {
         setEditingActivity(null);
-        setShowModal(true);
+        setCurrentView('add');
+    };
+    const handleBackToList = () => {
+        setCurrentView('list');
+        setEditingActivity(null);
     };
     const generateActivityId = (name) => {
         return name.toLowerCase()
@@ -51969,6 +51972,7 @@ function ActivitiesApp() {
         setFileSha(result.content.sha);
         invalidateCache();
         setActivities(updatedData);
+        handleBackToList();
     };
     const handleDeleteActivity = async (id) => {
         let currentSha = fileSha;
@@ -51989,6 +51993,7 @@ function ActivitiesApp() {
         setFileSha(result.content.sha);
         invalidateCache();
         setActivities(remaining);
+        handleBackToList();
     };
     const handleClearFilters = () => {
         setWeatherFilter([]);
@@ -52002,6 +52007,16 @@ function ActivitiesApp() {
     if (!isLoggedIn) {
         return react__WEBPACK_IMPORTED_MODULE_0___default().createElement(LoginScreen, { onLogin: handleLogin });
     }
+    if (currentView === 'add' || currentView === 'edit') {
+        return (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { id: "activities-container", style: { display: 'block' } },
+            react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { id: "header" },
+                react__WEBPACK_IMPORTED_MODULE_0___default().createElement("h1", null, currentView === 'add' ? 'Add Activity' : 'Edit Activity'),
+                react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { id: "header-actions" },
+                    react__WEBPACK_IMPORTED_MODULE_0___default().createElement("button", { onClick: handleBackToList }, "\u2190 Back to List"),
+                    react__WEBPACK_IMPORTED_MODULE_0___default().createElement("button", { id: "logout-button", onClick: handleLogout }, "Logout"))),
+            react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { id: "main-content", style: { justifyContent: 'center' } },
+                react__WEBPACK_IMPORTED_MODULE_0___default().createElement(AddActivityForm, { onSave: handleSaveActivity, onDelete: handleDeleteActivity, onClose: handleBackToList, editingActivity: editingActivity, token: token }))));
+    }
     return (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { id: "activities-container", style: { display: 'block' } },
         react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { id: "header" },
             react__WEBPACK_IMPORTED_MODULE_0___default().createElement("h1", null, "Activities"),
@@ -52010,8 +52025,7 @@ function ActivitiesApp() {
                 react__WEBPACK_IMPORTED_MODULE_0___default().createElement("button", { id: "logout-button", onClick: handleLogout }, "Logout"))),
         react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { id: "main-content" },
             react__WEBPACK_IMPORTED_MODULE_0___default().createElement(FiltersPanel, { weatherFilter: weatherFilter, setWeatherFilter: setWeatherFilter, monthsFilter: monthsFilter, setMonthsFilter: setMonthsFilter, peopleMin: peopleMin, setPeopleMin: setPeopleMin, timeCommitMax: timeCommitMax, setTimeCommitMax: setTimeCommitMax, fitnessFilter: fitnessFilter, setFitnessFilter: setFitnessFilter, settingFilter: settingFilter, setSettingFilter: setSettingFilter, timeOfDayRange: timeOfDayRange, setTimeOfDayRange: setTimeOfDayRange, expandedSections: expandedSections, setExpandedSections: setExpandedSections, onClear: handleClearFilters }),
-            activities && (react__WEBPACK_IMPORTED_MODULE_0___default().createElement(ActivityList, { activities: activities, expandedActivities: expandedActivities, onToggle: handleToggleActivity, onEdit: handleEditActivity, filters: filters }))),
-        react__WEBPACK_IMPORTED_MODULE_0___default().createElement(AddActivityModal, { show: showModal, onClose: () => { setShowModal(false); setEditingActivity(null); }, onSave: handleSaveActivity, onDelete: handleDeleteActivity, editingActivity: editingActivity, token: token })));
+            activities && (react__WEBPACK_IMPORTED_MODULE_0___default().createElement(ActivityList, { activities: activities, expandedActivities: expandedActivities, onToggle: handleToggleActivity, onEdit: handleEditActivity, filters: filters })))));
 }
 const rootElement = document.getElementById('root');
 if (rootElement) {

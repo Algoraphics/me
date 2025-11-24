@@ -627,6 +627,11 @@ function ActivityCard({
     onToggle: () => void;
     onEdit: () => void;
 }) {
+    // Convert URLs in text to clickable links
+    const linkifyText = (text: string) => {
+        const urlRegex = /(https?:\/\/[^\s]+)/g;
+        return text.replace(urlRegex, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+    };
     return (
         <div 
             className={`activity-card ${expanded ? 'expanded' : ''}`}
@@ -665,9 +670,13 @@ function ActivityCard({
                 </div>
             </div>
             
-            <div className="activity-description" dangerouslySetInnerHTML={{ __html: activity.description }} />
+            <div 
+                className="activity-description" 
+                dangerouslySetInnerHTML={{ __html: linkifyText(activity.description) }}
+                onClick={(e) => e.stopPropagation()}
+            />
             
-            <div className="activity-details">
+            <div className="activity-details" onClick={(e) => e.stopPropagation()}>
                 {activity.idealWeather && activity.idealWeather.length > 0 && (
                     <div className="detail-item">
                         <div className="detail-label">Ideal weather</div>
@@ -814,15 +823,13 @@ function ActivityList({
     );
 }
 
-function AddActivityModal({
-    show,
+function AddActivityForm({
     onClose,
     onSave,
     onDelete,
     editingActivity,
     token
 }: {
-    show: boolean;
     onClose: () => void;
     onSave: (activity: Activity, id?: string) => Promise<void>;
     onDelete: (id: string) => Promise<void>;
@@ -887,7 +894,7 @@ function AddActivityModal({
         }
         setDeleteConfirm(false);
         setStatus(null);
-    }, [editingActivity, show]);
+    }, [editingActivity]);
     
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -945,15 +952,10 @@ function AddActivityModal({
         }
     };
     
-    if (!show) return null;
     
     return (
-        <div className="modal active" onClick={(e) => {if (e.target === e.currentTarget) onClose();}}>
-            <div className="modal-content">
-                <div className="modal-header">
-                    <h2>{editingActivity ? `Editing: ${editingActivity.activity.name}` : 'Add New Activity'}</h2>
-                    <button onClick={onClose}>&times;</button>
-                </div>
+        <div className="form-container">
+            <div className="form-content">
                 <form onSubmit={handleSubmit}>
                     <div className="form-group">
                         <label>Activity Name *</label>
@@ -1071,7 +1073,7 @@ function ActivitiesApp() {
     const [activities, setActivities] = useState<ActivitiesData | null>(null);
     const [fileSha, setFileSha] = useState<string | null>(null);
     const [expandedActivities, setExpandedActivities] = useState<Set<string>>(new Set());
-    const [showModal, setShowModal] = useState(false);
+    const [currentView, setCurrentView] = useState<'list' | 'add' | 'edit'>('list');
     const [editingActivity, setEditingActivity] = useState<{ id: string; activity: Activity } | null>(null);
     
     const [weatherFilter, setWeatherFilter] = useState<string[]>([]);
@@ -1123,12 +1125,17 @@ function ActivitiesApp() {
     
     const handleEditActivity = (id: string, activity: Activity) => {
         setEditingActivity({ id, activity });
-        setShowModal(true);
+        setCurrentView('edit');
     };
     
     const handleAddActivity = () => {
         setEditingActivity(null);
-        setShowModal(true);
+        setCurrentView('add');
+    };
+    
+    const handleBackToList = () => {
+        setCurrentView('list');
+        setEditingActivity(null);
     };
     
     const generateActivityId = (name: string): string => {
@@ -1161,6 +1168,7 @@ function ActivitiesApp() {
         setFileSha(result.content.sha);
         invalidateCache();
         setActivities(updatedData);
+        handleBackToList();
     };
     
     const handleDeleteActivity = async (id: string) => {
@@ -1185,6 +1193,7 @@ function ActivitiesApp() {
         setFileSha(result.content.sha);
         invalidateCache();
         setActivities(remaining);
+        handleBackToList();
     };
     
     const handleClearFilters = () => {
@@ -1201,6 +1210,30 @@ function ActivitiesApp() {
         return <LoginScreen onLogin={handleLogin} />;
     }
     
+    if (currentView === 'add' || currentView === 'edit') {
+        return (
+            <div id="activities-container" style={{ display: 'block' }}>
+                <div id="header">
+                    <h1>{currentView === 'add' ? 'Add Activity' : 'Edit Activity'}</h1>
+                    <div id="header-actions">
+                        <button onClick={handleBackToList}>← Back to List</button>
+                        <button id="logout-button" onClick={handleLogout}>Logout</button>
+                    </div>
+                </div>
+                
+                <div id="main-content" style={{ justifyContent: 'center' }}>
+                    <AddActivityForm 
+                        onSave={handleSaveActivity}
+                        onDelete={handleDeleteActivity}
+                        onClose={handleBackToList}
+                        editingActivity={editingActivity}
+                        token={token}
+                    />
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div id="activities-container" style={{ display: 'block' }}>
             <div id="header">
@@ -1242,15 +1275,6 @@ function ActivitiesApp() {
                     />
                 )}
             </div>
-            
-            <AddActivityModal
-                show={showModal}
-                onClose={() => {setShowModal(false); setEditingActivity(null);}}
-                onSave={handleSaveActivity}
-                onDelete={handleDeleteActivity}
-                editingActivity={editingActivity}
-                token={token}
-            />
         </div>
     );
 }

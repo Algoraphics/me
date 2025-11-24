@@ -489,7 +489,6 @@ select[multiple] option:hover {
     border-radius: 8px;
     padding: 15px 20px;
     margin-bottom: 15px;
-    cursor: pointer;
     transition: all 0.2s;
     border: 2px solid transparent;
 }
@@ -506,6 +505,7 @@ select[multiple] option:hover {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    cursor: pointer;
 }
 
 .activity-name {
@@ -562,6 +562,15 @@ select[multiple] option:hover {
     border-top: 1px solid #3d3d3d;
     color: #d0d0d0;
     line-height: 1.6;
+}
+
+.activity-description a {
+    color: #20c997;
+    text-decoration: underline;
+}
+
+.activity-description a:hover {
+    color: #1dd1a1;
 }
 
 .activity-card.expanded .activity-description {
@@ -657,6 +666,25 @@ select[multiple] option:hover {
 }
 
 .modal-content form {
+    padding: 30px;
+}
+
+.form-container {
+    width: 100%;
+    max-width: none;
+    padding: 0 20px;
+}
+
+.form-content {
+    background: #2d2d2d;
+    border-radius: 12px;
+    width: 100%;
+    max-width: 800px; /* Wider than modal */
+    margin: 0 auto;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.form-content form {
     padding: 30px;
 }
 
