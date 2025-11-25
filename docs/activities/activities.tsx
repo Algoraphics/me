@@ -810,14 +810,10 @@ function ActivityList({
     console.log('📝 Activity names in render:', Object.values(activities).map(a => a.name));
     const activityMatchesFilters = (activity: Activity): boolean => {
         if (filters.weather.length > 0) {
-            const hasIdealMatch = activity.idealWeather && 
-                activity.idealWeather.some(w => filters.weather.includes(w));
-            
             const hasAvoidMatch = activity.avoidWeather && 
                 activity.avoidWeather.some(w => filters.weather.includes(w));
             
             if (hasAvoidMatch) return false;
-            if (activity.idealWeather && activity.idealWeather.length > 0 && !hasIdealMatch) return false;
         }
         
         if (filters.months.length > 0) {
@@ -873,10 +869,22 @@ function ActivityList({
     console.log('🔍 After filtering:', filteredIds.length, 'activities match filters');
     console.log('📝 Filtered activity names:', filteredIds.map(id => activities[id].name));
     
-    // Sort activities alphabetically by name
-    const sortedIds = filteredIds.sort((a, b) => 
-        activities[a].name.localeCompare(activities[b].name)
-    );
+    const sortedIds = filteredIds.sort((a, b) => {
+        const activityA = activities[a];
+        const activityB = activities[b];
+        
+        if (filters.weather.length > 0) {
+            const aHasIdeal = activityA.idealWeather && 
+                activityA.idealWeather.some(w => filters.weather.includes(w));
+            const bHasIdeal = activityB.idealWeather && 
+                activityB.idealWeather.some(w => filters.weather.includes(w));
+            
+            if (aHasIdeal && !bHasIdeal) return -1;
+            if (!aHasIdeal && bHasIdeal) return 1;
+        }
+        
+        return activityA.name.localeCompare(activityB.name);
+    });
     const displayIds = sortedIds;
     
     if (displayIds.length === 0) {

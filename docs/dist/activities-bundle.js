@@ -51693,8 +51693,8 @@ function ActivityCard({ activityId, activity, expanded, onToggle, onEdit }) {
                         react__WEBPACK_IMPORTED_MODULE_0___default().createElement("img", { src: SETTING_OPTIONS.find(opt => opt.value === activity.setting)?.src || '../emoji/blob/emoji_u1f3e1.svg', className: "blob-emoji tag-emoji", alt: activity.setting, title: activity.setting.charAt(0).toUpperCase() + activity.setting.slice(1) }))),
                     activity.fitnessLevel && (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("span", { className: "activity-tag" }, activity.fitnessLevel.charAt(0).toUpperCase() + activity.fitnessLevel.slice(1))),
                     activity.timeCommitment && (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("span", { className: "activity-tag" }, activity.timeCommitment.min === activity.timeCommitment.max
-                        ? `${activity.timeCommitment.min}hours`
-                        : `${activity.timeCommitment.min}-${activity.timeCommitment.max}hours`)),
+                        ? `${activity.timeCommitment.min} hours`
+                        : `${activity.timeCommitment.min}-${activity.timeCommitment.max} hours`)),
                     activity.distance && (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("span", { className: "activity-tag" }, activity.distance)))),
             react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { style: { display: 'flex', alignItems: 'center', gap: '10px' } },
                 expanded && (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("button", { className: "edit-activity-button", onClick: (e) => { e.stopPropagation(); onEdit(); } }, "Edit")),
@@ -51729,13 +51729,9 @@ function ActivityList({ activities, expandedActivities, onToggle, onEdit, filter
     console.log('📝 Activity names in render:', Object.values(activities).map(a => a.name));
     const activityMatchesFilters = (activity) => {
         if (filters.weather.length > 0) {
-            const hasIdealMatch = activity.idealWeather &&
-                activity.idealWeather.some(w => filters.weather.includes(w));
             const hasAvoidMatch = activity.avoidWeather &&
                 activity.avoidWeather.some(w => filters.weather.includes(w));
             if (hasAvoidMatch)
-                return false;
-            if (activity.idealWeather && activity.idealWeather.length > 0 && !hasIdealMatch)
                 return false;
         }
         if (filters.months.length > 0) {
@@ -51787,8 +51783,21 @@ function ActivityList({ activities, expandedActivities, onToggle, onEdit, filter
     const filteredIds = Object.keys(activities).filter(id => activityMatchesFilters(activities[id]));
     console.log('🔍 After filtering:', filteredIds.length, 'activities match filters');
     console.log('📝 Filtered activity names:', filteredIds.map(id => activities[id].name));
-    // Sort activities alphabetically by name
-    const sortedIds = filteredIds.sort((a, b) => activities[a].name.localeCompare(activities[b].name));
+    const sortedIds = filteredIds.sort((a, b) => {
+        const activityA = activities[a];
+        const activityB = activities[b];
+        if (filters.weather.length > 0) {
+            const aHasIdeal = activityA.idealWeather &&
+                activityA.idealWeather.some(w => filters.weather.includes(w));
+            const bHasIdeal = activityB.idealWeather &&
+                activityB.idealWeather.some(w => filters.weather.includes(w));
+            if (aHasIdeal && !bHasIdeal)
+                return -1;
+            if (!aHasIdeal && bHasIdeal)
+                return 1;
+        }
+        return activityA.name.localeCompare(activityB.name);
+    });
     const displayIds = sortedIds;
     if (displayIds.length === 0) {
         return (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { id: "activities-list" },
