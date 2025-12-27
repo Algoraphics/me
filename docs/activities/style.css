@@ -849,11 +849,11 @@ select[multiple] option:hover {
 }
 
 #add-activity-form {
-    padding: 30px;
+    padding: 15px;
 }
 
 .modal-content form {
-    padding: 30px;
+    padding: 15px;
 }
 
 .form-container {
@@ -872,11 +872,11 @@ select[multiple] option:hover {
 }
 
 .form-content form {
-    padding: 30px;
+    padding: 15px;
 }
 
 .form-group {
-    margin-bottom: 20px;
+    margin-bottom: 10px;
 }
 
 .form-group label {
@@ -893,7 +893,7 @@ select[multiple] option:hover {
 .form-group textarea,
 .form-group select {
     width: 100%;
-    padding: 10px;
+    padding: 5px;
     background: #1a1a1a;
     border: 2px solid #575757;
     border-radius: 6px;
@@ -1052,7 +1052,7 @@ select[multiple] option:hover {
     }
     
     .month-button .month-emoji {
-        font-size: 16px;
+        font-size: 19px;
     }
     
     .month-button .month-name {
