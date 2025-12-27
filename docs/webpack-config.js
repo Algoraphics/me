@@ -4,7 +4,8 @@ module.exports = {
     devtool: 'source-map',
     entry: {
         app: path.resolve(__dirname, 'app.tsx'),
-        activities: path.resolve(__dirname, 'activities/activities.tsx')
+        activities: path.resolve(__dirname, 'activities/activities.tsx'),
+        camping: path.resolve(__dirname, 'camping/camping.tsx')
     },
     mode: "development",
     output: {
