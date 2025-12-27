@@ -1058,5 +1058,9 @@ select[multiple] option:hover {
     .month-button .month-name {
         font-size: 7px;
     }
+    
+    .form-container {
+        padding: 0;
+    }
 }
 

@@ -988,11 +988,31 @@ function insertMarkdown(before, after) {
     editor.setSelectionRange(newCursorPos, newCursorPos);
 }
 
+let lastSelection = { start: 0, end: 0, text: '' };
+
+function captureSelection() {
+    const editor = document.getElementById('markdown-editor');
+    if (editor === document.activeElement) {
+        lastSelection = {
+            start: editor.selectionStart,
+            end: editor.selectionEnd,
+            text: editor.value.substring(editor.selectionStart, editor.selectionEnd).trim()
+        };
+    }
+}
+
 function insertLink() {
     const editor = document.getElementById('markdown-editor');
-    const start = editor.selectionStart;
-    const end = editor.selectionEnd;
-    const selectedText = editor.value.substring(start, end).trim();
+    
+    let start = editor.selectionStart;
+    let end = editor.selectionEnd;
+    let selectedText = editor.value.substring(start, end).trim();
+    
+    if (!selectedText && lastSelection.text) {
+        start = lastSelection.start;
+        end = lastSelection.end;
+        selectedText = lastSelection.text;
+    }
     
     if (!selectedText) {
         const linkMarkdown = `[link text]()`;
@@ -1013,6 +1033,8 @@ function insertLink() {
     const cursorPos = start + linkMarkdown.length;
     editor.focus();
     editor.setSelectionRange(cursorPos, cursorPos);
+    
+    lastSelection = { start: 0, end: 0, text: '' };
 }
 
 function searchPages(query) {
@@ -1192,6 +1214,8 @@ document.getElementById('markdown-editor').addEventListener('input', () => {
         saveDraft();
     }, 2000);
 });
+
+document.getElementById('markdown-editor').addEventListener('touchend', captureSelection);
 
 document.getElementById('markdown-editor').addEventListener('keydown', (e) => {
     if ((e.metaKey || e.ctrlKey) && e.key === 's') {
