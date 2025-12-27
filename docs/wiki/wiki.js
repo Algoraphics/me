@@ -408,7 +408,9 @@ function expandAncestors(pageId) {
     }
 }
 
-async function loadPage(pageId) {
+let isHandlingPopstate = false;
+
+async function loadPage(pageId, skipHistory = false) {
     if (isEditMode && currentPage && currentPage !== pageId) {
         saveDraft();
         closeEditMode();
@@ -449,6 +451,11 @@ async function loadPage(pageId) {
     
     sessionStorage.setItem('currentPage', pageId);
     
+    if (!skipHistory && !isHandlingPopstate) {
+        const url = `#${pageId}`;
+        history.pushState({ pageId }, '', url);
+    }
+    
     const draft = loadDraft(pageId);
     if (draft && !isMoveMode) {
         enterEditMode(draft.content || draft, draft);
@@ -478,10 +485,14 @@ async function login() {
             
             freshData.pages.forEach(freshPage => {
                 const cachedPage = cachedPagesById[freshPage.id];
-                if (cachedPage && cachedPage.loaded && cachedPage.sha === freshPage.sha) {
-                    freshPage.markdown = cachedPage.markdown;
-                    freshPage.title = cachedPage.title;
-                    freshPage.loaded = true;
+                if (cachedPage && cachedPage.loaded) {
+                    if (cachedPage.sha === freshPage.sha) {
+                        freshPage.markdown = cachedPage.markdown;
+                        freshPage.title = cachedPage.title;
+                        freshPage.loaded = true;
+                    } else {
+                        freshPage.loaded = false;
+                    }
                 }
             });
             
@@ -511,7 +522,13 @@ async function login() {
         }
         
         const lastPage = sessionStorage.getItem('currentPage') || 'home';
-        loadPage(lastPage);
+        const initialPageId = location.hash ? location.hash.substring(1) : lastPage;
+        if (wikiData.pagesById[initialPageId]) {
+            history.replaceState({ pageId: initialPageId }, '', `#${initialPageId}`);
+            loadPage(initialPageId, true);
+        } else {
+            loadPage(lastPage, true);
+        }
         updateMoveButtons();
     } catch (error) {
         console.error('Login failed:', error);
@@ -971,6 +988,33 @@ function insertMarkdown(before, after) {
     editor.setSelectionRange(newCursorPos, newCursorPos);
 }
 
+function insertLink() {
+    const editor = document.getElementById('markdown-editor');
+    const start = editor.selectionStart;
+    const end = editor.selectionEnd;
+    const selectedText = editor.value.substring(start, end).trim();
+    
+    if (!selectedText) {
+        const linkMarkdown = `[link text]()`;
+        editor.value = editor.value.substring(0, start) + linkMarkdown + editor.value.substring(end);
+        const cursorPos = start + linkMarkdown.length - 1;
+        editor.focus();
+        editor.setSelectionRange(cursorPos, cursorPos);
+        return;
+    }
+    
+    const linkText = selectedText;
+    const pageUrl = selectedText.toLowerCase().replace(/\s+/g, '-');
+    
+    const linkMarkdown = `[${linkText}](${pageUrl})`;
+    
+    editor.value = editor.value.substring(0, start) + linkMarkdown + editor.value.substring(end);
+    
+    const cursorPos = start + linkMarkdown.length;
+    editor.focus();
+    editor.setSelectionRange(cursorPos, cursorPos);
+}
+
 function searchPages(query) {
     if (!query.trim()) {
         document.getElementById('search-results').classList.remove('active');
@@ -1169,6 +1213,21 @@ document.addEventListener('keydown', (e) => {
 document.addEventListener('visibilitychange', () => {
     if (!document.hidden && wikiData && currentPage) {
         syncCurrentPageWithRemote();
+    }
+});
+
+window.addEventListener('popstate', (e) => {
+    if (e.state && e.state.pageId && wikiData) {
+        isHandlingPopstate = true;
+        loadPage(e.state.pageId, true);
+        isHandlingPopstate = false;
+    } else if (location.hash) {
+        const pageId = location.hash.substring(1);
+        if (wikiData && wikiData.pagesById[pageId]) {
+            isHandlingPopstate = true;
+            loadPage(pageId, true);
+            isHandlingPopstate = false;
+        }
     }
 });
 

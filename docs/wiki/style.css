@@ -432,6 +432,14 @@
             margin-bottom: 15px;
         }
         
+        #content p {
+            margin-bottom: 1em;
+        }
+        
+        #content p:last-child {
+            margin-bottom: 0;
+        }
+        
         #content a {
             color: #ffd700;
         }
