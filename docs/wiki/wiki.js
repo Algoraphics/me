@@ -94,12 +94,23 @@ async function syncCurrentPageWithRemote() {
 }
 
 async function loadWikiFromGitHub() {
+    console.log('=== Loading Wiki from GitHub ===');
     const latestCommit = await githubAPI(`/repos/${REPO_OWNER}/${REPO_NAME}/commits/main`);
+    console.log(`Latest commit SHA: ${latestCommit.sha}`);
+    console.log(`Using commit tree SHA: ${latestCommit.commit.tree.sha}`);
+    
     const tree = await githubAPI(`/repos/${REPO_OWNER}/${REPO_NAME}/git/trees/${latestCommit.commit.tree.sha}?recursive=1`);
+    console.log(`Tree API returned tree SHA: ${tree.sha}`);
+    console.log(`Tree SHA matches: ${tree.sha === latestCommit.commit.tree.sha}`);
     
     const markdownFiles = tree.tree
         .filter(item => item.path.startsWith(CONTENT_PATH + '/') && item.path.endsWith('.md'))
         .sort((a, b) => a.path.localeCompare(b.path));
+    
+    const canyonlandsFile = markdownFiles.find(f => f.path === 'content/vivarium/biomes/canyonlands.md');
+    if (canyonlandsFile) {
+        console.log(`Canyonlands blob SHA from tree: ${canyonlandsFile.sha}`);
+    }
     
     console.log(`Found ${markdownFiles.length} pages`);
     
@@ -426,10 +437,15 @@ async function loadPage(pageId, skipHistory = false) {
     expandAncestors(pageId);
     currentPage = pageId;
     
+    console.log(`=== Loading Page ${pageId} ===`);
+    console.log(`  Page loaded status: ${page.loaded}`);
     if (!page.loaded) {
+        console.log(`  → Fetching fresh content for ${pageId}`);
         document.getElementById('content').innerHTML = '<p style="color: #999;">Loading...</p>';
         await fetchPageContent(pageId);
         updateSearchIndex();
+    } else {
+        console.log(`  → Using cached content for ${pageId}`);
     }
     
     let htmlContent = md.render(page.markdown);
@@ -485,14 +501,23 @@ async function login() {
             const cachedPagesById = {};
             cached.pages.forEach(p => cachedPagesById[p.id] = p);
             
+            console.log('=== Cache Comparison ===');
             freshData.pages.forEach(freshPage => {
                 const cachedPage = cachedPagesById[freshPage.id];
                 if (cachedPage && cachedPage.loaded) {
+                    if (freshPage.id === 'vivarium/biomes/canyonlands') {
+                        console.log(`Canyonlands: cached SHA=${cachedPage.sha}, fresh SHA=${freshPage.sha}`);
+                        console.log(`  SHAs match: ${cachedPage.sha === freshPage.sha}`);
+                        console.log(`  Cached content preview: "${(cachedPage.markdown || '').substring(0, 50)}..."`);
+                    }
                     if (cachedPage.sha === freshPage.sha) {
                         freshPage.markdown = cachedPage.markdown;
                         freshPage.title = cachedPage.title;
                         freshPage.loaded = true;
                     } else {
+                        if (freshPage.id === 'vivarium/biomes/canyonlands') {
+                            console.log(`  → Marking canyonlands for reload (SHA mismatch)`);
+                        }
                         freshPage.loaded = false;
                     }
                 }
@@ -908,11 +933,7 @@ async function saveEdit() {
             })
         });
         
-        localStorage.removeItem('wikiDataCache');
-        
-        wikiData = await loadWikiFromGitHub();
         localStorage.setItem('wikiDataCache', JSON.stringify(wikiData));
-        updateSearchIndex();
         
         if (isNewPage) {
             const newPageId = filePath.replace(`${CONTENT_PATH}/`, '').replace(/\.md$/, '');
@@ -927,9 +948,12 @@ async function saveEdit() {
             }
         } else {
             const page = wikiData.pagesById[currentPage];
+            console.log(`=== Saving Page ${currentPage} ===`);
+            console.log(`  Old SHA: ${page.sha}`);
             page.markdown = newContent;
             page.loaded = true;
             page.sha = null;
+            console.log(`  New SHA: ${page.sha} (cleared)`);
             const title = newContent.match(/^#\s+(.+)$/m)?.[1] || currentPage.split('/').pop();
             page.title = title;
         }
