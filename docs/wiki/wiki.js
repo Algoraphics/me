@@ -65,21 +65,31 @@ async function syncCurrentPageWithRemote() {
     if (!currentPage || !wikiData || !githubToken) return null;
     
     try {
-        const latestCommit = await githubAPI(`/repos/${REPO_OWNER}/${REPO_NAME}/commits/main`);
+        const filePath = `${CONTENT_PATH}/${currentPage}.md`;
+        const fileData = await githubAPI(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/${filePath}`);
         const page = wikiData.pagesById[currentPage];
         
-        if (page.commitSha && page.commitSha !== latestCommit.sha) {
+        if (page.loaded && page.contentSha && page.contentSha !== fileData.sha) {
             if (isEditMode) {
                 showStatus('⚠️ This page was updated remotely while editing. Save will overwrite!', 'error');
                 document.getElementById('save-button').style.background = '#cc6600';
             } else {
-                showStatus('⚠️ Page updated remotely. Reload to see changes.', 'error');
+                const markdown = atob(fileData.content.replace(/\n/g, ''));
+                page.markdown = markdown;
+                page.contentSha = fileData.sha;
+                page.title = markdown.match(/^#\s+(.+)$/m)?.[1] || currentPage.split('/').pop();
+                localStorage.setItem('wikiDataCache', JSON.stringify(wikiData));
+                
+                const htmlContent = md.render(page.markdown).replace(/<img src="images\//g, '<img data-src="images/');
+                document.getElementById('content').innerHTML = htmlContent;
+                setupInternalLinks();
+                await loadImages();
             }
             
-            return latestCommit.sha;
+            return fileData.sha;
         }
         
-        return page.commitSha;
+        return page.contentSha;
     } catch (error) {
         console.log('Remote sync check failed:', error);
         return null;
@@ -94,7 +104,6 @@ async function loadWikiFromGitHub() {
         .filter(item => item.path.startsWith(CONTENT_PATH + '/') && item.path.endsWith('.md'))
         .sort((a, b) => a.path.localeCompare(b.path));
     
-    console.log(`Found ${markdownFiles.length} pages`);
     
     const pages = [];
     const pagesById = {};
@@ -109,7 +118,7 @@ async function loadWikiFromGitHub() {
             id: pageId,
             title: parts[parts.length - 1],
             markdown: null,
-            commitSha: latestCommit.sha,
+            contentSha: file.sha,
             path: file.path,
             parentId: parentId,
             children: [],
@@ -129,7 +138,6 @@ async function loadWikiFromGitHub() {
         }
     });
     
-    console.log('Page tree built');
     return { pages, pagesById, tree: tree_root, currentCommitSha: latestCommit.sha };
 }
 
@@ -146,7 +154,7 @@ async function fetchPageContent(pageId) {
         page.markdown = markdown;
         page.title = title;
         page.loaded = true;
-        page.commitSha = wikiData.currentCommitSha;
+        page.contentSha = fileData.sha;
         
         localStorage.setItem('wikiDataCache', JSON.stringify(wikiData));
         return page;
@@ -302,7 +310,7 @@ function saveDraft() {
     
     drafts[currentPage] = {
         content: editorContent,
-        baseSha: editStartSha,
+        baseCommitSha: wikiData.currentCommitSha,
         timestamp: Date.now()
     };
     localStorage.setItem('pageDrafts', JSON.stringify(drafts));
@@ -416,17 +424,10 @@ async function loadPage(pageId, skipHistory = false) {
     currentPage = pageId;
     
     if (!page.loaded) {
-        // console.log(`${pageId}: Page not in cache, loading from GitHub`);
-        document.getElementById('content').innerHTML = '<p style="color: #999;">Loading...</p>';
-        await fetchPageContent(pageId);
-        updateSearchIndex();
-    } else if (page.commitSha !== wikiData.currentCommitSha) {
-        // console.log(`${pageId}: Page from old commit (${page.commitSha?.substring(0,7)} → ${wikiData.currentCommitSha?.substring(0,7)}), reloading from GitHub`);
         document.getElementById('content').innerHTML = '<p style="color: #999;">Loading...</p>';
         await fetchPageContent(pageId);
         updateSearchIndex();
     } else {
-        // console.log(`${pageId}: Loading from cache (commit: ${page.commitSha?.substring(0,7)})`);
     }
     
     let htmlContent = md.render(page.markdown);
@@ -485,18 +486,16 @@ async function login() {
             freshData.pages.forEach(freshPage => {
                 const cachedPage = cachedPagesById[freshPage.id];
                 if (cachedPage && cachedPage.loaded) {
-                    if (cachedPage.commitSha === freshPage.commitSha) {
+                    if (cachedPage.contentSha === freshPage.contentSha) {
                         freshPage.markdown = cachedPage.markdown;
                         freshPage.title = cachedPage.title;
                         freshPage.loaded = true;
-                        freshPage.commitSha = cachedPage.commitSha;
                     } else {
                         freshPage.loaded = false;
                     }
                 }
             });
             
-            console.log('Loaded fresh tree, merged with cached content');
         } else {
             console.log('Loaded from GitHub');
         }
@@ -569,10 +568,10 @@ async function enterEditMode(draft = null) {
     
     await syncCurrentPageWithRemote();
     
-    editStartSha = page.commitSha;
+    editStartSha = page.contentSha;
     
     let hasConflict = false;
-    if (draft && draft.baseSha && draft.baseSha !== page.commitSha) {
+    if (draft && draft.baseCommitSha && draft.baseCommitSha !== wikiData.currentCommitSha) {
         hasConflict = true;
         showStatus('⚠️ Warning: Page was updated since this draft was created. Save may overwrite remote changes.', 'error');
         document.getElementById('save-button').style.background = '#cc6600';
@@ -862,7 +861,7 @@ async function saveEdit() {
     
     const page = wikiData.pagesById[currentPage];
     
-    if (editStartSha && editStartSha !== page.commitSha && !isNewPage) {
+    if (editStartSha && editStartSha !== page.contentSha && !isNewPage) {
         if (!confirm('⚠️ WARNING: This page was updated remotely since you started editing.\n\nSaving will OVERWRITE the remote changes.\n\nAre you sure you want to continue?')) {
             return;
         }
@@ -897,7 +896,7 @@ async function saveEdit() {
             sha = currentData.sha;
         }
         
-        await githubAPI(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/${filePath}`, {
+        const saveResponse = await githubAPI(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/${filePath}`, {
             method: 'PUT',
             body: JSON.stringify({
                 message: commitMsg,
@@ -905,6 +904,10 @@ async function saveEdit() {
                 sha: sha
             })
         });
+        
+        if (saveResponse.commit) {
+            wikiData.currentCommitSha = saveResponse.commit.sha;
+        }
         
         localStorage.setItem('wikiDataCache', JSON.stringify(wikiData));
         
