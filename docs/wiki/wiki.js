@@ -17,7 +17,6 @@ let isFullyIndexed = false;
 let currentBlobUrls = [];
 let autoSaveTimer = null;
 let editStartSha = null;
-let lastKnownRemoteSha = {};
 
 const md = window.markdownit ? window.markdownit({
     html: false,
@@ -66,27 +65,21 @@ async function syncCurrentPageWithRemote() {
     if (!currentPage || !wikiData || !githubToken) return null;
     
     try {
-        const filePath = `${CONTENT_PATH}/${currentPage}.md`;
-        const remoteData = await githubAPI(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/${filePath}`);
+        const latestCommit = await githubAPI(`/repos/${REPO_OWNER}/${REPO_NAME}/commits/main`);
         const page = wikiData.pagesById[currentPage];
         
-        if (lastKnownRemoteSha[currentPage] !== remoteData.sha && page.sha !== remoteData.sha) {
-            lastKnownRemoteSha[currentPage] = remoteData.sha;
-            
+        if (page.commitSha && page.commitSha !== latestCommit.sha) {
             if (isEditMode) {
                 showStatus('⚠️ This page was updated remotely while editing. Save will overwrite!', 'error');
                 document.getElementById('save-button').style.background = '#cc6600';
             } else {
-                showStatus('⚠️ Page updated remotely. Cancel edit and reload to see changes.', 'error');
+                showStatus('⚠️ Page updated remotely. Reload to see changes.', 'error');
             }
             
-            page.sha = remoteData.sha;
-            localStorage.setItem('wikiDataCache', JSON.stringify(wikiData));
-            
-            return remoteData.sha;
+            return latestCommit.sha;
         }
         
-        return page.sha;
+        return page.commitSha;
     } catch (error) {
         console.log('Remote sync check failed:', error);
         return null;
@@ -351,6 +344,17 @@ function revokeBlobUrls() {
     currentBlobUrls = [];
 }
 
+function createBlobFromBase64(base64Image) {
+    const byteCharacters = atob(base64Image);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    const blob = new Blob([byteArray], { type: 'image/jpeg' });
+    return URL.createObjectURL(blob);
+}
+
 async function loadImages() {
     const images = document.querySelectorAll('#content img[data-src]');
     
@@ -363,34 +367,17 @@ async function loadImages() {
             try {
                 const contentsData = await githubAPI(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/${imagePath}`);
                 
-                let blobSha;
+                let base64Image;
                 if (contentsData.encoding === 'base64' && contentsData.content) {
-                    const base64Image = contentsData.content.replace(/[\n\r]/g, '');
-                    const byteCharacters = atob(base64Image);
-                    const byteNumbers = new Array(byteCharacters.length);
-                    for (let i = 0; i < byteCharacters.length; i++) {
-                        byteNumbers[i] = byteCharacters.charCodeAt(i);
-                    }
-                    const byteArray = new Uint8Array(byteNumbers);
-                    const blob = new Blob([byteArray], { type: 'image/jpeg' });
-                    const blobUrl = URL.createObjectURL(blob);
-                    img.src = blobUrl;
+                    base64Image = contentsData.content.replace(/[\n\r]/g, '');
                 } else {
-                    blobSha = contentsData.sha;
+                    const blobSha = contentsData.sha;
                     const blobData = await githubAPI(`/repos/${REPO_OWNER}/${REPO_NAME}/git/blobs/${blobSha}`);
-                    
-                    const base64Image = blobData.content.replace(/[\n\r]/g, '');
-                    const byteCharacters = atob(base64Image);
-                    const byteNumbers = new Array(byteCharacters.length);
-                    for (let i = 0; i < byteCharacters.length; i++) {
-                        byteNumbers[i] = byteCharacters.charCodeAt(i);
-                    }
-                    const byteArray = new Uint8Array(byteNumbers);
-                    const blob = new Blob([byteArray], { type: 'image/jpeg' });
-                    const blobUrl = URL.createObjectURL(blob);
-                    img.src = blobUrl;
+                    base64Image = blobData.content.replace(/[\n\r]/g, '');
                 }
                 
+                const blobUrl = createBlobFromBase64(base64Image);
+                img.src = blobUrl;
                 img.removeAttribute('data-src');
                 currentBlobUrls.push(blobUrl);
             } catch (error) {
@@ -429,17 +416,17 @@ async function loadPage(pageId, skipHistory = false) {
     currentPage = pageId;
     
     if (!page.loaded) {
-        console.log(`${pageId}: Page not in cache, loading from GitHub`);
+        // console.log(`${pageId}: Page not in cache, loading from GitHub`);
         document.getElementById('content').innerHTML = '<p style="color: #999;">Loading...</p>';
         await fetchPageContent(pageId);
         updateSearchIndex();
     } else if (page.commitSha !== wikiData.currentCommitSha) {
-        console.log(`${pageId}: Page from old commit (${page.commitSha?.substring(0,7)} → ${wikiData.currentCommitSha?.substring(0,7)}), reloading from GitHub`);
+        // console.log(`${pageId}: Page from old commit (${page.commitSha?.substring(0,7)} → ${wikiData.currentCommitSha?.substring(0,7)}), reloading from GitHub`);
         document.getElementById('content').innerHTML = '<p style="color: #999;">Loading...</p>';
         await fetchPageContent(pageId);
         updateSearchIndex();
     } else {
-        console.log(`${pageId}: Loading from cache (commit: ${page.commitSha?.substring(0,7)})`);
+        // console.log(`${pageId}: Loading from cache (commit: ${page.commitSha?.substring(0,7)})`);
     }
     
     let htmlContent = md.render(page.markdown);
@@ -470,7 +457,7 @@ async function loadPage(pageId, skipHistory = false) {
     
     const draft = loadDraft(pageId);
     if (draft && !isMoveMode) {
-        enterEditMode(draft.content || draft, draft);
+        enterEditMode(draft);
     }
 }
 
@@ -573,29 +560,29 @@ function logout() {
     document.getElementById('error-message').style.display = 'none';
 }
 
-async function enterEditMode(draftContent = null, draftObj = null) {
+async function enterEditMode(draft = null) {
     const page = wikiData.pagesById[currentPage];
     
-    if (!page.loaded && !draftContent) {
+    if (!page.loaded && !draft) {
         await fetchPageContent(currentPage);
     }
     
     await syncCurrentPageWithRemote();
     
-    editStartSha = page.sha;
+    editStartSha = page.commitSha;
     
     let hasConflict = false;
-    if (draftObj && draftObj.baseSha && draftObj.baseSha !== page.sha) {
+    if (draft && draft.baseSha && draft.baseSha !== page.commitSha) {
         hasConflict = true;
         showStatus('⚠️ Warning: Page was updated since this draft was created. Save may overwrite remote changes.', 'error');
         document.getElementById('save-button').style.background = '#cc6600';
     }
     
-    if (!draftContent) {
+    if (!draft) {
         originalMarkdown = page.markdown;
         document.getElementById('markdown-editor').value = page.markdown;
     } else {
-        document.getElementById('markdown-editor').value = draftContent;
+        document.getElementById('markdown-editor').value = draft.content;
     }
     
     document.getElementById('view-mode').style.display = 'none';
@@ -875,7 +862,7 @@ async function saveEdit() {
     
     const page = wikiData.pagesById[currentPage];
     
-    if (editStartSha && editStartSha !== page.sha && !isNewPage) {
+    if (editStartSha && editStartSha !== page.commitSha && !isNewPage) {
         if (!confirm('⚠️ WARNING: This page was updated remotely since you started editing.\n\nSaving will OVERWRITE the remote changes.\n\nAre you sure you want to continue?')) {
             return;
         }
@@ -928,18 +915,13 @@ async function saveEdit() {
             if (page) {
                 page.markdown = newContent;
                 page.loaded = true;
-                page.sha = null;
                 const title = newContent.match(/^#\s+(.+)$/m)?.[1] || newPageId.split('/').pop();
                 page.title = title;
             }
         } else {
             const page = wikiData.pagesById[currentPage];
-            console.log(`=== Saving Page ${currentPage} ===`);
-            console.log(`  Old SHA: ${page.sha}`);
             page.markdown = newContent;
             page.loaded = true;
-            page.sha = null;
-            console.log(`  New SHA: ${page.sha} (cleared)`);
             const title = newContent.match(/^#\s+(.+)$/m)?.[1] || currentPage.split('/').pop();
             page.title = title;
         }
@@ -1254,16 +1236,16 @@ document.addEventListener('visibilitychange', () => {
     }
 });
 
-window.addEventListener('popstate', (e) => {
+window.addEventListener('popstate', async (e) => {
     if (e.state && e.state.pageId && wikiData) {
         isHandlingPopstate = true;
-        loadPage(e.state.pageId, true);
+        await loadPage(e.state.pageId, true);
         isHandlingPopstate = false;
     } else if (location.hash) {
         const pageId = location.hash.substring(1);
         if (wikiData && wikiData.pagesById[pageId]) {
             isHandlingPopstate = true;
-            loadPage(pageId, true);
+            await loadPage(pageId, true);
             isHandlingPopstate = false;
         }
     }
