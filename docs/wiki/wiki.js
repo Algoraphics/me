@@ -94,7 +94,8 @@ async function syncCurrentPageWithRemote() {
 }
 
 async function loadWikiFromGitHub() {
-    const tree = await githubAPI(`/repos/${REPO_OWNER}/${REPO_NAME}/git/trees/main?recursive=1`);
+    const latestCommit = await githubAPI(`/repos/${REPO_OWNER}/${REPO_NAME}/commits/main`);
+    const tree = await githubAPI(`/repos/${REPO_OWNER}/${REPO_NAME}/git/trees/${latestCommit.commit.tree.sha}?recursive=1`);
     
     const markdownFiles = tree.tree
         .filter(item => item.path.startsWith(CONTENT_PATH + '/') && item.path.endsWith('.md'))
@@ -109,6 +110,7 @@ async function loadWikiFromGitHub() {
         const pageId = file.path.replace(CONTENT_PATH + '/', '').replace(/\.md$/, '');
         const parts = pageId.split('/');
         const parentId = parts.length > 1 ? parts.slice(0, -1).join('/') : null;
+        
         
         const page = {
             id: pageId,
@@ -919,6 +921,7 @@ async function saveEdit() {
             if (page) {
                 page.markdown = newContent;
                 page.loaded = true;
+                page.sha = null;
                 const title = newContent.match(/^#\s+(.+)$/m)?.[1] || newPageId.split('/').pop();
                 page.title = title;
             }
@@ -926,6 +929,7 @@ async function saveEdit() {
             const page = wikiData.pagesById[currentPage];
             page.markdown = newContent;
             page.loaded = true;
+            page.sha = null;
             const title = newContent.match(/^#\s+(.+)$/m)?.[1] || currentPage.split('/').pop();
             page.title = title;
         }
