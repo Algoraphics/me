@@ -94,23 +94,12 @@ async function syncCurrentPageWithRemote() {
 }
 
 async function loadWikiFromGitHub() {
-    console.log('=== Loading Wiki from GitHub ===');
     const latestCommit = await githubAPI(`/repos/${REPO_OWNER}/${REPO_NAME}/commits/main`);
-    console.log(`Latest commit SHA: ${latestCommit.sha}`);
-    console.log(`Using commit tree SHA: ${latestCommit.commit.tree.sha}`);
-    
     const tree = await githubAPI(`/repos/${REPO_OWNER}/${REPO_NAME}/git/trees/${latestCommit.commit.tree.sha}?recursive=1`);
-    console.log(`Tree API returned tree SHA: ${tree.sha}`);
-    console.log(`Tree SHA matches: ${tree.sha === latestCommit.commit.tree.sha}`);
     
     const markdownFiles = tree.tree
         .filter(item => item.path.startsWith(CONTENT_PATH + '/') && item.path.endsWith('.md'))
         .sort((a, b) => a.path.localeCompare(b.path));
-    
-    const canyonlandsFile = markdownFiles.find(f => f.path === 'content/vivarium/biomes/canyonlands.md');
-    if (canyonlandsFile) {
-        console.log(`Canyonlands blob SHA from tree: ${canyonlandsFile.sha}`);
-    }
     
     console.log(`Found ${markdownFiles.length} pages`);
     
@@ -127,7 +116,7 @@ async function loadWikiFromGitHub() {
             id: pageId,
             title: parts[parts.length - 1],
             markdown: null,
-            sha: file.sha,
+            commitSha: latestCommit.sha,
             path: file.path,
             parentId: parentId,
             children: [],
@@ -148,7 +137,7 @@ async function loadWikiFromGitHub() {
     });
     
     console.log('Page tree built');
-    return { pages, pagesById, tree: tree_root };
+    return { pages, pagesById, tree: tree_root, currentCommitSha: latestCommit.sha };
 }
 
 async function fetchPageContent(pageId) {
@@ -156,13 +145,15 @@ async function fetchPageContent(pageId) {
     if (!page || page.loaded) return page;
     
     try {
-        const blob = await githubAPI(`/repos/${REPO_OWNER}/${REPO_NAME}/git/blobs/${page.sha}`);
-        const markdown = atob(blob.content.replace(/\n/g, ''));
+        const filePath = `${CONTENT_PATH}/${pageId}.md`;
+        const fileData = await githubAPI(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/${filePath}`);
+        const markdown = atob(fileData.content.replace(/\n/g, ''));
         const title = markdown.match(/^#\s+(.+)$/m)?.[1] || pageId.split('/').pop();
         
         page.markdown = markdown;
         page.title = title;
         page.loaded = true;
+        page.commitSha = wikiData.currentCommitSha;
         
         localStorage.setItem('wikiDataCache', JSON.stringify(wikiData));
         return page;
@@ -437,15 +428,18 @@ async function loadPage(pageId, skipHistory = false) {
     expandAncestors(pageId);
     currentPage = pageId;
     
-    console.log(`=== Loading Page ${pageId} ===`);
-    console.log(`  Page loaded status: ${page.loaded}`);
     if (!page.loaded) {
-        console.log(`  → Fetching fresh content for ${pageId}`);
+        console.log(`${pageId}: Page not in cache, loading from GitHub`);
+        document.getElementById('content').innerHTML = '<p style="color: #999;">Loading...</p>';
+        await fetchPageContent(pageId);
+        updateSearchIndex();
+    } else if (page.commitSha !== wikiData.currentCommitSha) {
+        console.log(`${pageId}: Page from old commit (${page.commitSha?.substring(0,7)} → ${wikiData.currentCommitSha?.substring(0,7)}), reloading from GitHub`);
         document.getElementById('content').innerHTML = '<p style="color: #999;">Loading...</p>';
         await fetchPageContent(pageId);
         updateSearchIndex();
     } else {
-        console.log(`  → Using cached content for ${pageId}`);
+        console.log(`${pageId}: Loading from cache (commit: ${page.commitSha?.substring(0,7)})`);
     }
     
     let htmlContent = md.render(page.markdown);
@@ -501,23 +495,15 @@ async function login() {
             const cachedPagesById = {};
             cached.pages.forEach(p => cachedPagesById[p.id] = p);
             
-            console.log('=== Cache Comparison ===');
             freshData.pages.forEach(freshPage => {
                 const cachedPage = cachedPagesById[freshPage.id];
                 if (cachedPage && cachedPage.loaded) {
-                    if (freshPage.id === 'vivarium/biomes/canyonlands') {
-                        console.log(`Canyonlands: cached SHA=${cachedPage.sha}, fresh SHA=${freshPage.sha}`);
-                        console.log(`  SHAs match: ${cachedPage.sha === freshPage.sha}`);
-                        console.log(`  Cached content preview: "${(cachedPage.markdown || '').substring(0, 50)}..."`);
-                    }
-                    if (cachedPage.sha === freshPage.sha) {
+                    if (cachedPage.commitSha === freshPage.commitSha) {
                         freshPage.markdown = cachedPage.markdown;
                         freshPage.title = cachedPage.title;
                         freshPage.loaded = true;
+                        freshPage.commitSha = cachedPage.commitSha;
                     } else {
-                        if (freshPage.id === 'vivarium/biomes/canyonlands') {
-                            console.log(`  → Marking canyonlands for reload (SHA mismatch)`);
-                        }
                         freshPage.loaded = false;
                     }
                 }
