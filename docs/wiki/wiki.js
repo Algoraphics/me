@@ -74,16 +74,10 @@ async function syncCurrentPageWithRemote() {
                 showStatus('⚠️ This page was updated remotely while editing. Save will overwrite!', 'error');
                 document.getElementById('save-button').style.background = '#cc6600';
             } else {
-                const markdown = atob(fileData.content.replace(/\n/g, ''));
-                page.markdown = markdown;
-                page.contentSha = fileData.sha;
-                page.title = markdown.match(/^#\s+(.+)$/m)?.[1] || currentPage.split('/').pop();
-                localStorage.setItem('wikiDataCache', JSON.stringify(wikiData));
+                page.loaded = false;
+                await fetchPageContent(currentPage);
                 
-                const htmlContent = md.render(page.markdown).replace(/<img src="images\//g, '<img data-src="images/');
-                document.getElementById('content').innerHTML = htmlContent;
-                setupInternalLinks();
-                await loadImages();
+                await renderPageContent();
             }
             
             return fileData.sha;
@@ -352,6 +346,18 @@ function revokeBlobUrls() {
     currentBlobUrls = [];
 }
 
+async function renderPageContent() {
+    const page = wikiData.pagesById[currentPage];
+    if (!page || !page.markdown) return;
+    
+    let htmlContent = md.render(page.markdown);
+    htmlContent = htmlContent.replace(/<img src="images\//g, '<img data-src="images/');
+    
+    document.getElementById('content').innerHTML = htmlContent;
+    setupInternalLinks();
+    await loadImages();
+}
+
 function createBlobFromBase64(base64Image) {
     const byteCharacters = atob(base64Image);
     const byteNumbers = new Array(byteCharacters.length);
@@ -428,13 +434,10 @@ async function loadPage(pageId, skipHistory = false) {
         await fetchPageContent(pageId);
         updateSearchIndex();
     } else {
+        await syncCurrentPageWithRemote();
     }
     
-    let htmlContent = md.render(page.markdown);
-    
-    htmlContent = htmlContent.replace(/<img src="images\//g, '<img data-src="images/');
-    
-    document.getElementById('content').innerHTML = htmlContent;
+    await renderPageContent();
     renderSidebar();
     
     setTimeout(() => {
@@ -445,9 +448,6 @@ async function loadPage(pageId, skipHistory = false) {
     }, 100);
     
     updateMoveButtons();
-    
-    setupInternalLinks();
-    await loadImages();
     
     sessionStorage.setItem('currentPage', pageId);
     
