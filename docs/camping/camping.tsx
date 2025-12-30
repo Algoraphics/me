@@ -13,18 +13,36 @@ const WORKFLOWS = {
     manual: 'camping-manual.yml'
 };
 
-interface RecArea {
+interface RecAreaBase {
     id: string;
     name: string;
     state: string;
     latitude: number;
     longitude: number;
     distanceMiles: number;
+    provider?: string;
+}
+
+interface AreaScanState {
     lastScanned?: string | null;
     bookingHorizon?: number | null;
     recentWeekendAvailability?: string[];
+    totalCampgrounds?: number;
+    totalSites?: number;
+    topCampgrounds?: { name: string; sites: number }[];
+    bookingUrls?: string[];
     notified?: boolean;
     lastNotifiedAt?: string | null;
+}
+
+interface RecArea extends RecAreaBase, AreaScanState {}
+
+interface ScanState {
+    currentIndex: number;
+    sitesPerRun: number;
+    favesPerDay: number;
+    lastScan: string | null;
+    areas: Record<string, AreaScanState>;
 }
 
 interface FavoritesData {
@@ -34,11 +52,6 @@ interface FavoritesData {
         dailyScanEnabled: boolean;
         notificationsEnabled: boolean;
     };
-}
-
-interface AvailabilityData {
-    lastScan: string;
-    openings: any[];
 }
 
 async function githubAPI(token: string, endpoint: string, options: any = {}) {
@@ -302,6 +315,9 @@ function RecAreaCard({
                     <h3>{area.name}</h3>
                     <div className="card-meta">
                         <span className="distance">{Math.round(area.distanceMiles)} mi</span>
+                        {area.totalCampgrounds !== undefined && (
+                            <span className="campground-count">{area.totalCampgrounds} campgrounds</span>
+                        )}
                         {area.bookingHorizon && (
                             <span className="booking-horizon">{area.bookingHorizon}d horizon</span>
                         )}
@@ -321,7 +337,7 @@ function RecAreaCard({
                         onClick={(e) => { e.stopPropagation(); onToggleDisabled(); }}
                         title={isDisabled ? 'Enable in rotation' : 'Disable from rotation'}
                     >
-                        {isDisabled ? '🚫' : '✓'}
+                        {isDisabled ? '🚫' : '✕'}
                     </button>
                 </div>
             </div>
@@ -348,7 +364,7 @@ function RecAreaCard({
                 )}
                 
                 <div className="card-footer">
-                    <span className="state-label">{area.state}</span>
+                    <span className="provider-label">{area.provider || 'Recreation.gov'}</span>
                     <button 
                         className={`scan-button ${!scannable ? 'on-cooldown' : ''}`}
                         onClick={(e) => { e.stopPropagation(); onScan(); }}
@@ -387,7 +403,7 @@ function TabBar({ activeTab, onTabChange, favoriteCount }: {
 
 function CampingApp({ token }: { token: string }) {
     const [recAreas, setRecAreas] = useState<RecArea[]>([]);
-    const [availability, setAvailability] = useState<AvailabilityData | null>(null);
+    const [scanState, setScanState] = useState<ScanState | null>(null);
     const [favorites, setFavorites] = useState<FavoritesData>({ 
         favorites: [], 
         disabled: [], 
@@ -407,26 +423,34 @@ function CampingApp({ token }: { token: string }) {
     const loadData = async () => {
         setLoading(true);
         try {
-            const [recAreasResult, availResult, favResult, workflows] = await Promise.all([
+            const [recAreasResult, scanStateResult, favResult, workflows] = await Promise.all([
                 fetchFile(token, `${CAMPING_PATH}/rec-areas.json`),
-                fetchFile(token, `${CAMPING_PATH}/availability.json`),
+                fetchFile(token, `${CAMPING_PATH}/scan-state.json`),
                 fetchFile(token, `${CAMPING_PATH}/favorites.json`),
                 getWorkflowStates(token)
             ]);
             
+            let baseAreas: RecAreaBase[] = [];
             if (recAreasResult.data) {
                 const data = recAreasResult.data;
                 if (Array.isArray(data)) {
-                    setRecAreas(data as RecArea[]);
+                    baseAreas = data as RecAreaBase[];
                 } else {
-                    const areas = Object.values(data) as RecArea[];
-                    setRecAreas(areas);
+                    baseAreas = Object.values(data) as RecAreaBase[];
                 }
             }
             
-            if (availResult.data) {
-                setAvailability(availResult.data);
+            let scanData: ScanState = { currentIndex: 0, sitesPerRun: 4, favesPerDay: 6, lastScan: null, areas: {} };
+            if (scanStateResult.data) {
+                scanData = scanStateResult.data;
             }
+            setScanState(scanData);
+            
+            const mergedAreas: RecArea[] = baseAreas.map(base => ({
+                ...base,
+                ...(scanData.areas[base.id] || {})
+            }));
+            setRecAreas(mergedAreas);
             
             if (favResult.data) {
                 setFavorites(favResult.data);
@@ -476,7 +500,7 @@ function CampingApp({ token }: { token: string }) {
             newFavorites.favorites = newFavorites.favorites.filter(f => f !== areaKey);
         } else {
             if (newFavorites.favorites.length >= 5) {
-                return; // Max 4 favorites
+                return;
             }
             newFavorites.favorites = [...newFavorites.favorites, areaKey];
         }
@@ -550,8 +574,8 @@ function CampingApp({ token }: { token: string }) {
         return <div id="loading-screen">Loading...</div>;
     }
 
-    const lastScanDate = availability?.lastScan 
-        ? new Date(availability.lastScan).toLocaleString()
+    const lastScanDate = scanState?.lastScan 
+        ? new Date(scanState.lastScan).toLocaleString()
         : 'Never';
 
     const favoriteCount = favorites.favorites.length;
@@ -712,4 +736,3 @@ if (container) {
     const root = createRoot(container);
     root.render(<App />);
 }
-

@@ -1,0 +1,47 @@
+name: Camping Rotation Scan
+
+on:
+  schedule:
+    - cron: '0 14 * * *'  # Daily at 6 AM PT (14:00 UTC)
+  workflow_dispatch:
+
+jobs:
+  rotation-scan:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout me repository
+        uses: actions/checkout@v4
+        with:
+          path: me
+      
+      - name: Checkout Vivarium repository
+        uses: actions/checkout@v4
+        with:
+          repository: Algoraphics/Vivarium
+          token: ${{ secrets.VIVARIUM_TOKEN }}
+          path: vivarium
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install camply
+        run: pip install camply
+      
+      - name: Run rotation scan
+        env:
+          VIVARIUM_PATH: vivarium
+          DISCORD_CAMPING_WEBHOOK: ${{ secrets.DISCORD_CAMPING_WEBHOOK }}
+        run: python me/scripts/check-camping.py --rotation
+      
+      - name: Commit results
+        run: |
+          cd vivarium
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add camping/
+          git diff --staged --quiet || git commit -m "Update camping availability (rotation) [skip ci]"
+          git push
+
