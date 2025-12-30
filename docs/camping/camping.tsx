@@ -1,51 +1,44 @@
 import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
+import { Switch, FormControlLabel } from '@mui/material';
 
 const REPO_OWNER = 'Algoraphics';
 const REPO_NAME = 'Vivarium';
 const WORKFLOW_REPO = 'me';
 const CAMPING_PATH = 'camping';
-const SCAN_DURATION_ESTIMATE_MS = 120000;
+
+const WORKFLOWS = {
+    rotation: 'camping-rotation.yml',
+    favorites: 'camping-favorites.yml',
+    manual: 'camping-manual.yml'
+};
 
 interface RecArea {
     id: string;
     name: string;
-    provider: string;
-}
-
-interface RecAreasData {
-    [key: string]: RecArea;
-}
-
-interface CampgroundFavorite {
-    name: string;
-    recAreaKey: string;
-    recAreaName: string;
-    notify: boolean;
+    state: string;
+    latitude: number;
+    longitude: number;
+    distanceMiles: number;
+    lastScanned?: string | null;
+    bookingHorizon?: number | null;
+    recentWeekendAvailability?: string[];
+    notified?: boolean;
+    lastNotifiedAt?: string | null;
 }
 
 interface FavoritesData {
-    favorites: { [key: string]: CampgroundFavorite };
+    favorites: string[];
+    disabled: string[];
     settings: {
         dailyScanEnabled: boolean;
-        weekendsOnly: boolean;
+        notificationsEnabled: boolean;
     };
-}
-
-interface Opening {
-    recAreaKey: string;
-    recAreaName: string;
-    campgroundId?: string;
-    campgroundName?: string;
-    provider: string;
-    dates?: string[];
-    bookingUrl?: string;
-    raw?: string;
 }
 
 interface AvailabilityData {
     lastScan: string;
-    openings: Opening[];
+    openings: any[];
 }
 
 async function githubAPI(token: string, endpoint: string, options: any = {}) {
@@ -99,8 +92,8 @@ async function saveFile(token: string, path: string, data: any, sha: string | nu
     });
 }
 
-async function triggerScanWorkflow(token: string): Promise<void> {
-    await fetch(`https://api.github.com/repos/${REPO_OWNER}/${WORKFLOW_REPO}/actions/workflows/camping-monitor.yml/dispatches`, {
+async function triggerScanWorkflow(token: string, areaId: string): Promise<void> {
+    await fetch(`https://api.github.com/repos/${REPO_OWNER}/${WORKFLOW_REPO}/actions/workflows/camping-manual.yml/dispatches`, {
         method: 'POST',
         headers: {
             'Authorization': `token ${token}`,
@@ -109,23 +102,105 @@ async function triggerScanWorkflow(token: string): Promise<void> {
         body: JSON.stringify({
             ref: 'master',
             inputs: {
-                scan_type: 'full',
-                update_rec_areas: 'true'
+                sites: areaId
             }
         })
     });
 }
 
+interface WorkflowState {
+    rotation: boolean;
+    favorites: boolean;
+}
+
+async function getWorkflowStates(token: string): Promise<WorkflowState> {
+    const states: WorkflowState = { rotation: false, favorites: false };
+    
+    for (const [key, filename] of Object.entries(WORKFLOWS)) {
+        if (key === 'manual') continue;
+        try {
+            const response = await fetch(
+                `https://api.github.com/repos/${REPO_OWNER}/${WORKFLOW_REPO}/actions/workflows/${filename}`,
+                {
+                    headers: {
+                        'Authorization': `token ${token}`,
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                }
+            );
+            if (response.ok) {
+                const data = await response.json();
+                states[key as keyof WorkflowState] = data.state === 'active';
+            }
+        } catch (e) {
+            console.error(`Error fetching workflow state for ${key}:`, e);
+        }
+    }
+    
+    return states;
+}
+
+async function setWorkflowEnabled(token: string, workflow: 'rotation' | 'favorites', enabled: boolean): Promise<boolean> {
+    const filename = WORKFLOWS[workflow];
+    const action = enabled ? 'enable' : 'disable';
+    
+    try {
+        const response = await fetch(
+            `https://api.github.com/repos/${REPO_OWNER}/${WORKFLOW_REPO}/actions/workflows/${filename}/${action}`,
+            {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `token ${token}`,
+                    'Accept': 'application/vnd.github.v3+json'
+                }
+            }
+        );
+        return response.ok || response.status === 204;
+    } catch (e) {
+        console.error(`Error ${action}ing workflow ${workflow}:`, e);
+        return false;
+    }
+}
+
+const SCAN_COOLDOWN_MS = 15 * 60 * 1000;
+
+function getScanTime(areaKey: string): number | null {
+    const stored = localStorage.getItem(`camping-scan-${areaKey}`);
+    return stored ? parseInt(stored, 10) : null;
+}
+
+function setScanTime(areaKey: string, time: number): void {
+    localStorage.setItem(`camping-scan-${areaKey}`, time.toString());
+}
+
+function getMinutesSinceScan(areaKey: string): number | null {
+    const scanTime = getScanTime(areaKey);
+    if (!scanTime) return null;
+    return Math.floor((Date.now() - scanTime) / 60000);
+}
+
+function canScan(areaKey: string): boolean {
+    const scanTime = getScanTime(areaKey);
+    if (!scanTime) return true;
+    return Date.now() - scanTime >= SCAN_COOLDOWN_MS;
+}
+
 function LoginScreen({ onLogin }: { onLogin: (token: string) => void }) {
     const [token, setToken] = useState('');
     const [error, setError] = useState(false);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(() => {
+        return !!sessionStorage.getItem('githubToken');
+    });
+    const [showForm, setShowForm] = useState(() => {
+        return !sessionStorage.getItem('githubToken');
+    });
     
     useEffect(() => {
         const savedToken = sessionStorage.getItem('githubToken');
         if (savedToken) {
-            setToken(savedToken);
             handleLogin(savedToken);
+        } else {
+            document.documentElement.style.visibility = 'visible';
         }
     }, []);
     
@@ -133,6 +208,7 @@ function LoginScreen({ onLogin }: { onLogin: (token: string) => void }) {
         const loginToken = tokenToUse || token;
         setError(false);
         setLoading(true);
+        setShowForm(false);
         
         try {
             await githubAPI(loginToken, '/user');
@@ -143,6 +219,7 @@ function LoginScreen({ onLogin }: { onLogin: (token: string) => void }) {
             console.error('Login failed:', err);
             setError(true);
             setLoading(false);
+            setShowForm(true);
             document.documentElement.style.visibility = 'visible';
         }
     };
@@ -151,26 +228,28 @@ function LoginScreen({ onLogin }: { onLogin: (token: string) => void }) {
         <div id="login-screen">
             <div id="login-box">
                 <h1>Camping</h1>
-                <form id="login-form" onSubmit={(e) => { e.preventDefault(); handleLogin(); }}>
-                    <input 
-                        type="text" 
-                        name="username"
-                        defaultValue="camping"
-                        autoComplete="username"
-                        style={{ display: 'none' }}
-                        readOnly
-                    />
-                    <input 
-                        type="password" 
-                        id="token-input"
-                        value={token}
-                        onChange={(e) => setToken(e.target.value)}
-                        name="password"
-                        placeholder="Enter GitHub Token"
-                        autoComplete="current-password"
-                    />
-                    <button id="login-button" type="submit">Enter</button>
-                </form>
+                {showForm && (
+                    <form id="login-form" onSubmit={(e) => { e.preventDefault(); handleLogin(); }}>
+                        <input 
+                            type="text" 
+                            name="username"
+                            defaultValue="camping"
+                            autoComplete="username"
+                            style={{ display: 'none' }}
+                            readOnly
+                        />
+                        <input 
+                            type="password" 
+                            id="token-input"
+                            value={token}
+                            onChange={(e) => setToken(e.target.value)}
+                            name="password"
+                            placeholder="Enter GitHub Token"
+                            autoComplete="current-password"
+                        />
+                        <button id="login-button" type="submit">Enter</button>
+                    </form>
+                )}
                 <div id="error-message" style={{ display: error ? 'block' : 'none' }}>Bad Password.</div>
                 <div id="loading-message" style={{ display: loading ? 'block' : 'none' }}>Loading...</div>
             </div>
@@ -183,7 +262,7 @@ function SearchBar({ searchQuery, onSearchChange }: { searchQuery: string, onSea
         <div className="search-container">
             <input
                 type="text"
-                placeholder="Search campgrounds..."
+                placeholder="Search recreation areas..."
                 value={searchQuery}
                 onChange={(e) => onSearchChange(e.target.value)}
                 className="search-input"
@@ -192,106 +271,134 @@ function SearchBar({ searchQuery, onSearchChange }: { searchQuery: string, onSea
     );
 }
 
-function AvailabilityCard({ 
-    opening,
+function RecAreaCard({ 
+    areaId,
+    area,
     isFavorite,
-    notifyEnabled,
+    isDisabled,
+    favoriteCount,
     onToggleFavorite,
-    onToggleNotify
+    onToggleDisabled,
+    onScan
 }: { 
-    opening: Opening;
+    areaId: string;
+    area: RecArea;
     isFavorite: boolean;
-    notifyEnabled: boolean;
+    isDisabled: boolean;
+    favoriteCount: number;
     onToggleFavorite: () => void;
-    onToggleNotify: () => void;
+    onToggleDisabled: () => void;
+    onScan: () => void;
 }) {
-    const campgroundKey = opening.campgroundId || opening.recAreaKey;
-    const displayName = opening.campgroundName || opening.recAreaName;
+    const availability = area.recentWeekendAvailability || [];
+    const hasAvailability = availability.length > 0;
+    const scannable = canScan(areaId);
+    const minutesAgo = getMinutesSinceScan(areaId);
     
     return (
-        <div className="availability-card">
+        <div className={`rec-area-card ${isDisabled ? 'disabled' : ''}`}>
             <div className="card-header">
                 <div className="card-title">
-                    <h3>{displayName}</h3>
-                    <span className="rec-area-label">{opening.recAreaName}</span>
+                    <h3>{area.name}</h3>
+                    <div className="card-meta">
+                        <span className="distance">{Math.round(area.distanceMiles)} mi</span>
+                        {area.bookingHorizon && (
+                            <span className="booking-horizon">{area.bookingHorizon}d horizon</span>
+                        )}
+                    </div>
                 </div>
                 <div className="card-actions">
                     <button 
                         className={`favorite-button ${isFavorite ? 'active' : ''}`}
                         onClick={(e) => { e.stopPropagation(); onToggleFavorite(); }}
                         title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+                        disabled={!isFavorite && favoriteCount >= 5}
                     >
                         {isFavorite ? '★' : '☆'}
                     </button>
-                    {isFavorite && (
-                        <label className="notify-toggle" onClick={(e) => e.stopPropagation()}>
-                            <input 
-                                type="checkbox"
-                                checked={notifyEnabled}
-                                onChange={onToggleNotify}
-                            />
-                            <span className="notify-label">Notify</span>
-                        </label>
-                    )}
+                    <button 
+                        className={`disable-button ${isDisabled ? 'active' : ''}`}
+                        onClick={(e) => { e.stopPropagation(); onToggleDisabled(); }}
+                        title={isDisabled ? 'Enable in rotation' : 'Disable from rotation'}
+                    >
+                        {isDisabled ? '🚫' : '✓'}
+                    </button>
                 </div>
             </div>
             
             <div className="card-content">
-                {opening.dates && opening.dates.length > 0 && (
-                    <div className="dates-list">
-                        <span className="dates-label">Available dates:</span>
-                        <span className="dates-value">{opening.dates.slice(0, 5).join(', ')}{opening.dates.length > 5 ? ` +${opening.dates.length - 5} more` : ''}</span>
+                {hasAvailability ? (
+                    <div className="availability-info">
+                        <div className="availability-status available">
+                            ✅ {availability.length} weekend dates available
+                        </div>
+                        <div className="available-dates">
+                            {availability.slice(0, 3).join(', ')}
+                            {availability.length > 3 && ` +${availability.length - 3} more`}
+                        </div>
+                    </div>
+                ) : area.lastScanned ? (
+                    <div className="availability-status no-availability">
+                        ❌ No weekend availability found
+                    </div>
+                ) : (
+                    <div className="availability-status not-scanned">
+                        ⏳ Not yet scanned
                     </div>
                 )}
-                {opening.raw && !opening.dates && (
-                    <div className="raw-availability">{opening.raw}</div>
-                )}
-                <div className="provider-label">{opening.provider}</div>
+                
+                <div className="card-footer">
+                    <span className="state-label">{area.state}</span>
+                    <button 
+                        className={`scan-button ${!scannable ? 'on-cooldown' : ''}`}
+                        onClick={(e) => { e.stopPropagation(); onScan(); }}
+                        disabled={!scannable}
+                    >
+                        {scannable ? 'Scan now' : `Scanned ${minutesAgo}m ago`}
+                    </button>
+                </div>
             </div>
-            
-            {opening.bookingUrl && (
-                <a 
-                    href={opening.bookingUrl} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="book-button"
-                    onClick={(e) => e.stopPropagation()}
-                >
-                    Book Now →
-                </a>
-            )}
         </div>
     );
 }
 
-function TabBar({ activeTab, onTabChange }: { activeTab: 'all' | 'favorites', onTabChange: (tab: 'all' | 'favorites') => void }) {
+function TabBar({ activeTab, onTabChange, favoriteCount }: { 
+    activeTab: 'all' | 'favorites', 
+    onTabChange: (tab: 'all' | 'favorites') => void,
+    favoriteCount: number
+}) {
     return (
         <div className="tab-bar">
             <button 
                 className={`tab-button ${activeTab === 'all' ? 'active' : ''}`}
                 onClick={() => onTabChange('all')}
             >
-                All Availability
+                All Areas
             </button>
             <button 
                 className={`tab-button ${activeTab === 'favorites' ? 'active' : ''}`}
                 onClick={() => onTabChange('favorites')}
             >
-                Favorites
+                Favorites {favoriteCount > 0 && `(${favoriteCount})`}
             </button>
         </div>
     );
 }
 
 function CampingApp({ token }: { token: string }) {
+    const [recAreas, setRecAreas] = useState<RecArea[]>([]);
     const [availability, setAvailability] = useState<AvailabilityData | null>(null);
-    const [favorites, setFavorites] = useState<FavoritesData>({ favorites: {}, settings: { dailyScanEnabled: false, weekendsOnly: true } });
+    const [favorites, setFavorites] = useState<FavoritesData>({ 
+        favorites: [], 
+        disabled: [], 
+        settings: { dailyScanEnabled: false, notificationsEnabled: false } 
+    });
     const [favoritesSha, setFavoritesSha] = useState<string | null>(null);
+    const [workflowStates, setWorkflowStates] = useState<WorkflowState>({ rotation: false, favorites: false });
     const [activeTab, setActiveTab] = useState<'all' | 'favorites'>('all');
     const [searchQuery, setSearchQuery] = useState('');
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [scanStatus, setScanStatus] = useState<'idle' | 'running' | 'complete'>('idle');
 
     useEffect(() => {
         loadData();
@@ -300,10 +407,22 @@ function CampingApp({ token }: { token: string }) {
     const loadData = async () => {
         setLoading(true);
         try {
-            const [availResult, favResult] = await Promise.all([
+            const [recAreasResult, availResult, favResult, workflows] = await Promise.all([
+                fetchFile(token, `${CAMPING_PATH}/rec-areas.json`),
                 fetchFile(token, `${CAMPING_PATH}/availability.json`),
-                fetchFile(token, `${CAMPING_PATH}/favorites.json`)
+                fetchFile(token, `${CAMPING_PATH}/favorites.json`),
+                getWorkflowStates(token)
             ]);
+            
+            if (recAreasResult.data) {
+                const data = recAreasResult.data;
+                if (Array.isArray(data)) {
+                    setRecAreas(data as RecArea[]);
+                } else {
+                    const areas = Object.values(data) as RecArea[];
+                    setRecAreas(areas);
+                }
+            }
             
             if (availResult.data) {
                 setAvailability(availResult.data);
@@ -313,10 +432,22 @@ function CampingApp({ token }: { token: string }) {
                 setFavorites(favResult.data);
                 setFavoritesSha(favResult.sha);
             }
+            
+            setWorkflowStates(workflows);
         } catch (e) {
             console.error('Error loading data:', e);
         }
         setLoading(false);
+    };
+
+
+    const handleScan = async (areaId: string) => {
+        setScanTime(areaId, Date.now());
+        try {
+            await triggerScanWorkflow(token, areaId);
+        } catch (e) {
+            console.error('Error triggering scan:', e);
+        }
     };
 
     const saveFavorites = async (newFavorites: FavoritesData) => {
@@ -338,151 +469,228 @@ function CampingApp({ token }: { token: string }) {
         setSaving(false);
     };
 
-    const toggleFavorite = (opening: Opening) => {
-        const key = opening.campgroundId || opening.recAreaKey;
+    const toggleFavorite = (areaKey: string) => {
         const newFavorites = { ...favorites };
         
-        if (newFavorites.favorites[key]) {
-            delete newFavorites.favorites[key];
+        if (newFavorites.favorites.includes(areaKey)) {
+            newFavorites.favorites = newFavorites.favorites.filter(f => f !== areaKey);
         } else {
-            newFavorites.favorites[key] = {
-                name: opening.campgroundName || opening.recAreaName,
-                recAreaKey: opening.recAreaKey,
-                recAreaName: opening.recAreaName,
-                notify: false
-            };
+            if (newFavorites.favorites.length >= 5) {
+                return; // Max 4 favorites
+            }
+            newFavorites.favorites = [...newFavorites.favorites, areaKey];
         }
         
         saveFavorites(newFavorites);
     };
 
-    const toggleNotify = (opening: Opening) => {
-        const key = opening.campgroundId || opening.recAreaKey;
-        if (!favorites.favorites[key]) return;
-        
+    const toggleDisabled = (areaKey: string) => {
         const newFavorites = { ...favorites };
-        newFavorites.favorites[key] = {
-            ...newFavorites.favorites[key],
-            notify: !newFavorites.favorites[key].notify
-        };
+        
+        if (newFavorites.disabled.includes(areaKey)) {
+            newFavorites.disabled = newFavorites.disabled.filter(d => d !== areaKey);
+        } else {
+            newFavorites.disabled = [...newFavorites.disabled, areaKey];
+        }
         
         saveFavorites(newFavorites);
     };
 
-    const toggleDailyScan = () => {
+    const toggleWorkflow = async (workflow: 'rotation' | 'favorites') => {
+        const currentState = workflowStates[workflow];
+        const newState = !currentState;
+        
+        setWorkflowStates(prev => ({ ...prev, [workflow]: newState }));
+        
+        const success = await setWorkflowEnabled(token, workflow, newState);
+        if (!success) {
+            setWorkflowStates(prev => ({ ...prev, [workflow]: currentState }));
+        }
+    };
+
+    const toggleNotifications = () => {
         const newFavorites = { 
             ...favorites,
             settings: {
                 ...favorites.settings,
-                dailyScanEnabled: !favorites.settings.dailyScanEnabled
+                notificationsEnabled: !favorites.settings.notificationsEnabled
             }
         };
         saveFavorites(newFavorites);
     };
 
-    const runScan = async () => {
-        setScanStatus('running');
-        try {
-            await triggerScanWorkflow(token);
-            setTimeout(() => {
-                setScanStatus('complete');
-            }, SCAN_DURATION_ESTIMATE_MS);
-        } catch (e) {
-            console.error('Error triggering scan:', e);
-            setScanStatus('idle');
-        }
-    };
-
-    const filteredOpenings = (availability?.openings || []).filter(opening => {
+    const filteredAreas = recAreas.filter(area => {
         if (!searchQuery) return true;
         const query = searchQuery.toLowerCase();
-        const name = (opening.campgroundName || opening.recAreaName || '').toLowerCase();
-        return name.includes(query);
+        return area.name.toLowerCase().includes(query);
     });
 
-    const displayOpenings = activeTab === 'favorites'
-        ? filteredOpenings.filter(o => favorites.favorites[o.campgroundId || o.recAreaKey])
-        : filteredOpenings;
+    const sortedAreas = [...filteredAreas].sort((areaA, areaB) => {
+        const isFavA = favorites.favorites.includes(areaA.id);
+        const isFavB = favorites.favorites.includes(areaB.id);
+        const isDisabledA = favorites.disabled.includes(areaA.id);
+        const isDisabledB = favorites.disabled.includes(areaB.id);
+        
+        if (isDisabledA && !isDisabledB) return 1;
+        if (!isDisabledA && isDisabledB) return -1;
+        
+        if (!isDisabledA && !isDisabledB) {
+            if (isFavA && !isFavB) return -1;
+            if (!isFavA && isFavB) return 1;
+        }
+        
+        return areaA.distanceMiles - areaB.distanceMiles;
+    });
+
+    const displayAreas = activeTab === 'favorites'
+        ? sortedAreas.filter(area => favorites.favorites.includes(area.id))
+        : sortedAreas;
 
     if (loading) {
-        return <div id="loading-screen">Loading camping data...</div>;
+        return <div id="loading-screen">Loading...</div>;
     }
 
     const lastScanDate = availability?.lastScan 
         ? new Date(availability.lastScan).toLocaleString()
         : 'Never';
 
-    const notifyCount = Object.values(favorites.favorites).filter(f => f.notify).length;
+    const favoriteCount = favorites.favorites.length;
+    const totalAreas = recAreas.length;
+    const scannedAreas = recAreas.filter(a => a.lastScanned).length;
 
     return (
         <div id="camping-app">
             <header id="camping-header">
-                <h1>Camping Availability</h1>
-                <div className="last-scan">Last scan: {lastScanDate}</div>
+                <h1>California Camping</h1>
+                <div className="stats">
+                    <span>{totalAreas} recreation areas</span>
+                    <span>•</span>
+                    <span>{scannedAreas} scanned</span>
+                    <span>•</span>
+                    <span>Last scan: {lastScanDate}</span>
+                </div>
             </header>
             
             <div className="scan-controls">
-                <div className="scan-actions">
-                    <button 
-                        className="run-scan-button"
-                        onClick={runScan}
-                        disabled={scanStatus === 'running'}
-                    >
-                        {scanStatus === 'running' ? 'Populating...' : 'Populate all sites'}
-                    </button>
-                    {scanStatus === 'running' && (
-                        <span className="scan-message">Population in progress. This takes ~2 minutes...</span>
-                    )}
-                    {scanStatus === 'complete' && (
-                        <span className="scan-message complete">
-                            Population likely complete. <button className="refresh-link" onClick={() => window.location.reload()}>Refresh page</button> to see updates.
-                        </span>
-                    )}
-                </div>
-                <label className="scan-toggle">
-                    <input 
-                        type="checkbox"
-                        checked={favorites.settings.dailyScanEnabled}
-                        onChange={toggleDailyScan}
+                <div className="settings-row">
+                    <FormControlLabel
+                        control={
+                            <Switch
+                                checked={workflowStates.rotation}
+                                onChange={() => toggleWorkflow('rotation')}
+                                sx={{
+                                    '& .MuiSwitch-switchBase': {
+                                        color: '#9c9588',
+                                    },
+                                    '& .MuiSwitch-track': {
+                                        backgroundColor: '#6b635a',
+                                    },
+                                    '& .MuiSwitch-switchBase.Mui-checked': {
+                                        color: '#4ade80',
+                                    },
+                                    '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                                        backgroundColor: '#4ade80',
+                                    },
+                                }}
+                            />
+                        }
+                        label="Daily Rotation Scan"
+                        sx={{ color: '#e8e4df', '& .MuiFormControlLabel-label': { fontSize: '14px' } }}
                     />
-                    <span>Auto Daily Scan</span>
-                    <span className="scan-status">{favorites.settings.dailyScanEnabled ? 'Enabled' : 'Disabled'}</span>
-                </label>
-                {notifyCount > 0 && (
-                    <div className="notify-status">
-                        {notifyCount} site{notifyCount !== 1 ? 's' : ''} with 15-min notifications
+                    
+                    <FormControlLabel
+                        control={
+                            <Switch
+                                checked={workflowStates.favorites}
+                                onChange={() => toggleWorkflow('favorites')}
+                                sx={{
+                                    '& .MuiSwitch-switchBase': {
+                                        color: '#9c9588',
+                                    },
+                                    '& .MuiSwitch-track': {
+                                        backgroundColor: '#6b635a',
+                                    },
+                                    '& .MuiSwitch-switchBase.Mui-checked': {
+                                        color: '#4ade80',
+                                    },
+                                    '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                                        backgroundColor: '#4ade80',
+                                    },
+                                }}
+                            />
+                        }
+                        label="Favorites Scan (2x/day)"
+                        sx={{ color: '#e8e4df', '& .MuiFormControlLabel-label': { fontSize: '14px' } }}
+                    />
+                    
+                    <FormControlLabel
+                        control={
+                            <Switch
+                                checked={favorites.settings.notificationsEnabled}
+                                onChange={toggleNotifications}
+                                sx={{
+                                    '& .MuiSwitch-switchBase': {
+                                        color: '#9c9588',
+                                    },
+                                    '& .MuiSwitch-track': {
+                                        backgroundColor: '#6b635a',
+                                    },
+                                    '& .MuiSwitch-switchBase.Mui-checked': {
+                                        color: '#4ade80',
+                                    },
+                                    '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                                        backgroundColor: '#4ade80',
+                                    },
+                                }}
+                            />
+                        }
+                        label="Discord Notifications"
+                        sx={{ color: '#e8e4df', '& .MuiFormControlLabel-label': { fontSize: '14px' } }}
+                    />
+                </div>
+                
+                {favoriteCount > 0 && (
+                    <div className="favorites-info">
+                        {favoriteCount}/5 favorites selected
+                        {favorites.settings.notificationsEnabled && ' • Will notify on new availability'}
                     </div>
                 )}
             </div>
             
             <SearchBar searchQuery={searchQuery} onSearchChange={setSearchQuery} />
             
-            <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
+            <TabBar activeTab={activeTab} onTabChange={setActiveTab} favoriteCount={favoriteCount} />
             
             {saving && <div className="saving-indicator">Saving...</div>}
             
-            <div id="availability-list">
-                {displayOpenings.length === 0 ? (
+            {activeTab === 'favorites' && (
+                <div className="favorites-limit-label">You can have up to 5 favorites</div>
+            )}
+            
+            <div id="rec-areas-list">
+                {displayAreas.length === 0 ? (
                     <div className="empty-state">
                         {activeTab === 'favorites' 
-                            ? 'No favorites yet. Star some campgrounds from the All Availability tab!'
-                            : 'No availability data yet. Run a scan to check for openings.'
+                            ? 'No favorites yet. Star some recreation areas from the All Areas tab!'
+                            : totalAreas === 0
+                            ? 'No recreation areas loaded. This may be a data loading issue.'
+                            : 'No areas match your search.'
                         }
                     </div>
                 ) : (
-                    displayOpenings.map((opening, index) => {
-                        const key = opening.campgroundId || opening.recAreaKey;
-                        return (
-                            <AvailabilityCard
-                                key={`${key}-${index}`}
-                                opening={opening}
-                                isFavorite={!!favorites.favorites[key]}
-                                notifyEnabled={favorites.favorites[key]?.notify || false}
-                                onToggleFavorite={() => toggleFavorite(opening)}
-                                onToggleNotify={() => toggleNotify(opening)}
-                            />
-                        );
-                    })
+                    displayAreas.map(area => (
+                        <RecAreaCard
+                            key={area.id}
+                            areaId={area.id}
+                            area={area}
+                            isFavorite={favorites.favorites.includes(area.id)}
+                            isDisabled={favorites.disabled.includes(area.id)}
+                            favoriteCount={favoriteCount}
+                            onToggleFavorite={() => toggleFavorite(area.id)}
+                            onToggleDisabled={() => toggleDisabled(area.id)}
+                            onScan={() => handleScan(area.id)}
+                        />
+                    ))
                 )}
             </div>
         </div>
