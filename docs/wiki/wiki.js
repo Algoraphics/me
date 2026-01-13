@@ -1168,7 +1168,7 @@ function searchPages(query) {
         
         resultsContainer.classList.add('active');
     } else {
-        resultsContainer.innerHTML = '<div style="color: #999; padding: 10px;">No results found</div>';
+        resultsContainer.innerHTML = '<div style="color: #999; padding: 10px;">No results found. Index to search page content.</div>';
         resultsContainer.classList.add('active');
     }
 }

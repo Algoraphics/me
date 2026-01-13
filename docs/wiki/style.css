@@ -440,6 +440,16 @@
             margin-bottom: 0;
         }
         
+        #content ul,
+        #content ol {
+            margin-bottom: 1em;
+            padding-left: 2em;
+        }
+        
+        #content li {
+            margin-bottom: 0.25em;
+        }
+        
         #content a {
             color: #ffd700;
         }
