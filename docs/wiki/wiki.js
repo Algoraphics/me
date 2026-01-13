@@ -324,6 +324,11 @@ function saveDraft() {
     if (!isEditMode || !currentPage) return;
     const editorContent = document.getElementById('markdown-editor').value;
     
+    if (editorContent === originalMarkdown) {
+        clearDraft(currentPage);
+        return;
+    }
+    
     const drafts = JSON.parse(localStorage.getItem('pageDrafts') || '{}');
     
     drafts[currentPage] = {
@@ -627,6 +632,14 @@ function closeEditMode() {
 }
 
 function startNewPage() {
+    const existingDraft = loadDraft(currentPage);
+    if (existingDraft && isEditMode && !isNewPage) {
+        if (!confirm('You have an unsaved draft for this page. Creating a new page will discard that draft.\n\nContinue?')) {
+            return;
+        }
+        clearDraft(currentPage);
+    }
+    
     isNewPage = true;
     originalMarkdown = '';
     
@@ -832,7 +845,7 @@ function cancelEdit() {
         }
     }
     
-    if (currentPage && !isNewPage) {
+    if (currentPage) {
         clearDraft(currentPage);
     }
     closeEditMode();
@@ -936,15 +949,33 @@ async function saveEdit() {
         localStorage.setItem('wikiDataCache', JSON.stringify(wikiData));
         
         if (isNewPage) {
+            const originalPageId = currentPage;
             const newPageId = filePath.replace(`${CONTENT_PATH}/`, '').replace(/\.md$/, '');
-            currentPage = newPageId;
-            const page = wikiData.pagesById[newPageId];
-            if (page) {
-                page.markdown = newContent;
-                page.loaded = true;
-                const title = newContent.match(/^#\s+(.+)$/m)?.[1] || newPageId.split('/').pop();
-                page.title = title;
+            const title = newContent.match(/^#\s+(.+)$/m)?.[1] || newPageId.split('/').pop();
+            const parentId = newPageId.includes('/') ? newPageId.substring(0, newPageId.lastIndexOf('/')) : null;
+            
+            const newPage = {
+                id: newPageId,
+                title: title,
+                parentId: parentId,
+                children: [],
+                markdown: newContent,
+                loaded: true,
+                contentSha: saveResponse.content?.sha || null
+            };
+            
+            wikiData.pagesById[newPageId] = newPage;
+            
+            if (parentId && wikiData.pagesById[parentId]) {
+                wikiData.pagesById[parentId].children.push(newPage);
+            } else if (!parentId) {
+                wikiData.pages.push(newPage);
             }
+            
+            if (originalPageId) {
+                clearDraft(originalPageId);
+            }
+            currentPage = newPageId;
         } else {
             const page = wikiData.pagesById[currentPage];
             page.markdown = newContent;
