@@ -7,6 +7,13 @@ import ControlPanel from './ControlPanel';
 import { Demo } from './Demo';
 import { FullWindow, Window, TabPage, Tab, TabButtons, FixedButtons } from './styles';
 
+declare global {
+    interface Window {
+        controlActivateDemo?: () => void;
+        controlDeactivateDemo?: () => void;
+    }
+}
+
 /* Get matching react component based on clicked tab */
 const getWindow = (
     topic: string, 
@@ -38,16 +45,19 @@ const TabGroup = (props: { isMobile: boolean; zoomImg: string; setZoomImg: (img:
     const [activeDemo, setActiveDemo] = useState(false);
     const { zoomImg, setZoomImg } = props;
 
-    document.addEventListener("mousedown", (event) => {
-        var target = event.target;
-        if (target instanceof HTMLButtonElement || target instanceof HTMLImageElement) {
-            if (target.innerText === "Show/Hide Controls" || target.title === "Show/Hide Controls") {
-                setActiveDemo(!activeDemo);
-            } else if (target.closest('#controlbuttons')) {
-                setActiveDemo(true);
-            }
-        }
-    });
+    React.useEffect(() => {
+        const handleHidePanel = () => {
+            setActiveDemo(true);
+        };
+        document.addEventListener("hideExplanationPanel", handleHidePanel);
+        return () => {
+            document.removeEventListener("hideExplanationPanel", handleHidePanel);
+        };
+    }, []);
+
+    const handleTogglePanel = () => {
+        setActiveDemo(prev => !prev);
+    };
     
     return (
         <TabPage id="window" maxWidth={props.isMobile ? "625px" : "1200px"}>
@@ -61,8 +71,11 @@ const TabGroup = (props: { isMobile: boolean; zoomImg: string; setZoomImg: (img:
                             activeTab={activeTab === type}
                             onClick={() => {
                                 setActiveTab(type);
-                                if (type !== "Demo") {
+                                if (type === "Demo") {
+                                    window.controlActivateDemo?.();
+                                } else {
                                     setActiveDemo(false);
+                                    window.controlDeactivateDemo?.();
                                 }
                             }}
                         >
@@ -70,7 +83,7 @@ const TabGroup = (props: { isMobile: boolean; zoomImg: string; setZoomImg: (img:
                         </Tab>
                     ))}
                 </FixedButtons>
-                <ControlPanel isMobile={props.isMobile} isActive={activeTab === "Demo"}/>
+                <ControlPanel isMobile={props.isMobile} isActive={activeTab === "Demo"} onTogglePanel={handleTogglePanel}/>
             </TabButtons>
             <br />
             <Window id="tabwindow" demoActive={activeDemo}

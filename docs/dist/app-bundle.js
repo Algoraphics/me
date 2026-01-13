@@ -261,9 +261,6 @@ const ControlButton = styled_components__WEBPACK_IMPORTED_MODULE_1__["default"].
     &:hover {
         border-color: yellow;
     }
-    &:active {
-        background-color: yellow;
-    }
 `;
 const ControlButtonGroup = styled_components__WEBPACK_IMPORTED_MODULE_1__["default"].div `
     opacity: 0;
@@ -280,57 +277,42 @@ const ControlButtonGroup = styled_components__WEBPACK_IMPORTED_MODULE_1__["defau
         transform: scale(0.75) !important;
     `};
 `;
-const controlTypes = ["visible", "rewind", "pause", "play", "fastForward", "mouse", "powerDown", "powerUp", "random", "fullscreen"];
-const controlMap = {
-    visible: {
-        path: "websiteIcons/VisibleWhite.png",
-        hover: "Show/Hide Controls"
-    },
-    pause: {
-        path: "websiteIcons/PauseWhite.png",
-        hover: "Pause"
-    },
-    play: {
-        path: "websiteIcons/PlayWhite.png",
-        hover: "Play"
-    },
-    rewind: {
-        path: "websiteIcons/RewindWhite.png",
-        hover: "Rewind"
-    },
-    fastForward: {
-        path: "websiteIcons/FastForwardWhite.png",
-        hover: "Fast Forward"
-    },
-    mouse: {
-        path: "websiteIcons/MouseWhite.png",
-        hover: "Toggle Cursor Interactivity"
-    },
-    powerUp: {
-        path: "websiteIcons/PowerDownWhite.png",
-        hover: "Decrease Complexity"
-    },
-    powerDown: {
-        path: "websiteIcons/PowerUpWhite.png",
-        hover: "Increase Complexity"
-    },
-    random: {
-        path: "websiteIcons/random.png",
-        hover: "I'm feeling lucky!"
-    },
-    fullscreen: {
-        path: "websiteIcons/fullscreen.png",
-        hover: "Fullscreen"
-    },
-};
+const controlButtons = [
+    { key: "visible", path: "websiteIcons/VisibleWhite.png", hover: "Show/Hide Controls (H)", action: "togglePanel" },
+    { key: "rewind", path: "websiteIcons/RewindWhite.png", hover: "Rewind (←)", action: "controlRewind" },
+    { key: "pause", path: "websiteIcons/PauseWhite.png", hover: "Pause", action: "controlPause" },
+    { key: "play", path: "websiteIcons/PlayWhite.png", hover: "Reset (↓)", action: "controlPlay" },
+    { key: "fastForward", path: "websiteIcons/FastForwardWhite.png", hover: "Fast Forward (→)", action: "controlFastForward" },
+    { key: "mouse", path: "websiteIcons/MouseWhite.png", hover: "Toggle Cursor Interactivity", action: "controlToggleMouse" },
+    { key: "powerDown", path: "websiteIcons/PowerDownWhite.png", hover: "Decrease Complexity", action: "controlPowerDown" },
+    { key: "powerUp", path: "websiteIcons/PowerUpWhite.png", hover: "Increase Complexity", action: "controlPowerUp" },
+    { key: "random", path: "websiteIcons/random.png", hover: "I'm feeling lucky! (R)", action: "controlRandomJump" },
+    { key: "fullscreen", path: "websiteIcons/fullscreen.png", hover: "Fullscreen", action: "controlFullscreen" },
+];
 const ControlButtons = (props) => {
-    return (react__WEBPACK_IMPORTED_MODULE_0__.createElement(ControlButtonGroup, { id: "controlbuttons", isActive: props.isActive }, controlTypes.map((type) => (react__WEBPACK_IMPORTED_MODULE_0__.createElement(ControlButton, { id: "controlbutton", key: type },
-        controlMap[type].hover,
-        react__WEBPACK_IMPORTED_MODULE_0__.createElement(_styles__WEBPACK_IMPORTED_MODULE_2__.Icon, { src: controlMap[type].path, title: controlMap[type].hover, height: props.isMobile ? "25px" : "40px" }))))));
+    const handleClick = (action) => {
+        if (action === "togglePanel") {
+            props.onTogglePanel();
+        }
+        else {
+            const fn = window[action];
+            if (typeof fn === 'function') {
+                fn();
+                if (action !== "controlToggleMouse" && action !== "controlPause" && action !== "controlPlay" &&
+                    action !== "controlRewind" && action !== "controlFastForward" &&
+                    action !== "controlPowerUp" && action !== "controlPowerDown") {
+                    document.dispatchEvent(new CustomEvent('hideExplanationPanel'));
+                }
+            }
+        }
+    };
+    return (react__WEBPACK_IMPORTED_MODULE_0__.createElement(ControlButtonGroup, { id: "controlbuttons", isActive: props.isActive }, controlButtons.map((btn) => (react__WEBPACK_IMPORTED_MODULE_0__.createElement(ControlButton, { key: btn.key, onClick: () => handleClick(btn.action) },
+        btn.hover,
+        react__WEBPACK_IMPORTED_MODULE_0__.createElement(_styles__WEBPACK_IMPORTED_MODULE_2__.Icon, { src: btn.path, title: btn.hover, height: props.isMobile ? "25px" : "40px" }))))));
 };
 const ControlPanel = (props) => {
-    let { isMobile, isActive } = props;
-    return (react__WEBPACK_IMPORTED_MODULE_0__.createElement(ControlButtons, { isMobile: isMobile, isActive: isActive }));
+    const { isMobile, isActive, onTogglePanel } = props;
+    return (react__WEBPACK_IMPORTED_MODULE_0__.createElement(ControlButtons, { isMobile: isMobile, isActive: isActive, onTogglePanel: onTogglePanel }));
 };
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (ControlPanel);
 
@@ -372,17 +354,17 @@ const DemoPage = (props) => {
         react__WEBPACK_IMPORTED_MODULE_0__.createElement("br", null),
         react__WEBPACK_IMPORTED_MODULE_0__.createElement("br", null),
         react__WEBPACK_IMPORTED_MODULE_0__.createElement(InfoIcon, { src: "websiteIcons/VisibleWhite.png" }),
-        "\u00A0\u00A0 Show/Hide this information panel",
+        "\u00A0\u00A0 Show/Hide this information panel (H)",
         react__WEBPACK_IMPORTED_MODULE_0__.createElement("br", null),
         react__WEBPACK_IMPORTED_MODULE_0__.createElement(InfoIcon, { src: "websiteIcons/RewindWhite.png" }),
         react__WEBPACK_IMPORTED_MODULE_0__.createElement(InfoIcon, { src: "websiteIcons/FastForwardWhite.png" }),
-        "\u00A0\u00A0 Rewind / Fast Forward (Try clicking multiple times)",
+        "\u00A0\u00A0 Speed (Try clicking multiple times)",
         react__WEBPACK_IMPORTED_MODULE_0__.createElement("br", null),
         react__WEBPACK_IMPORTED_MODULE_0__.createElement(InfoIcon, { src: "websiteIcons/PauseWhite.png" }),
         "\u00A0\u00A0 Pause (Mouse interaction still works while paused)",
         react__WEBPACK_IMPORTED_MODULE_0__.createElement("br", null),
         react__WEBPACK_IMPORTED_MODULE_0__.createElement(InfoIcon, { src: "websiteIcons/PlayWhite.png" }),
-        "\u00A0\u00A0 Resume movement at default speed",
+        "\u00A0\u00A0 Reset (to default speed)",
         react__WEBPACK_IMPORTED_MODULE_0__.createElement("br", null),
         react__WEBPACK_IMPORTED_MODULE_0__.createElement(InfoIcon, { src: "websiteIcons/MouseWhite.png" }),
         "\u00A0\u00A0 Toggle mouse interaction (enabled by default)",
@@ -461,26 +443,31 @@ const TabGroup = (props) => {
     const [activeTab, setActiveTab] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)(tabs[0]);
     const [activeDemo, setActiveDemo] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)(false);
     const { zoomImg, setZoomImg } = props;
-    document.addEventListener("mousedown", (event) => {
-        var target = event.target;
-        if (target instanceof HTMLButtonElement || target instanceof HTMLImageElement) {
-            if (target.innerText === "Show/Hide Controls" || target.title === "Show/Hide Controls") {
-                setActiveDemo(!activeDemo);
-            }
-            else if (target.closest('#controlbuttons')) {
-                setActiveDemo(true);
-            }
-        }
-    });
+    react__WEBPACK_IMPORTED_MODULE_0___default().useEffect(() => {
+        const handleHidePanel = () => {
+            setActiveDemo(true);
+        };
+        document.addEventListener("hideExplanationPanel", handleHidePanel);
+        return () => {
+            document.removeEventListener("hideExplanationPanel", handleHidePanel);
+        };
+    }, []);
+    const handleTogglePanel = () => {
+        setActiveDemo(prev => !prev);
+    };
     return (react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_styles__WEBPACK_IMPORTED_MODULE_7__.TabPage, { id: "window", maxWidth: props.isMobile ? "625px" : "1200px" },
         react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_styles__WEBPACK_IMPORTED_MODULE_7__.TabButtons, { className: "tab-buttons" },
             react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_styles__WEBPACK_IMPORTED_MODULE_7__.FixedButtons, null, tabs.map((type) => (react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_styles__WEBPACK_IMPORTED_MODULE_7__.Tab, { padding: props.isMobile ? "8 12" : "8 20", border: props.isMobile ? "solid" : "none", key: type, activeTab: activeTab === type, onClick: () => {
                     setActiveTab(type);
-                    if (type !== "Demo") {
+                    if (type === "Demo") {
+                        window.controlActivateDemo?.();
+                    }
+                    else {
                         setActiveDemo(false);
+                        window.controlDeactivateDemo?.();
                     }
                 } }, type)))),
-            react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_ControlPanel__WEBPACK_IMPORTED_MODULE_5__["default"], { isMobile: props.isMobile, isActive: activeTab === "Demo" })),
+            react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_ControlPanel__WEBPACK_IMPORTED_MODULE_5__["default"], { isMobile: props.isMobile, isActive: activeTab === "Demo", onTogglePanel: handleTogglePanel })),
         react__WEBPACK_IMPORTED_MODULE_0___default().createElement("br", null),
         react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_styles__WEBPACK_IMPORTED_MODULE_7__.Window, { id: "tabwindow", demoActive: activeDemo, fontSize: props.isMobile ? "14px" : "17px", radius: props.isMobile ? "0%" : "2%" }, getWindow(activeTab, props.isMobile, setActiveTab, zoomImg, setZoomImg))));
 };

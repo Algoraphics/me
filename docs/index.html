@@ -495,6 +495,59 @@
         var clickTimes = [-100, -100, -100, -100, -100];
         var clickIndex = 0;
         var rippleElapsed = [-100, -100, -100, -100, -100];
+
+        window.controlPause = function() { timeAdd = 0.; }
+        window.controlPlay = function() { timeAdd = 0.5; }
+        window.controlRewind = function() {
+            if (timeAdd > 0.) timeAdd = 0.;
+            timeAdd -= 2.5;
+        }
+        window.controlFastForward = function() {
+            if (timeAdd < 0.) timeAdd = 0.;
+            timeAdd += 2.5;
+        }
+        window.controlPowerUp = function() {
+            if (powerLevel < 2.) powerLevel += 0.1;
+        }
+        window.controlPowerDown = function() {
+            if (powerLevel >= -1.1) powerLevel -= 0.1;
+        }
+        window.controlToggleMouse = function() { mouse = 1 - mouse; }
+        window.controlRandomJump = function() {
+            const randomOffset = (Math.random() * 10000) - 5000;
+            time += randomOffset;
+            powerLevel = 0.8;
+            document.dispatchEvent(new CustomEvent('hideExplanationPanel'));
+        }
+        window.controlFullscreen = function() {
+            if (!document.fullscreenElement) {
+                powerLevel = 0.8;
+                document.dispatchEvent(new CustomEvent('hideExplanationPanel'));
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.log('Error attempting to enable fullscreen:', err);
+                });
+            } else {
+                if (document.exitFullscreen) document.exitFullscreen();
+            }
+        }
+        window.controlToggleUI = function() {
+            const controlButtons = document.getElementById('controlbuttons');
+            if (controlButtons) {
+                controlButtons.style.display = controlButtons.style.display === 'none' ? '' : 'none';
+            }
+        }
+        window.controlActivateDemo = function() {
+            if (activate === 0.) {
+                if (powerLevel <= -1.1) powerLevel = -1.;
+                activate = 0.01;
+            }
+        }
+        window.controlDeactivateDemo = function() {
+            activate = 0.;
+            powerLevel = 0.;
+            timeAdd = 1.;
+        }
+
         document.addEventListener("mousemove", (event) => {
             mouseX = event.clientX;
             mouseY = event.clientY;
@@ -517,76 +570,6 @@
             }
         });
 
-        document.addEventListener("mousedown", (event) => {
-            if (event.buttons !== 1) {
-                return;
-            }
-            var target = event.target;
-            if (target instanceof HTMLButtonElement || target instanceof HTMLImageElement) {
-                if (target.innerText === "Demo") {
-                    if (activate === 0.) {
-                        if (powerLevel <= -1.1) {
-                            powerLevel = -1.
-                        }
-                        activate = 0.01;
-                    }
-                }
-                else if (target.innerText === "Pause" || target.title === "Pause") {
-                    timeAdd = 0.;
-                }
-                else if (target.innerText === "Play" || target.title === "Play") {
-                    timeAdd = 0.5;
-                }
-                else if (target.innerText === "Rewind" || target.title === "Rewind") {
-                    if (timeAdd > 0.) {
-                        timeAdd = 0.;
-                    }
-                    timeAdd -= 2.5;
-                }
-                else if (target.innerText === "Fast Forward" || target.title === "Fast Forward") {
-                    if (timeAdd < 0.) {
-                        timeAdd = 0.;
-                    }
-                    timeAdd += 2.5;
-                }
-                else if (target.innerText === "Increase Complexity" || target.title === "Increase Complexity") {
-                    if (powerLevel < 2.) {
-                        powerLevel += 0.1;
-                    }
-                }
-                else if (target.innerText === "Decrease Complexity" || target.title === "Decrease Complexity") {
-                    if (powerLevel >= -1.1) {
-                        powerLevel -= 0.1;
-                    }
-                }
-                else if (target.innerText === "Toggle Cursor Interactivity" || target.title === "Toggle Cursor Interactivity") {
-                    mouse = 1 - mouse;
-                }
-                else if (target.innerText === "I'm feeling lucky!" || target.title === "I'm feeling lucky!") {
-                    const randomOffset = (Math.random() * 10000) - 5000;
-                    time += randomOffset;
-                    powerLevel = 0.8;
-                }
-                else if (target.innerText === "Fullscreen" || target.title === "Fullscreen") {
-                    if (!document.fullscreenElement) {
-                        powerLevel = 0.8;
-                        document.documentElement.requestFullscreen().catch(err => {
-                            console.log('Error attempting to enable fullscreen:', err);
-                        });
-                    } else {
-                        if (document.exitFullscreen) {
-                            document.exitFullscreen();
-                        }
-                    }
-                }
-                else if (target.innerText === "About Me" || target.innerText === "Work" || target.innerText === "Art") {
-                    activate = 0.;
-                    powerLevel = 0.;
-                    timeAdd = 1.;
-                }
-            }
-        });
-
         document.addEventListener('fullscreenchange', () => {
             const controlButtons = document.getElementById('controlbuttons');
             const root = document.getElementById('root');
@@ -600,12 +583,15 @@
         });
 
         document.addEventListener('keydown', (event) => {
+            if (activate <= 0) return;
+            
             if ((event.key === 'h' || event.key === 'H') && document.fullscreenElement) {
-                const controlButtons = document.getElementById('controlbuttons');
-                if (controlButtons) {
-                    controlButtons.style.display = controlButtons.style.display === 'none' ? '' : 'none';
-                }
+                window.controlToggleUI();
             }
+            if (event.key === 'ArrowLeft') window.controlRewind();
+            if (event.key === 'ArrowRight') window.controlFastForward();
+            if (event.key === 'ArrowDown') window.controlPlay();
+            if (event.key === 'r' || event.key === 'R') window.controlRandomJump();
         });
 
         // FPS Checker (occasionally calculates FPS and lowers the power level if it's really bad)

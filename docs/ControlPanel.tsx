@@ -16,9 +16,6 @@ const ControlButton = styled.button`
     &:hover {
         border-color: yellow;
     }
-    &:active {
-        background-color: yellow;
-    }
 `
 
 const ControlButtonGroup = styled.div<{ isActive: boolean }>`
@@ -38,57 +35,57 @@ const ControlButtonGroup = styled.div<{ isActive: boolean }>`
 `
 
 
-const controlTypes = ["visible", "rewind", "pause", "play", "fastForward", "mouse", "powerDown", "powerUp", "random", "fullscreen"];
+declare global {
+    interface Window {
+        controlPause?: () => void;
+        controlPlay?: () => void;
+        controlRewind?: () => void;
+        controlFastForward?: () => void;
+        controlPowerUp?: () => void;
+        controlPowerDown?: () => void;
+        controlToggleMouse?: () => void;
+        controlRandomJump?: () => void;
+        controlFullscreen?: () => void;
+        controlToggleUI?: () => void;
+    }
+}
 
-const controlMap = {
-    visible: {
-        path: "websiteIcons/VisibleWhite.png",
-        hover: "Show/Hide Controls"
-    },
-    pause: {
-        path: "websiteIcons/PauseWhite.png",
-        hover: "Pause"
-    },
-    play: {
-        path: "websiteIcons/PlayWhite.png",
-        hover: "Play"
-    },
-    rewind: {
-        path: "websiteIcons/RewindWhite.png",
-        hover: "Rewind"
-    },
-    fastForward: {
-        path: "websiteIcons/FastForwardWhite.png",
-        hover: "Fast Forward"
-    },
-    mouse: {
-        path: "websiteIcons/MouseWhite.png",
-        hover: "Toggle Cursor Interactivity"
-    },
-    powerUp: {
-        path: "websiteIcons/PowerDownWhite.png",
-        hover: "Decrease Complexity"
-    },
-    powerDown: {
-        path: "websiteIcons/PowerUpWhite.png",
-        hover: "Increase Complexity"
-    },
-    random: {
-        path: "websiteIcons/random.png",
-        hover: "I'm feeling lucky!"
-    },
-    fullscreen: {
-        path: "websiteIcons/fullscreen.png",
-        hover: "Fullscreen"
-    },
-};
+const controlButtons = [
+    { key: "visible", path: "websiteIcons/VisibleWhite.png", hover: "Show/Hide Controls (H)", action: "togglePanel" },
+    { key: "rewind", path: "websiteIcons/RewindWhite.png", hover: "Rewind (←)", action: "controlRewind" },
+    { key: "pause", path: "websiteIcons/PauseWhite.png", hover: "Pause", action: "controlPause" },
+    { key: "play", path: "websiteIcons/PlayWhite.png", hover: "Reset (↓)", action: "controlPlay" },
+    { key: "fastForward", path: "websiteIcons/FastForwardWhite.png", hover: "Fast Forward (→)", action: "controlFastForward" },
+    { key: "mouse", path: "websiteIcons/MouseWhite.png", hover: "Toggle Cursor Interactivity", action: "controlToggleMouse" },
+    { key: "powerDown", path: "websiteIcons/PowerDownWhite.png", hover: "Decrease Complexity", action: "controlPowerDown" },
+    { key: "powerUp", path: "websiteIcons/PowerUpWhite.png", hover: "Increase Complexity", action: "controlPowerUp" },
+    { key: "random", path: "websiteIcons/random.png", hover: "I'm feeling lucky! (R)", action: "controlRandomJump" },
+    { key: "fullscreen", path: "websiteIcons/fullscreen.png", hover: "Fullscreen", action: "controlFullscreen" },
+];
 
-const ControlButtons = (props: { isMobile: boolean; isActive: boolean }) => {
+const ControlButtons = (props: { isMobile: boolean; isActive: boolean; onTogglePanel: () => void }) => {
+    const handleClick = (action: string) => {
+        if (action === "togglePanel") {
+            props.onTogglePanel();
+        } else {
+            const fn = window[action as keyof Window];
+            if (typeof fn === 'function') {
+                fn();
+                if (action !== "controlToggleMouse" && action !== "controlPause" && action !== "controlPlay" && 
+                    action !== "controlRewind" && action !== "controlFastForward" && 
+                    action !== "controlPowerUp" && action !== "controlPowerDown") {
+                    document.dispatchEvent(new CustomEvent('hideExplanationPanel'));
+                }
+            }
+        }
+    };
+
     return (
         <ControlButtonGroup id="controlbuttons" isActive={props.isActive}>
-            {controlTypes.map((type) => (
-                <ControlButton id="controlbutton" key={type}>{controlMap[type].hover}
-                    <Icon src={controlMap[type].path} title={controlMap[type].hover} height={props.isMobile ? "25px" : "40px"} />
+            {controlButtons.map((btn) => (
+                <ControlButton key={btn.key} onClick={() => handleClick(btn.action)}>
+                    {btn.hover}
+                    <Icon src={btn.path} title={btn.hover} height={props.isMobile ? "25px" : "40px"} />
                 </ControlButton>
             ))}
         </ControlButtonGroup>
@@ -96,10 +93,10 @@ const ControlButtons = (props: { isMobile: boolean; isActive: boolean }) => {
 }
 
 
-const ControlPanel = (props: { isMobile: boolean; isActive: boolean }) => {
-    let { isMobile, isActive } = props;
+const ControlPanel = (props: { isMobile: boolean; isActive: boolean; onTogglePanel: () => void }) => {
+    const { isMobile, isActive, onTogglePanel } = props;
     return (
-        <ControlButtons isMobile={isMobile} isActive={isActive} />
+        <ControlButtons isMobile={isMobile} isActive={isActive} onTogglePanel={onTogglePanel} />
     );
 }
 

@@ -18,14 +18,14 @@ const DemoPage = (props: { isMobile: boolean; onTabChange?: (tab: string) => voi
         <DemoText>
             This is a little interactive demo of {props.onTabChange ? <TabLink onClick={() => props.onTabChange!("Art")}>Bismuth</TabLink> : <b>Bismuth</b>}. Hit the control buttons above to play around!
             <br /><br />
-            <InfoIcon src="websiteIcons/VisibleWhite.png" />&nbsp;&nbsp; Show/Hide this information panel
+            <InfoIcon src="websiteIcons/VisibleWhite.png" />&nbsp;&nbsp; Show/Hide this information panel (H)
             <br />
             <InfoIcon src="websiteIcons/RewindWhite.png" />
-            <InfoIcon src="websiteIcons/FastForwardWhite.png" />&nbsp;&nbsp; Rewind / Fast Forward (Try clicking multiple times)
+            <InfoIcon src="websiteIcons/FastForwardWhite.png" />&nbsp;&nbsp; Speed (Try clicking multiple times)
             <br />
             <InfoIcon src="websiteIcons/PauseWhite.png" />&nbsp;&nbsp; Pause (Mouse interaction still works while paused)
             <br />
-            <InfoIcon src="websiteIcons/PlayWhite.png" />&nbsp;&nbsp; Resume movement at default speed
+            <InfoIcon src="websiteIcons/PlayWhite.png" />&nbsp;&nbsp; Reset (to default speed)
             <br />
             <InfoIcon src="websiteIcons/MouseWhite.png" />&nbsp;&nbsp; Toggle mouse interaction (enabled by default)
             <br />
