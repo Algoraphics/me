@@ -14,6 +14,7 @@ VIVARIUM_PATH = Path(os.environ.get('VIVARIUM_PATH', '../Vivarium'))
 CAMPING_PATH = VIVARIUM_PATH / 'camping'
 REC_AREAS_FILE = CAMPING_PATH / 'rec-areas.json'
 FAVORITES_FILE = CAMPING_PATH / 'favorites.json'
+AVAILABILITY_FILE = CAMPING_PATH / 'availability.json'
 SCAN_STATE_FILE = CAMPING_PATH / 'scan-state.json'
 
 DISCORD_WEBHOOK_URL = os.environ.get('DISCORD_CAMPING_WEBHOOK')
@@ -21,10 +22,7 @@ PACIFIC_TZ = ZoneInfo('America/Los_Angeles')
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Camping availability scanner')
-    group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument('--sites', help='Comma-separated list of rec area IDs to scan')
-    group.add_argument('--rotation', action='store_true', help='Scan next sites in rotation')
-    group.add_argument('--favorites', action='store_true', help='Scan all favorited sites')
+    parser.add_argument('--sites', help='Comma-separated list of rec area IDs to scan (overrides rotation)')
     parser.add_argument('--start-date', help='Override start date (YYYY-MM-DD)')
     parser.add_argument('--end-date', help='Override end date (YYYY-MM-DD)')
     parser.add_argument('--dry-run', action='store_true', help='Run without saving state or sending notifications')
@@ -153,49 +151,39 @@ def parse_camply_output(stdout, area_key, area_name, provider):
     
     return results
 
-def get_enabled_area_keys(rec_areas, disabled):
-    enabled = [a for a in rec_areas if a['id'] not in disabled]
-    return sorted([a['id'] for a in enabled])
+def get_enabled_areas(rec_areas, disabled):
+    enabled = {k: v for k, v in rec_areas.items() if k not in disabled}
+    return dict(sorted(enabled.items(), key=lambda x: x[0]))
 
-def get_favorites_to_scan(rec_areas, favorites_data):
-    favorites = set(favorites_data.get('favorites', []))
-    disabled = set(favorites_data.get('disabled', []))
-    fav_areas = [a for a in rec_areas if a['id'] in favorites and a['id'] not in disabled]
-    log(f"Favorites mode: scanning {len(fav_areas)} favorite areas")
-    return fav_areas
-
-def get_rotation_to_scan(rec_areas, favorites_data, scan_state):
+def select_areas_to_scan(rec_areas, favorites_data, scan_state):
+    favorites = favorites_data.get('favorites', [])
     disabled = set(favorites_data.get('disabled', []))
     
-    enabled_keys = get_enabled_area_keys(rec_areas, disabled)
-    if not enabled_keys:
+    if favorites:
+        log(f"Favorites mode: scanning {len(favorites)} favorite areas")
+        return {k: rec_areas[k] for k in favorites if k in rec_areas and k not in disabled}
+    
+    enabled = get_enabled_areas(rec_areas, disabled)
+    if not enabled:
         log("No enabled areas to scan")
-        return []
+        return {}
     
-    current_index = scan_state.get('currentIndex', 0) % len(enabled_keys)
+    area_keys = list(enabled.keys())
+    current_index = scan_state.get('currentIndex', 0) % len(area_keys)
     sites_per_run = scan_state.get('sitesPerRun', 4)
     
     selected_keys = []
     for i in range(sites_per_run):
-        idx = (current_index + i) % len(enabled_keys)
-        selected_keys.append(enabled_keys[idx])
+        idx = (current_index + i) % len(area_keys)
+        selected_keys.append(area_keys[idx])
     
     log(f"Rotation mode: scanning {len(selected_keys)} areas starting at index {current_index}")
-    
-    areas_by_id = {a['id']: a for a in rec_areas}
-    return [areas_by_id[k] for k in selected_keys if k in areas_by_id]
+    return {k: enabled[k] for k in selected_keys}
 
-def scan_area_month_by_month(area_data, start_date=None, end_date=None, verbose=False):
+def scan_area_month_by_month(area_key, area_data, start_date=None, end_date=None, verbose=False):
+    rec_id = area_data['id']
     provider = area_data.get('provider', 'RecreationDotGov')
-    name = area_data.get('name', area_data['id'])
-    
-    raw_id = area_data['id']
-    if raw_id.startswith('recgov-'):
-        rec_id = raw_id.replace('recgov-', '')
-    elif raw_id.startswith('reserveca-'):
-        rec_id = raw_id.replace('reserveca-', '')
-    else:
-        rec_id = raw_id
+    name = area_data.get('name', rec_id)
     
     log(f"Scanning {name}...")
     
@@ -215,7 +203,7 @@ def scan_area_month_by_month(area_data, start_date=None, end_date=None, verbose=
             log(f"  Error: {result['stderr'][:200]}")
             return {'success': False, 'error': result['stderr']}
         
-        parsed = parse_camply_output(result['stdout'], area_data['id'], name, provider)
+        parsed = parse_camply_output(result['stdout'], area_key, name, provider)
         log(f"  Found {parsed['total_sites']} sites, {len(parsed['weekend_dates'])} weekend dates ({result['duration']:.1f}s)")
         return {
             'success': True,
@@ -260,7 +248,7 @@ def scan_area_month_by_month(area_data, start_date=None, end_date=None, verbose=
             log(f"  Month {month_offset + 1} error: {result['stderr'][:100]}", verbose_only=True)
             continue
         
-        parsed = parse_camply_output(result['stdout'], area_data['id'], name, provider)
+        parsed = parse_camply_output(result['stdout'], area_key, name, provider)
         
         all_results['total_sites'] += parsed['total_sites']
         all_results['dates'].extend(parsed['dates'])
@@ -313,7 +301,7 @@ def calculate_booking_horizon(weekend_dates):
     
     return int(sum(days_out) / len(days_out))
 
-def process_notifications(rec_areas, scan_state, results_by_area, favorites_data, dry_run=False):
+def process_notifications(rec_areas, results_by_area, favorites_data, dry_run=False):
     if not favorites_data.get('settings', {}).get('notificationsEnabled', False):
         log("Notifications disabled, skipping")
         return
@@ -325,19 +313,16 @@ def process_notifications(rec_areas, scan_state, results_by_area, favorites_data
     quiet = is_quiet_hours()
     now = datetime.now()
     
-    areas_by_id = {a['id']: a for a in rec_areas}
-    area_states = scan_state.get('areas', {})
     areas_to_notify = {}
     
-    for area_id, result in results_by_area.items():
-        if area_id not in favorites:
+    for area_key, result in results_by_area.items():
+        if area_key not in favorites:
             continue
         
-        area = areas_by_id.get(area_id, {})
-        area_state = area_states.get(area_id, {})
+        area = rec_areas.get(area_key, {})
         parsed = result.get('parsed', {})
         
-        prev_availability = set(area_state.get('recentWeekendAvailability', []))
+        prev_availability = set(area.get('recentWeekendAvailability', []))
         curr_availability = set(parsed.get('weekend_dates', []))
         
         if curr_availability == prev_availability:
@@ -347,7 +332,7 @@ def process_notifications(rec_areas, scan_state, results_by_area, favorites_data
         if not new_dates:
             continue
         
-        last_notified = area_state.get('lastNotifiedAt')
+        last_notified = area.get('lastNotifiedAt')
         if last_notified:
             try:
                 last_dt = datetime.fromisoformat(last_notified)
@@ -356,8 +341,8 @@ def process_notifications(rec_areas, scan_state, results_by_area, favorites_data
             except:
                 pass
         
-        areas_to_notify[area_id] = {
-            'name': area.get('name', area_id),
+        areas_to_notify[area_key] = {
+            'name': area.get('name', area_key),
             'new_dates': sorted(list(new_dates)),
             'total_sites': parsed.get('total_sites', 0)
         }
@@ -367,21 +352,20 @@ def process_notifications(rec_areas, scan_state, results_by_area, favorites_data
     
     if quiet:
         log(f"Quiet hours - marking {len(areas_to_notify)} areas for later notification")
-        for area_id in areas_to_notify:
-            if area_id not in area_states:
-                area_states[area_id] = {}
-            area_states[area_id]['notified'] = False
+        for key in areas_to_notify:
+            if key in rec_areas:
+                rec_areas[key]['notified'] = False
         return
     
-    pending = [k for k, state in area_states.items() if not state.get('notified', True) and k in favorites]
+    pending = [k for k, a in rec_areas.items() if not a.get('notified', True) and k in favorites]
     all_to_notify = set(areas_to_notify.keys()) | set(pending)
     
     if all_to_notify:
         message = "🏕️ **New Campsite Availability!**\n\n"
-        for area_id in all_to_notify:
-            info = areas_to_notify.get(area_id, {})
-            area = areas_by_id.get(area_id, {})
-            name = info.get('name') or area.get('name', area_id)
+        for key in all_to_notify:
+            info = areas_to_notify.get(key, {})
+            area = rec_areas.get(key, {})
+            name = info.get('name') or area.get('name', key)
             dates = info.get('new_dates', [])
             sites = info.get('total_sites', 0)
             
@@ -399,11 +383,10 @@ def process_notifications(rec_areas, scan_state, results_by_area, favorites_data
         message += f"🔗 https://ethanrabb.com/camping"
         send_discord_notification(message, dry_run)
         
-        for area_id in all_to_notify:
-            if area_id not in area_states:
-                area_states[area_id] = {}
-            area_states[area_id]['notified'] = True
-            area_states[area_id]['lastNotifiedAt'] = now.isoformat()
+        for key in all_to_notify:
+            if key in rec_areas:
+                rec_areas[key]['notified'] = True
+                rec_areas[key]['lastNotifiedAt'] = now.isoformat()
 
 def main():
     args = parse_args()
@@ -412,32 +395,29 @@ def main():
     log("Starting camping availability scan")
     log(f"  dry_run={args.dry_run}, verbose={args.verbose}")
     
-    rec_areas_data = load_json(REC_AREAS_FILE, [])
-    if isinstance(rec_areas_data, dict):
-        rec_areas = list(rec_areas_data.values())
-    else:
-        rec_areas = rec_areas_data
-    
+    rec_areas = load_json(REC_AREAS_FILE, {})
     favorites_data = load_json(FAVORITES_FILE, {'favorites': [], 'disabled': [], 'settings': {}})
-    scan_state = load_json(SCAN_STATE_FILE, {'currentIndex': 0, 'sitesPerRun': 4, 'areas': {}})
-    
-    if 'areas' not in scan_state:
-        scan_state['areas'] = {}
+    scan_state = load_json(SCAN_STATE_FILE, {'currentIndex': 0, 'sitesPerRun': 4})
+    availability = load_json(AVAILABILITY_FILE, {'lastScan': None, 'openings': []})
     
     if not rec_areas:
         log("No recreation areas found. Run build_rec_areas.py first.")
         return 1
     
-    areas_by_id = {a['id']: a for a in rec_areas}
+    settings = favorites_data.get('settings', {})
+    if not settings.get('dailyScanEnabled', False) and not args.sites:
+        log("Daily scanning is disabled. Enable it from the website or use --sites to scan specific areas.")
+        return 0
     
     if args.sites:
         site_ids = [s.strip() for s in args.sites.split(',')]
-        areas_to_scan = [a for a in rec_areas if a['id'] in site_ids]
+        areas_to_scan = {}
+        for key, area in rec_areas.items():
+            if area['id'] in site_ids or key in site_ids:
+                areas_to_scan[key] = area
         log(f"Manual mode: scanning {len(areas_to_scan)} specified areas")
-    elif args.favorites:
-        areas_to_scan = get_favorites_to_scan(rec_areas, favorites_data)
-    elif args.rotation:
-        areas_to_scan = get_rotation_to_scan(rec_areas, favorites_data, scan_state)
+    else:
+        areas_to_scan = select_areas_to_scan(rec_areas, favorites_data, scan_state)
     
     if not areas_to_scan:
         log("No areas to scan")
@@ -446,9 +426,9 @@ def main():
     results_by_area = {}
     scan_success = True
     
-    for area_data in areas_to_scan:
-        area_id = area_data['id']
+    for area_key, area_data in areas_to_scan.items():
         result = scan_area_month_by_month(
+            area_key, 
             area_data, 
             args.start_date, 
             args.end_date, 
@@ -460,44 +440,52 @@ def main():
             scan_success = False
             continue
         
-        results_by_area[area_id] = result
+        results_by_area[area_key] = result
         parsed = result['parsed']
         
-        if area_id not in scan_state['areas']:
-            scan_state['areas'][area_id] = {}
-        
-        scan_state['areas'][area_id]['lastScanned'] = datetime.now().isoformat()
-        scan_state['areas'][area_id]['recentWeekendAvailability'] = parsed['weekend_dates'][:5]
-        scan_state['areas'][area_id]['totalCampgrounds'] = len(parsed['campgrounds'])
-        scan_state['areas'][area_id]['totalSites'] = parsed['total_sites']
-        
-        if parsed['campgrounds']:
-            scan_state['areas'][area_id]['topCampgrounds'] = parsed['campgrounds'][:5]
-        
-        if parsed['booking_urls']:
-            scan_state['areas'][area_id]['bookingUrls'] = parsed['booking_urls'][:5]
+        rec_areas[area_key]['lastScanned'] = datetime.now().isoformat()
+        rec_areas[area_key]['recentWeekendAvailability'] = parsed['weekend_dates'][:5]
         
         horizon = calculate_booking_horizon(parsed['weekend_dates'])
         if horizon:
-            scan_state['areas'][area_id]['bookingHorizon'] = horizon
+            rec_areas[area_key]['bookingHorizon'] = horizon
     
-    process_notifications(rec_areas, scan_state, results_by_area, favorites_data, args.dry_run)
+    process_notifications(rec_areas, results_by_area, favorites_data, args.dry_run)
+    
+    openings = []
+    for area_key, result in results_by_area.items():
+        parsed = result.get('parsed', {})
+        area = rec_areas.get(area_key, {})
+        
+        if parsed.get('total_sites', 0) > 0:
+            openings.append({
+                'recAreaKey': area_key,
+                'recAreaName': area.get('name', ''),
+                'provider': area.get('provider', 'RecreationDotGov'),
+                'totalSites': parsed['total_sites'],
+                'weekendDates': parsed['weekend_dates'][:5],
+                'topCampgrounds': parsed['campgrounds'][:5],
+                'bookingUrls': parsed['booking_urls'][:5]
+            })
     
     if not args.dry_run and scan_success:
-        if args.rotation:
+        if not args.sites and not favorites_data.get('favorites'):
             disabled = set(favorites_data.get('disabled', []))
-            enabled_keys = get_enabled_area_keys(rec_areas, disabled)
-            num_enabled = len(enabled_keys)
+            enabled = get_enabled_areas(rec_areas, disabled)
+            num_enabled = len(enabled)
             if num_enabled > 0:
                 sites_per_run = scan_state.get('sitesPerRun', 4)
                 new_index = (scan_state.get('currentIndex', 0) + sites_per_run) % num_enabled
                 scan_state['currentIndex'] = new_index
                 log(f"Updated rotation index to {new_index}")
         
-        scan_state['lastScan'] = datetime.now().isoformat()
+        availability['lastScan'] = datetime.now().isoformat()
+        availability['openings'] = openings
         
+        save_json(REC_AREAS_FILE, rec_areas)
         save_json(SCAN_STATE_FILE, scan_state)
-        log("Saved scan state")
+        save_json(AVAILABILITY_FILE, availability)
+        log("Saved state files")
     
     log(f"\n=== SCAN SUMMARY ===")
     log(f"Areas scanned: {len(results_by_area)}")
@@ -505,10 +493,10 @@ def main():
     total_weekend = sum(len(r.get('parsed', {}).get('weekend_dates', [])) for r in results_by_area.values())
     log(f"Total availability: {total_sites} sites, {total_weekend} weekend dates")
     
-    for area_id, result in results_by_area.items():
+    for area_key, result in results_by_area.items():
         parsed = result.get('parsed', {})
-        area = areas_by_id.get(area_id, {})
-        name = area.get('name', area_id)
+        area = rec_areas.get(area_key, {})
+        name = area.get('name', area_key)
         sites = parsed.get('total_sites', 0)
         weekends = len(parsed.get('weekend_dates', []))
         duration = result.get('duration', 0)

@@ -51244,7 +51244,31 @@ __webpack_require__.r(__webpack_exports__);
 const REPO_OWNER = 'Algoraphics';
 const REPO_NAME = 'Vivarium';
 const ACTIVITIES_PATH = 'activities/activities.json';
+const TOKEN_EXPIRY_DAYS = 3;
 const DEV_MODE = false;
+function getStoredToken() {
+    const stored = localStorage.getItem('githubAuth');
+    if (!stored)
+        return null;
+    try {
+        const { token, expiry } = JSON.parse(stored);
+        if (Date.now() < expiry)
+            return token;
+        localStorage.removeItem('githubAuth');
+        return null;
+    }
+    catch {
+        localStorage.removeItem('githubAuth');
+        return null;
+    }
+}
+function setStoredToken(token) {
+    const expiry = Date.now() + TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
+    localStorage.setItem('githubAuth', JSON.stringify({ token, expiry }));
+}
+function clearStoredToken() {
+    localStorage.removeItem('githubAuth');
+}
 async function githubAPI(token, endpoint, options = {}) {
     const response = await fetch(`https://api.github.com${endpoint}`, {
         ...options,
@@ -51317,7 +51341,7 @@ function LoginScreen({ onLogin }) {
     const [error, setError] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)(false);
     const [loading, setLoading] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)(false);
     (0,react__WEBPACK_IMPORTED_MODULE_0__.useEffect)(() => {
-        const savedToken = sessionStorage.getItem('githubToken');
+        const savedToken = getStoredToken();
         if (savedToken) {
             setToken(savedToken);
             handleLogin(savedToken);
@@ -51332,7 +51356,7 @@ function LoginScreen({ onLogin }) {
             // Clear cache and fetch fresh data on login
             invalidateCache();
             const data = await fetchActivities(loginToken, false);
-            sessionStorage.setItem('githubToken', loginToken);
+            setStoredToken(loginToken);
             document.documentElement.style.visibility = 'visible';
             onLogin(loginToken, data);
         }
@@ -52005,7 +52029,7 @@ function ActivitiesApp() {
         setIsLoggedIn(true);
     };
     const handleLogout = () => {
-        sessionStorage.removeItem('githubToken');
+        clearStoredToken();
         localStorage.removeItem('activitiesCache');
         setIsLoggedIn(false);
         setToken('');

@@ -119,9 +119,13 @@ body {
     margin-bottom: 8px;
 }
 
-.last-scan {
+.stats {
     color: #6b7280;
     font-size: 0.9em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
 }
 
 .scan-controls {
@@ -133,6 +137,20 @@ body {
     display: flex;
     flex-direction: column;
     gap: 12px;
+}
+
+.settings-row {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+}
+
+.favorites-info {
+    color: #6b7280;
+    font-size: 0.85em;
+    padding: 8px 12px;
+    background: #0f1419;
+    border-radius: 6px;
 }
 
 .scan-actions {
@@ -283,7 +301,7 @@ body {
     font-size: 0.9em;
 }
 
-#availability-list {
+#rec-areas-list {
     display: flex;
     flex-direction: column;
     gap: 12px;
@@ -298,7 +316,7 @@ body {
     border: 1px dashed #2d3f50;
 }
 
-.availability-card {
+.rec-area-card {
     background: #1a2632;
     border-radius: 12px;
     padding: 16px 20px;
@@ -306,10 +324,22 @@ body {
     transition: all 0.2s;
 }
 
-.availability-card:hover {
+.rec-area-card:hover {
     border-color: #4ade80;
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(74, 222, 128, 0.1);
+}
+
+.rec-area-card.disabled {
+    opacity: 0.5;
+    background: #111827;
+    border-color: #1f2937;
+}
+
+.rec-area-card.disabled:hover {
+    transform: none;
+    box-shadow: none;
+    border-color: #1f2937;
 }
 
 .card-header {
@@ -327,9 +357,22 @@ body {
     margin-bottom: 4px;
 }
 
-.rec-area-label {
+.card-meta {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.drive-time, .booking-horizon {
     color: #6b7280;
     font-size: 0.85em;
+    background: #0f1419;
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+.booking-horizon {
+    color: #4ade80;
 }
 
 .card-actions {
@@ -357,6 +400,31 @@ body {
 
 .favorite-button.active {
     color: #fbbf24;
+}
+
+.favorite-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.disable-button {
+    background: transparent;
+    border: none;
+    font-size: 1.2em;
+    cursor: pointer;
+    color: #4b5563;
+    transition: all 0.2s;
+    padding: 4px;
+    line-height: 1;
+}
+
+.disable-button:hover {
+    color: #f87171;
+    transform: scale(1.1);
+}
+
+.disable-button.active {
+    color: #f87171;
 }
 
 .notify-toggle {
@@ -395,6 +463,45 @@ body {
 
 .dates-value {
     color: #4ade80;
+}
+
+.scan-status {
+    margin-bottom: 8px;
+}
+
+.scan-label {
+    color: #6b7280;
+    margin-right: 8px;
+}
+
+.scan-value {
+    color: #9ca3af;
+}
+
+.availability-info {
+    margin-bottom: 8px;
+}
+
+.availability-status {
+    font-weight: 500;
+    margin-bottom: 4px;
+}
+
+.availability-status.available {
+    color: #4ade80;
+}
+
+.availability-status.no-availability {
+    color: #f87171;
+}
+
+.availability-status.not-scanned {
+    color: #6b7280;
+}
+
+.available-dates {
+    color: #9ca3af;
+    font-size: 0.85em;
 }
 
 .raw-availability {

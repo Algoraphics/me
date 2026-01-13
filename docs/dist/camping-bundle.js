@@ -50264,6 +50264,27 @@ const REPO_OWNER = 'Algoraphics';
 const REPO_NAME = 'Vivarium';
 const WORKFLOW_REPO = 'me';
 const CAMPING_PATH = 'camping';
+const TOKEN_EXPIRY_DAYS = 3;
+function getStoredToken() {
+    const stored = localStorage.getItem('githubAuth');
+    if (!stored)
+        return null;
+    try {
+        const { token, expiry } = JSON.parse(stored);
+        if (Date.now() < expiry)
+            return token;
+        localStorage.removeItem('githubAuth');
+        return null;
+    }
+    catch {
+        localStorage.removeItem('githubAuth');
+        return null;
+    }
+}
+function setStoredToken(token) {
+    const expiry = Date.now() + TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
+    localStorage.setItem('githubAuth', JSON.stringify({ token, expiry }));
+}
 const WORKFLOWS = {
     rotation: 'camping-rotation.yml',
     favorites: 'camping-favorites.yml',
@@ -50393,13 +50414,13 @@ function LoginScreen({ onLogin }) {
     const [token, setToken] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)('');
     const [error, setError] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)(false);
     const [loading, setLoading] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)(() => {
-        return !!sessionStorage.getItem('githubToken');
+        return !!getStoredToken();
     });
     const [showForm, setShowForm] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)(() => {
-        return !sessionStorage.getItem('githubToken');
+        return !getStoredToken();
     });
     (0,react__WEBPACK_IMPORTED_MODULE_0__.useEffect)(() => {
-        const savedToken = sessionStorage.getItem('githubToken');
+        const savedToken = getStoredToken();
         if (savedToken) {
             handleLogin(savedToken);
         }
@@ -50414,7 +50435,7 @@ function LoginScreen({ onLogin }) {
         setShowForm(false);
         try {
             await githubAPI(loginToken, '/user');
-            sessionStorage.setItem('githubToken', loginToken);
+            setStoredToken(loginToken);
             document.documentElement.style.visibility = 'visible';
             onLogin(loginToken);
         }
@@ -50461,7 +50482,7 @@ function RecAreaCard({ areaId, area, isFavorite, isDisabled, favoriteCount, onTo
                         "d horizon")))),
             react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "card-actions" },
                 react__WEBPACK_IMPORTED_MODULE_0___default().createElement("button", { className: `favorite-button ${isFavorite ? 'active' : ''}`, onClick: (e) => { e.stopPropagation(); onToggleFavorite(); }, title: isFavorite ? 'Remove from favorites' : 'Add to favorites', disabled: !isFavorite && favoriteCount >= 5 }, isFavorite ? '★' : '☆'),
-                react__WEBPACK_IMPORTED_MODULE_0___default().createElement("button", { className: `disable-button ${isDisabled ? 'active' : ''}`, onClick: (e) => { e.stopPropagation(); onToggleDisabled(); }, title: isDisabled ? 'Enable in rotation' : 'Disable from rotation' }, isDisabled ? '🚫' : '✕'))),
+                react__WEBPACK_IMPORTED_MODULE_0___default().createElement("button", { className: `disable-button ${isDisabled ? 'active' : ''}`, onClick: (e) => { e.stopPropagation(); onToggleDisabled(); }, title: isDisabled ? 'Enable in rotation' : 'Disable from rotation' }, isDisabled ? '🚫' : '✓'))),
         react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "card-content" },
             hasAvailability ? (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "availability-info" },
                 react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "availability-status available" },
@@ -50484,7 +50505,7 @@ function TabBar({ activeTab, onTabChange, favoriteCount }) {
 }
 function CampingApp({ token }) {
     const [recAreas, setRecAreas] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)([]);
-    const [scanState, setScanState] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)(null);
+    const [availability, setAvailability] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)(null);
     const [favorites, setFavorites] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)({
         favorites: [],
         disabled: [],
@@ -50502,32 +50523,25 @@ function CampingApp({ token }) {
     const loadData = async () => {
         setLoading(true);
         try {
-            const [recAreasResult, scanStateResult, favResult, workflows] = await Promise.all([
+            const [recAreasResult, availResult, favResult, workflows] = await Promise.all([
                 fetchFile(token, `${CAMPING_PATH}/rec-areas.json`),
-                fetchFile(token, `${CAMPING_PATH}/scan-state.json`),
+                fetchFile(token, `${CAMPING_PATH}/availability.json`),
                 fetchFile(token, `${CAMPING_PATH}/favorites.json`),
                 getWorkflowStates(token)
             ]);
-            let baseAreas = [];
             if (recAreasResult.data) {
                 const data = recAreasResult.data;
                 if (Array.isArray(data)) {
-                    baseAreas = data;
+                    setRecAreas(data);
                 }
                 else {
-                    baseAreas = Object.values(data);
+                    const areas = Object.values(data);
+                    setRecAreas(areas);
                 }
             }
-            let scanData = { currentIndex: 0, sitesPerRun: 4, favesPerDay: 6, lastScan: null, areas: {} };
-            if (scanStateResult.data) {
-                scanData = scanStateResult.data;
+            if (availResult.data) {
+                setAvailability(availResult.data);
             }
-            setScanState(scanData);
-            const mergedAreas = baseAreas.map(base => ({
-                ...base,
-                ...(scanData.areas[base.id] || {})
-            }));
-            setRecAreas(mergedAreas);
             if (favResult.data) {
                 setFavorites(favResult.data);
                 setFavoritesSha(favResult.sha);
@@ -50568,7 +50582,7 @@ function CampingApp({ token }) {
         }
         else {
             if (newFavorites.favorites.length >= 5) {
-                return;
+                return; // Max 4 favorites
             }
             newFavorites.favorites = [...newFavorites.favorites, areaKey];
         }
@@ -50632,8 +50646,8 @@ function CampingApp({ token }) {
     if (loading) {
         return react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { id: "loading-screen" }, "Loading...");
     }
-    const lastScanDate = scanState?.lastScan
-        ? new Date(scanState.lastScan).toLocaleString()
+    const lastScanDate = availability?.lastScan
+        ? new Date(availability.lastScan).toLocaleString()
         : 'Never';
     const favoriteCount = favorites.favorites.length;
     const totalAreas = recAreas.length;

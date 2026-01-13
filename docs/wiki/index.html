@@ -8,9 +8,17 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="../emoji/blob-emoji.css">
     <script>
-        if (sessionStorage.getItem('githubToken')) {
-            document.documentElement.style.visibility = 'hidden';
-        }
+        (function() {
+            var stored = localStorage.getItem('githubAuth');
+            if (stored) {
+                try {
+                    var data = JSON.parse(stored);
+                    if (Date.now() < data.expiry) {
+                        document.documentElement.style.visibility = 'hidden';
+                    }
+                } catch (e) {}
+            }
+        })();
     </script>
 </head>
 <body>

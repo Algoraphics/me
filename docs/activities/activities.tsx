@@ -5,8 +5,32 @@ import { Slider, ToggleButtonGroup, ToggleButton } from '@mui/material';
 const REPO_OWNER = 'Algoraphics';
 const REPO_NAME = 'Vivarium';
 const ACTIVITIES_PATH = 'activities/activities.json';
+const TOKEN_EXPIRY_DAYS = 3;
 
 const DEV_MODE = false;
+
+function getStoredToken(): string | null {
+    const stored = localStorage.getItem('githubAuth');
+    if (!stored) return null;
+    try {
+        const { token, expiry } = JSON.parse(stored);
+        if (Date.now() < expiry) return token;
+        localStorage.removeItem('githubAuth');
+        return null;
+    } catch {
+        localStorage.removeItem('githubAuth');
+        return null;
+    }
+}
+
+function setStoredToken(token: string): void {
+    const expiry = Date.now() + TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
+    localStorage.setItem('githubAuth', JSON.stringify({ token, expiry }));
+}
+
+function clearStoredToken(): void {
+    localStorage.removeItem('githubAuth');
+}
 
 
 interface Activity {
@@ -108,7 +132,7 @@ function LoginScreen({ onLogin }: { onLogin: (token: string, data: ActivitiesDat
     const [loading, setLoading] = useState(false);
     
     useEffect(() => {
-        const savedToken = sessionStorage.getItem('githubToken');
+        const savedToken = getStoredToken();
         if (savedToken) {
             setToken(savedToken);
             handleLogin(savedToken);
@@ -126,7 +150,7 @@ function LoginScreen({ onLogin }: { onLogin: (token: string, data: ActivitiesDat
             invalidateCache();
             const data = await fetchActivities(loginToken, false);
             
-            sessionStorage.setItem('githubToken', loginToken);
+            setStoredToken(loginToken);
             document.documentElement.style.visibility = 'visible';
             onLogin(loginToken, data);
         } catch (err) {
@@ -1217,7 +1241,7 @@ function ActivitiesApp() {
     };
     
     const handleLogout = () => {
-        sessionStorage.removeItem('githubToken');
+        clearStoredToken();
         localStorage.removeItem('activitiesCache');
         setIsLoggedIn(false);
         setToken('');

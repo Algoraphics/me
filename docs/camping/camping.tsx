@@ -6,6 +6,26 @@ const REPO_OWNER = 'Algoraphics';
 const REPO_NAME = 'Vivarium';
 const WORKFLOW_REPO = 'me';
 const CAMPING_PATH = 'camping';
+const TOKEN_EXPIRY_DAYS = 3;
+
+function getStoredToken(): string | null {
+    const stored = localStorage.getItem('githubAuth');
+    if (!stored) return null;
+    try {
+        const { token, expiry } = JSON.parse(stored);
+        if (Date.now() < expiry) return token;
+        localStorage.removeItem('githubAuth');
+        return null;
+    } catch {
+        localStorage.removeItem('githubAuth');
+        return null;
+    }
+}
+
+function setStoredToken(token: string): void {
+    const expiry = Date.now() + TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
+    localStorage.setItem('githubAuth', JSON.stringify({ token, expiry }));
+}
 
 const WORKFLOWS = {
     rotation: 'camping-rotation.yml',
@@ -13,7 +33,7 @@ const WORKFLOWS = {
     manual: 'camping-manual.yml'
 };
 
-interface RecAreaBase {
+interface RecArea {
     id: string;
     name: string;
     state: string;
@@ -21,28 +41,12 @@ interface RecAreaBase {
     longitude: number;
     distanceMiles: number;
     provider?: string;
-}
-
-interface AreaScanState {
     lastScanned?: string | null;
     bookingHorizon?: number | null;
     recentWeekendAvailability?: string[];
     totalCampgrounds?: number;
-    totalSites?: number;
-    topCampgrounds?: { name: string; sites: number }[];
-    bookingUrls?: string[];
     notified?: boolean;
     lastNotifiedAt?: string | null;
-}
-
-interface RecArea extends RecAreaBase, AreaScanState {}
-
-interface ScanState {
-    currentIndex: number;
-    sitesPerRun: number;
-    favesPerDay: number;
-    lastScan: string | null;
-    areas: Record<string, AreaScanState>;
 }
 
 interface FavoritesData {
@@ -52,6 +56,11 @@ interface FavoritesData {
         dailyScanEnabled: boolean;
         notificationsEnabled: boolean;
     };
+}
+
+interface AvailabilityData {
+    lastScan: string;
+    openings: any[];
 }
 
 async function githubAPI(token: string, endpoint: string, options: any = {}) {
@@ -202,14 +211,14 @@ function LoginScreen({ onLogin }: { onLogin: (token: string) => void }) {
     const [token, setToken] = useState('');
     const [error, setError] = useState(false);
     const [loading, setLoading] = useState(() => {
-        return !!sessionStorage.getItem('githubToken');
+        return !!getStoredToken();
     });
     const [showForm, setShowForm] = useState(() => {
-        return !sessionStorage.getItem('githubToken');
+        return !getStoredToken();
     });
     
     useEffect(() => {
-        const savedToken = sessionStorage.getItem('githubToken');
+        const savedToken = getStoredToken();
         if (savedToken) {
             handleLogin(savedToken);
         } else {
@@ -225,7 +234,7 @@ function LoginScreen({ onLogin }: { onLogin: (token: string) => void }) {
         
         try {
             await githubAPI(loginToken, '/user');
-            sessionStorage.setItem('githubToken', loginToken);
+            setStoredToken(loginToken);
             document.documentElement.style.visibility = 'visible';
             onLogin(loginToken);
         } catch (err) {
@@ -337,7 +346,7 @@ function RecAreaCard({
                         onClick={(e) => { e.stopPropagation(); onToggleDisabled(); }}
                         title={isDisabled ? 'Enable in rotation' : 'Disable from rotation'}
                     >
-                        {isDisabled ? '🚫' : '✕'}
+                        {isDisabled ? '🚫' : '✓'}
                     </button>
                 </div>
             </div>
@@ -403,7 +412,7 @@ function TabBar({ activeTab, onTabChange, favoriteCount }: {
 
 function CampingApp({ token }: { token: string }) {
     const [recAreas, setRecAreas] = useState<RecArea[]>([]);
-    const [scanState, setScanState] = useState<ScanState | null>(null);
+    const [availability, setAvailability] = useState<AvailabilityData | null>(null);
     const [favorites, setFavorites] = useState<FavoritesData>({ 
         favorites: [], 
         disabled: [], 
@@ -423,34 +432,26 @@ function CampingApp({ token }: { token: string }) {
     const loadData = async () => {
         setLoading(true);
         try {
-            const [recAreasResult, scanStateResult, favResult, workflows] = await Promise.all([
+            const [recAreasResult, availResult, favResult, workflows] = await Promise.all([
                 fetchFile(token, `${CAMPING_PATH}/rec-areas.json`),
-                fetchFile(token, `${CAMPING_PATH}/scan-state.json`),
+                fetchFile(token, `${CAMPING_PATH}/availability.json`),
                 fetchFile(token, `${CAMPING_PATH}/favorites.json`),
                 getWorkflowStates(token)
             ]);
             
-            let baseAreas: RecAreaBase[] = [];
             if (recAreasResult.data) {
                 const data = recAreasResult.data;
                 if (Array.isArray(data)) {
-                    baseAreas = data as RecAreaBase[];
+                    setRecAreas(data as RecArea[]);
                 } else {
-                    baseAreas = Object.values(data) as RecAreaBase[];
+                    const areas = Object.values(data) as RecArea[];
+                    setRecAreas(areas);
                 }
             }
             
-            let scanData: ScanState = { currentIndex: 0, sitesPerRun: 4, favesPerDay: 6, lastScan: null, areas: {} };
-            if (scanStateResult.data) {
-                scanData = scanStateResult.data;
+            if (availResult.data) {
+                setAvailability(availResult.data);
             }
-            setScanState(scanData);
-            
-            const mergedAreas: RecArea[] = baseAreas.map(base => ({
-                ...base,
-                ...(scanData.areas[base.id] || {})
-            }));
-            setRecAreas(mergedAreas);
             
             if (favResult.data) {
                 setFavorites(favResult.data);
@@ -500,7 +501,7 @@ function CampingApp({ token }: { token: string }) {
             newFavorites.favorites = newFavorites.favorites.filter(f => f !== areaKey);
         } else {
             if (newFavorites.favorites.length >= 5) {
-                return;
+                return; // Max 4 favorites
             }
             newFavorites.favorites = [...newFavorites.favorites, areaKey];
         }
@@ -574,8 +575,8 @@ function CampingApp({ token }: { token: string }) {
         return <div id="loading-screen">Loading...</div>;
     }
 
-    const lastScanDate = scanState?.lastScan 
-        ? new Date(scanState.lastScan).toLocaleString()
+    const lastScanDate = availability?.lastScan 
+        ? new Date(availability.lastScan).toLocaleString()
         : 'Never';
 
     const favoriteCount = favorites.favorites.length;
@@ -736,3 +737,4 @@ if (container) {
     const root = createRoot(container);
     root.render(<App />);
 }
+

@@ -2,6 +2,30 @@ const REPO_OWNER = 'Algoraphics';
 const REPO_NAME = 'Vivarium';
 const CONTENT_PATH = 'content';
 const IMAGES_PATH = 'images';
+const TOKEN_EXPIRY_DAYS = 3;
+
+function getStoredToken() {
+    const stored = localStorage.getItem('githubAuth');
+    if (!stored) return null;
+    try {
+        const { token, expiry } = JSON.parse(stored);
+        if (Date.now() < expiry) return token;
+        localStorage.removeItem('githubAuth');
+        return null;
+    } catch {
+        localStorage.removeItem('githubAuth');
+        return null;
+    }
+}
+
+function setStoredToken(token) {
+    const expiry = Date.now() + TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
+    localStorage.setItem('githubAuth', JSON.stringify({ token, expiry }));
+}
+
+function clearStoredToken() {
+    localStorage.removeItem('githubAuth');
+}
 
 let githubToken = null;
 let wikiData = null;
@@ -503,7 +527,7 @@ async function login() {
         wikiData = freshData;
         localStorage.setItem('wikiDataCache', JSON.stringify(wikiData));
         
-        sessionStorage.setItem('githubToken', token);
+        setStoredToken(token);
         
         document.getElementById('login-screen').style.display = 'none';
         document.getElementById('wiki-container').style.display = 'block';
@@ -540,7 +564,7 @@ async function login() {
 }
 
 function logout() {
-    sessionStorage.removeItem('githubToken');
+    clearStoredToken();
     sessionStorage.removeItem('currentPage');
     localStorage.removeItem('wikiDataCache');
     localStorage.removeItem('pageDrafts');
@@ -1254,7 +1278,7 @@ window.addEventListener('popstate', async (e) => {
     }
 });
 
-const savedToken = sessionStorage.getItem('githubToken');
+const savedToken = getStoredToken();
 if (savedToken) {
     document.getElementById('token-input').value = savedToken;
     document.getElementById('login-form').style.display = 'none';
