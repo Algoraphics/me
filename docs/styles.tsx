@@ -113,5 +113,6 @@ export const TabButtons = styled.div`
 export const FixedButtons = styled.div`
     z-index: 5;
     position: fixed;
+    top: 0;
 `;
 

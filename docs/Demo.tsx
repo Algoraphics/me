@@ -16,11 +16,9 @@ const DemoText = styled.div`
 const DemoPage = (props: { isMobile: boolean; onTabChange?: (tab: string) => void }) => {
     return (
         <DemoText>
-            This is a little interactive demo of "Bismuth." Hit the control buttons above to play around!
+            This is a little interactive demo of {props.onTabChange ? <TabLink onClick={() => props.onTabChange!("Art")}>Bismuth</TabLink> : <b>Bismuth</b>}. Hit the control buttons above to play around!
             <br /><br />
-            If you don't see anything, your device may not be able to run this visual. For Mac, try using Safari!
-            <br/><br/>
-            <InfoIcon src="websiteIcons/VisibleWhite.png" />&nbsp;&nbsp; <b>Show/Hide this information panel</b>
+            <InfoIcon src="websiteIcons/VisibleWhite.png" />&nbsp;&nbsp; Show/Hide this information panel
             <br />
             <InfoIcon src="websiteIcons/RewindWhite.png" />
             <InfoIcon src="websiteIcons/FastForwardWhite.png" />&nbsp;&nbsp; Rewind / Fast Forward (Try clicking multiple times)
@@ -34,8 +32,10 @@ const DemoPage = (props: { isMobile: boolean; onTabChange?: (tab: string) => voi
             <InfoIcon src="websiteIcons/PowerUpWhite.png" />&nbsp;&nbsp; Add complexity (the coolest button)
             <br />
             <InfoIcon src="websiteIcons/PowerDownWhite.png" />&nbsp;&nbsp; Reduce complexity (if things get a bit slow)
-            <br /><br />
-            See {props.onTabChange ? <TabLink onClick={() => props.onTabChange!("Art")}>Art</TabLink> : <b>Art</b>} to learn more about this visual.
+            <br />
+            <InfoIcon src="websiteIcons/random.png" />&nbsp;&nbsp; I'm feeling lucky (⊂(◉‿◉)つ)
+            <br />
+            <InfoIcon src="websiteIcons/fullscreen.png" />&nbsp;&nbsp; Fullscreen mode (H to unhide UI)
         </DemoText>);
 }
 

@@ -220,7 +220,7 @@
     <!-- scripts -->
     <script src="./dist/app-bundle.js"></script>
     <script type="x-shader/x-fragment" id="image">
-                #ifdef GL_ES
+        #ifdef GL_ES
         precision highp float;
         #endif
 
@@ -230,6 +230,24 @@
         uniform float iTime;
         uniform vec2 iMouse;
         uniform vec2 iResolution;
+        uniform float warpStrength;
+        uniform float inversionRadius;
+        uniform float shapeMorph;
+        uniform float contrastLevel;
+        uniform float shiftAmount;
+        uniform float colorShiftR;
+        uniform float colorShiftG;
+        uniform float colorShiftB;
+        uniform vec2 clickPos1;
+        uniform float clickElapsed1;
+        uniform vec2 clickPos2;
+        uniform float clickElapsed2;
+        uniform vec2 clickPos3;
+        uniform float clickElapsed3;
+        uniform vec2 clickPos4;
+        uniform float clickElapsed4;
+        uniform vec2 clickPos5;
+        uniform float clickElapsed5;
 
         #define time (iTime / 3.)
         #define PI 3.14159265358979323846
@@ -242,6 +260,19 @@
             vec2 uv = smoothstep(_size,_size+aa,_st);
             uv *= smoothstep(_size,_size+aa,vec2(1.0)-_st);
             return uv.x*uv.y;
+        }
+
+        float circle(vec2 _st, float _radius, float _smoothEdges){
+            vec2 dist = _st - vec2(0.5);
+            return 1.0 - smoothstep(_radius - (_smoothEdges * 0.5),
+                                     _radius + (_smoothEdges * 0.5),
+                                     dot(dist, dist) * 4.0);
+        }
+
+        float morphedShape(vec2 _st, vec2 _size, float _smoothEdges, float morph){
+            float boxShape = box(_st, _size, _smoothEdges);
+            float circleShape = circle(_st, 0.5, _smoothEdges);
+            return mix(boxShape, circleShape, morph);
         }
 
         vec2 tile(vec2 _st, float _zoom){
@@ -257,6 +288,26 @@
             return _st;
         }
 
+        vec2 domainWarp(vec2 p, float strength, float tm) {
+            if (strength > 0.0) {
+                float freq = 1.0 + strength * 2.0;
+                float timeVar = tm * 0.3;
+                
+                vec2 q = vec2(
+                    sin(p.x * freq * 1.3 + p.y * freq * 0.8 + timeVar),
+                    cos(p.y * freq * 1.1 + p.x * freq * 0.9 - timeVar * 0.7)
+                );
+                
+                vec2 r = vec2(
+                    cos(p.x * freq * 0.7 - q.y * 2.0 + timeVar * 0.5),
+                    sin(p.y * freq * 0.9 + q.x * 2.0 - timeVar * 0.3)
+                );
+                
+                return p + (q * strength * 0.4) + (r * strength * strength * 0.3);
+            }
+            return p;
+        }
+
         void main(void){
             vec2 v = (gl_FragCoord.xy - resolution/2.0) / min(resolution.y,resolution.x) * 5.0;
             vec2 vv = v; vec2 vvv = v;
@@ -266,8 +317,52 @@
                     cos(tm)+sin(tm*0.1)+cos(tm*0.8)+sin(tm*-1.1)+cos(tm*1.5)
                     )+4.0)*0.03;
             vec2 resV = ( gl_FragCoord.xy / resolution );
-            float bdist = useMouse*clamp(1.5 - 6.*distance(mouse, resV), 0., 1.);
-            float tdist = 1.0 - 0.2*bdist;
+            float aspectRatio = resolution.x / resolution.y;
+            vec2 mouseDiff = (resV - mouse) * vec2(aspectRatio, 1.0);
+            float bdist = useMouse*clamp(1.5 - 6.*length(mouseDiff), 0., 1.);
+            
+            float rippleSpeed = 0.2;
+            float rippleWidth = 0.05;
+            float ripple = 0.0;
+            
+            if (useMouse > 0.5) {
+                if (clickElapsed1 >= 0.0 && clickElapsed1 < 2.0) {
+                    vec2 diff1 = (resV - clickPos1) * vec2(aspectRatio, 1.0);
+                    float r1 = clickElapsed1 * rippleSpeed;
+                    float d1 = abs(length(diff1) - r1);
+                    ripple = max(ripple, (1.0 - smoothstep(0.0, rippleWidth, d1)) * (1.0 - clickElapsed1 / 2.0));
+                }
+                
+                if (clickElapsed2 >= 0.0 && clickElapsed2 < 2.0) {
+                    vec2 diff2 = (resV - clickPos2) * vec2(aspectRatio, 1.0);
+                    float r2 = clickElapsed2 * rippleSpeed;
+                    float d2 = abs(length(diff2) - r2);
+                    ripple = max(ripple, (1.0 - smoothstep(0.0, rippleWidth, d2)) * (1.0 - clickElapsed2 / 2.0));
+                }
+                
+                if (clickElapsed3 >= 0.0 && clickElapsed3 < 2.0) {
+                    vec2 diff3 = (resV - clickPos3) * vec2(aspectRatio, 1.0);
+                    float r3 = clickElapsed3 * rippleSpeed;
+                    float d3 = abs(length(diff3) - r3);
+                    ripple = max(ripple, (1.0 - smoothstep(0.0, rippleWidth, d3)) * (1.0 - clickElapsed3 / 2.0));
+                }
+                
+                if (clickElapsed4 >= 0.0 && clickElapsed4 < 2.0) {
+                    vec2 diff4 = (resV - clickPos4) * vec2(aspectRatio, 1.0);
+                    float r4 = clickElapsed4 * rippleSpeed;
+                    float d4 = abs(length(diff4) - r4);
+                    ripple = max(ripple, (1.0 - smoothstep(0.0, rippleWidth, d4)) * (1.0 - clickElapsed4 / 2.0));
+                }
+                
+                if (clickElapsed5 >= 0.0 && clickElapsed5 < 2.0) {
+                    vec2 diff5 = (resV - clickPos5) * vec2(aspectRatio, 1.0);
+                    float r5 = clickElapsed5 * rippleSpeed;
+                    float d5 = abs(length(diff5) - r5);
+                    ripple = max(ripple, (1.0 - smoothstep(0.0, rippleWidth, d5)) * (1.0 - clickElapsed5 / 2.0));
+                }
+            }
+            
+            float tdist = 1.0 - 0.2*bdist - ripple * 0.4;
             vec2 vdist = vec2(distance(mouse.x, resV.x), distance(mouse.y, resV.y));
 
             if (powerLevel < -1.0) {
@@ -284,7 +379,7 @@
             float S = sin(a);
             vec2 xa=vec2(C, -S);
             vec2 ya=vec2(S, C);
-            vec2 shift = vec2( 1.2, 1.62);
+            vec2 shift = vec2( 1.2, 1.62) + vec2(shiftAmount * 0.5, -shiftAmount * 0.3);
             float Z = 1.0 + mspt.y*6.0;
             float ZZ = 1.0 + (mspt.y)*6.2;
             float ZZZ = 1.0 + (mspt.y)*6.9;
@@ -302,9 +397,10 @@
                 float br = dot(b,b);
                 float r = dot(v,v);
                 float off = 3.+0.5*sin(0.1*tm);
-                if ( r > (sin(tm) + off) )
+                float invThreshold = (sin(tm) + off) * inversionRadius;
+                if ( r > invThreshold )
                 {
-                    r = (sin(tm) + off)/r ;
+                    r = invThreshold/r ;
                     v.x = v.x * r;
                     v.y = v.y * r;
                 }
@@ -314,41 +410,45 @@
                 }
 
                 R *= 1.05;
-                R += br;//b.x;
+                R += br;
                 if(i < (stop - 1)){
                     RR *= 1.05;
-                    RR += br;//b.x;
+                    RR += br;
                     if(i < (stop - 2)){
                         RRR *= 1.05;
-                        RRR += br;//b.x;
+                        RRR += br;
                     }
                 }
 
+                float warpVariation = warpStrength * 0.15 * (sin(tm * 0.8) + sin(tm * 1.3) * 0.5);
+                float dynamicWarp = warpStrength + warpVariation;
+                v = domainWarp(v, dynamicWarp, tm);
                 v = vec2( dot(v, xa), dot(v, ya)) * Z + shift;
-                b = vec2(box(v,vec2(5.*tdist),0.9*tdist)) + shift * 0.42;
+                b = vec2(morphedShape(v,vec2(5.*tdist),0.9*tdist, shapeMorph)) + shift * 0.42;
             }
             float c = ((mod(R,2.0)>1.0)?1.0-fract(R):fract(R));
             float cc = ((mod(RR,2.0)>1.0)?1.0-fract(RR):fract(RR));
             float ccc = ((mod(RRR,2.0)>1.0)?1.0-fract(RRR):fract(RRR));
-
-            // Complex wave for blackout
-            float sine = -1.2*(sin(4.*tm) + sin(2.*tm));
-            float blackout = 2.4 - 0.7*bdist;
-            if (blackout > 3.5) {
-                  blackout = 3.4 - (-1.2 + bdist);
-            }
-            if (ccc+cc+c < blackout) {
-                // Gradient into blackout
-                float diff = ccc+cc+c - blackout;
-              float m = -0.75;
-              ccc = ccc - m*diff;
-              cc = cc - m*diff;
-              c = c-m*diff;
-            }
-
             float gray = ccc+cc+c / 3. - 0.8;
 
-            vec4 color = vec4(cc,c,ccc, 1.);
+            vec3 baseColor = vec3(cc, c, ccc);
+            float patternValue = (R + RR + RRR) / 3.0;
+            
+            float localShiftR = sin(patternValue + colorShiftR * 10.0) * 0.5;
+            float localShiftG = sin(patternValue + colorShiftG * 10.0) * 0.5;
+            float localShiftB = sin(patternValue + colorShiftB * 10.0) * 0.5;
+            
+            vec3 finalColor = clamp(baseColor + vec3(localShiftR, localShiftG, localShiftB), 0.0, 1.0);
+
+            if (contrastLevel > 0.01) {
+                float patternValue = mod(R + RR + RRR, 6.0) / 6.0;
+                float threshold = pow(contrastLevel, 0.7) * 0.995;
+                float edge = 0.02;
+                float blackoutAmount = 1.0 - smoothstep(threshold - edge, threshold + edge, patternValue);
+                finalColor = mix(finalColor, vec3(0.0, 0.0, 0.0), blackoutAmount);
+            }
+
+            vec4 color = vec4(finalColor, 1.);
             vec4 grayscale = vec4(gray,gray,gray, 1.);
             gl_FragColor = color*iActive + (1. - iActive)*grayscale;
             }
@@ -357,16 +457,64 @@
     <script>
 
         var minDimension;
-        var time = performance.now() / 1000 + 50.;
+        var time = performance.now() / 1000 + 100.;
+
+        function modulatedWave(time, min, max, seed, bias = 2.5, speedMult = 1.0) {
+            const fastWave = 
+                Math.sin(time * 0.015 * speedMult + seed) * 0.4 +
+                Math.sin(time * 0.027 * speedMult + seed * 2.1) * 0.3 +
+                Math.sin(time * 0.041 * speedMult + seed * 3.7) * 0.2 +
+                Math.cos(time * 0.033 * speedMult + seed * 1.3) * 0.1;
+            
+            const slowWave = Math.sin(time * 0.003 * speedMult + seed * 5.2);
+            const amplitudeModulation = 0.15 + (slowWave * 0.5 + 0.5) * 0.85;
+            
+            const modulated = fastWave * amplitudeModulation;
+            
+            const normalized = (modulated + 1.0) / 2.0;
+            const biased = Math.pow(normalized, bias);
+            
+            return min + biased * (max - min);
+        }
 
         var mouseX;
         var mouseY;
         var activate = 0.;
         var powerLevel = -0.2;
         var mouse = 1.0;
+        
+        var warpStrength = 0.0;
+        var inversionRadius = 1.0;
+        var shapeMorph = 0.0;
+        var contrastLevel = 0.75;
+        var shiftAmount = 0.0;
+        var colorShiftR = 0.0;
+        var colorShiftG = 0.0;
+        var colorShiftB = 0.0;
+        var clickPositions = [{x: 0.5, y: 0.5}, {x: 0.5, y: 0.5}, {x: 0.5, y: 0.5}, {x: 0.5, y: 0.5}, {x: 0.5, y: 0.5}];
+        var clickTimes = [-100, -100, -100, -100, -100];
+        var clickIndex = 0;
+        var rippleElapsed = [-100, -100, -100, -100, -100];
         document.addEventListener("mousemove", (event) => {
             mouseX = event.clientX;
             mouseY = event.clientY;
+        });
+
+        document.addEventListener("click", (event) => {
+            if (mouse > 0.5) {
+                var target = event.target;
+                if (target instanceof HTMLButtonElement || 
+                    target instanceof HTMLImageElement ||
+                    target.closest('button')) {
+                    return;
+                }
+                clickPositions[clickIndex] = {
+                    x: event.clientX / window.innerWidth,
+                    y: 1.0 - (event.clientY / window.innerHeight)
+                };
+                clickTimes[clickIndex] = performance.now() / 1000;
+                clickIndex = (clickIndex + 1) % 5;
+            }
         });
 
         document.addEventListener("mousedown", (event) => {
@@ -414,10 +562,48 @@
                 else if (target.innerText === "Toggle Cursor Interactivity" || target.title === "Toggle Cursor Interactivity") {
                     mouse = 1 - mouse;
                 }
+                else if (target.innerText === "Random Jump" || target.title === "Random Jump") {
+                    const randomOffset = (Math.random() * 10000) - 5000;
+                    time += randomOffset;
+                    powerLevel = 0.8;
+                }
+                else if (target.innerText === "Fullscreen" || target.title === "Fullscreen") {
+                    if (!document.fullscreenElement) {
+                        powerLevel = 0.8;
+                        document.documentElement.requestFullscreen().catch(err => {
+                            console.log('Error attempting to enable fullscreen:', err);
+                        });
+                    } else {
+                        if (document.exitFullscreen) {
+                            document.exitFullscreen();
+                        }
+                    }
+                }
                 else if (target.innerText === "About Me" || target.innerText === "Work" || target.innerText === "Art") {
                     activate = 0.;
                     powerLevel = 0.;
                     timeAdd = 1.;
+                }
+            }
+        });
+
+        document.addEventListener('fullscreenchange', () => {
+            const controlButtons = document.getElementById('controlbuttons');
+            const root = document.getElementById('root');
+            if (document.fullscreenElement) {
+                if (controlButtons) controlButtons.style.display = 'none';
+                if (root) root.style.display = 'none';
+            } else {
+                if (controlButtons) controlButtons.style.display = '';
+                if (root) root.style.display = '';
+            }
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if ((event.key === 'h' || event.key === 'H') && document.fullscreenElement) {
+                const controlButtons = document.getElementById('controlbuttons');
+                if (controlButtons) {
+                    controlButtons.style.display = controlButtons.style.display === 'none' ? '' : 'none';
                 }
             }
         });
@@ -481,6 +667,27 @@
                 }
                 time = time + (totalAdd / 50);
 
+                warpStrength = modulatedWave(time, 0, 0.8, 123.45, 2.0, 1.0);
+                shapeMorph = modulatedWave(time, -0.5, 1.5, 456.78, 1.5, 1.37);
+                inversionRadius = modulatedWave(time, 0.5, 5, 789.12, 1.5, 0.83);
+                var animatedContrast = modulatedWave(time, 0, 1.0, 567.89, 1.75, 0.97);
+                contrastLevel = 0.75 * (1 - activate) + animatedContrast * activate;
+                shiftAmount = modulatedWave(time, -5, 5, 135.79, 2.5, 1.19);
+
+                const shiftRMag = modulatedWave(time, 0, 0.3, 345.67, 1.5, 1.13);
+                colorShiftR = shiftRMag * Math.sin(time * 0.019 + 345.67);
+                
+                const shiftGMag = modulatedWave(time, 0, 0.3, 678.90, 1.25, 1.47);
+                colorShiftG = shiftGMag * Math.sin(time * 0.023 + 678.90);
+                
+                const shiftBMag = modulatedWave(time, 0, 0.3, 901.23, 1.5, 0.89);
+                colorShiftB = shiftBMag * Math.sin(time * 0.029 + 901.23);
+
+                const currentRealTime = performance.now() / 1000;
+                for (let i = 0; i < 5; i++) {
+                    rippleElapsed[i] = currentRealTime - clickTimes[i];
+                }
+
                 stMouseX = ctx.toShaderX(mouseX) / ctx.width;
                 stMouseY = (ctx.toShaderY(mouseY) / ctx.height);
             },
@@ -492,7 +699,25 @@
                         iMouse: (gl, loc) => gl.uniform2f(loc, stMouseX, stMouseY),
                         iActive: (gl, loc) => gl.uniform1f(loc, activate),
                         powerLevel: (gl, loc) => gl.uniform1f(loc, powerLevel),
-                        useMouse: (gl, loc) => gl.uniform1f(loc, mouse)
+                        useMouse: (gl, loc) => gl.uniform1f(loc, mouse),
+                        warpStrength: (gl, loc) => gl.uniform1f(loc, warpStrength),
+                        inversionRadius: (gl, loc) => gl.uniform1f(loc, inversionRadius),
+                        shapeMorph: (gl, loc) => gl.uniform1f(loc, shapeMorph),
+                        contrastLevel: (gl, loc) => gl.uniform1f(loc, contrastLevel),
+                        shiftAmount: (gl, loc) => gl.uniform1f(loc, shiftAmount),
+                        colorShiftR: (gl, loc) => gl.uniform1f(loc, colorShiftR),
+                        colorShiftG: (gl, loc) => gl.uniform1f(loc, colorShiftG),
+                        colorShiftB: (gl, loc) => gl.uniform1f(loc, colorShiftB),
+                        clickPos1: (gl, loc) => gl.uniform2f(loc, clickPositions[0].x, clickPositions[0].y),
+                        clickElapsed1: (gl, loc) => gl.uniform1f(loc, rippleElapsed[0]),
+                        clickPos2: (gl, loc) => gl.uniform2f(loc, clickPositions[1].x, clickPositions[1].y),
+                        clickElapsed2: (gl, loc) => gl.uniform1f(loc, rippleElapsed[1]),
+                        clickPos3: (gl, loc) => gl.uniform2f(loc, clickPositions[2].x, clickPositions[2].y),
+                        clickElapsed3: (gl, loc) => gl.uniform1f(loc, rippleElapsed[2]),
+                        clickPos4: (gl, loc) => gl.uniform2f(loc, clickPositions[3].x, clickPositions[3].y),
+                        clickElapsed4: (gl, loc) => gl.uniform1f(loc, rippleElapsed[3]),
+                        clickPos5: (gl, loc) => gl.uniform2f(loc, clickPositions[4].x, clickPositions[4].y),
+                        clickElapsed5: (gl, loc) => gl.uniform1f(loc, rippleElapsed[4])
                     }
                 }
             }

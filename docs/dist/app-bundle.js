@@ -280,7 +280,7 @@ const ControlButtonGroup = styled_components__WEBPACK_IMPORTED_MODULE_1__["defau
         transform: scale(0.75) !important;
     `};
 `;
-const controlTypes = ["visible", "rewind", "pause", "play", "fastForward", "mouse", "powerDown", "powerUp"];
+const controlTypes = ["visible", "rewind", "pause", "play", "fastForward", "mouse", "powerDown", "powerUp", "random", "fullscreen"];
 const controlMap = {
     visible: {
         path: "websiteIcons/VisibleWhite.png",
@@ -313,6 +313,14 @@ const controlMap = {
     powerDown: {
         path: "websiteIcons/PowerUpWhite.png",
         hover: "Increase Complexity"
+    },
+    random: {
+        path: "websiteIcons/random.png",
+        hover: "I'm feeling lucky!"
+    },
+    fullscreen: {
+        path: "websiteIcons/fullscreen.png",
+        hover: "Fullscreen"
     },
 };
 const ControlButtons = (props) => {
@@ -358,15 +366,13 @@ const DemoText = styled_components__WEBPACK_IMPORTED_MODULE_1__["default"].div `
 `;
 const DemoPage = (props) => {
     return (react__WEBPACK_IMPORTED_MODULE_0__.createElement(DemoText, null,
-        "This is a little interactive demo of \"Bismuth.\" Hit the control buttons above to play around!",
-        react__WEBPACK_IMPORTED_MODULE_0__.createElement("br", null),
-        react__WEBPACK_IMPORTED_MODULE_0__.createElement("br", null),
-        "If you don't see anything, your device may not be able to run this visual. For Mac, try using Safari!",
+        "This is a little interactive demo of ",
+        props.onTabChange ? react__WEBPACK_IMPORTED_MODULE_0__.createElement(_styles__WEBPACK_IMPORTED_MODULE_2__.TabLink, { onClick: () => props.onTabChange("Art") }, "Bismuth") : react__WEBPACK_IMPORTED_MODULE_0__.createElement("b", null, "Bismuth"),
+        ". Hit the control buttons above to play around!",
         react__WEBPACK_IMPORTED_MODULE_0__.createElement("br", null),
         react__WEBPACK_IMPORTED_MODULE_0__.createElement("br", null),
         react__WEBPACK_IMPORTED_MODULE_0__.createElement(InfoIcon, { src: "websiteIcons/VisibleWhite.png" }),
-        "\u00A0\u00A0 ",
-        react__WEBPACK_IMPORTED_MODULE_0__.createElement("b", null, "Show/Hide this information panel"),
+        "\u00A0\u00A0 Show/Hide this information panel",
         react__WEBPACK_IMPORTED_MODULE_0__.createElement("br", null),
         react__WEBPACK_IMPORTED_MODULE_0__.createElement(InfoIcon, { src: "websiteIcons/RewindWhite.png" }),
         react__WEBPACK_IMPORTED_MODULE_0__.createElement(InfoIcon, { src: "websiteIcons/FastForwardWhite.png" }),
@@ -387,10 +393,11 @@ const DemoPage = (props) => {
         react__WEBPACK_IMPORTED_MODULE_0__.createElement(InfoIcon, { src: "websiteIcons/PowerDownWhite.png" }),
         "\u00A0\u00A0 Reduce complexity (if things get a bit slow)",
         react__WEBPACK_IMPORTED_MODULE_0__.createElement("br", null),
+        react__WEBPACK_IMPORTED_MODULE_0__.createElement(InfoIcon, { src: "websiteIcons/random.png" }),
+        "\u00A0\u00A0 I'm feeling lucky (\u2282(\u25C9\u203F\u25C9)\u3064)",
         react__WEBPACK_IMPORTED_MODULE_0__.createElement("br", null),
-        "See ",
-        props.onTabChange ? react__WEBPACK_IMPORTED_MODULE_0__.createElement(_styles__WEBPACK_IMPORTED_MODULE_2__.TabLink, { onClick: () => props.onTabChange("Art") }, "Art") : react__WEBPACK_IMPORTED_MODULE_0__.createElement("b", null, "Art"),
-        " to learn more about this visual."));
+        react__WEBPACK_IMPORTED_MODULE_0__.createElement(InfoIcon, { src: "websiteIcons/fullscreen.png" }),
+        "\u00A0\u00A0 Fullscreen mode (H to unhide UI)"));
 };
 class Demo extends react__WEBPACK_IMPORTED_MODULE_0__.Component {
     componentDidMount() {
@@ -459,6 +466,9 @@ const TabGroup = (props) => {
         if (target instanceof HTMLButtonElement || target instanceof HTMLImageElement) {
             if (target.innerText === "Show/Hide Controls" || target.title === "Show/Hide Controls") {
                 setActiveDemo(!activeDemo);
+            }
+            else if (target.closest('#controlbuttons')) {
+                setActiveDemo(true);
             }
         }
     });
@@ -701,10 +711,9 @@ ___CSS_LOADER_EXPORT___.push([module.id, "@import url(https://fonts.googleapis.c
 ___CSS_LOADER_EXPORT___.push([module.id, `body {
     display: flex;
     justify-content: center;
-    align-items: center;
     background: #212121;
     font-family: 'Montserrat', sans-serif;
-}`, "",{"version":3,"sources":["webpack://./styles.css"],"names":[],"mappings":"AAEA;IACI,aAAa;IACb,uBAAuB;IACvB,mBAAmB;IACnB,mBAAmB;IACnB,qCAAqC;AACzC","sourcesContent":["@import url(https://fonts.googleapis.com/css?family=Montserrat:700,400);\n\nbody {\n    display: flex;\n    justify-content: center;\n    align-items: center;\n    background: #212121;\n    font-family: 'Montserrat', sans-serif;\n}"],"sourceRoot":""}]);
+}`, "",{"version":3,"sources":["webpack://./styles.css"],"names":[],"mappings":"AAEA;IACI,aAAa;IACb,uBAAuB;IACvB,mBAAmB;IACnB,qCAAqC;AACzC","sourcesContent":["@import url(https://fonts.googleapis.com/css?family=Montserrat:700,400);\n\nbody {\n    display: flex;\n    justify-content: center;\n    background: #212121;\n    font-family: 'Montserrat', sans-serif;\n}"],"sourceRoot":""}]);
 // Exports
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (___CSS_LOADER_EXPORT___);
 
@@ -36311,6 +36320,7 @@ const TabButtons = styled_components__WEBPACK_IMPORTED_MODULE_0__["default"].div
 const FixedButtons = styled_components__WEBPACK_IMPORTED_MODULE_0__["default"].div `
     z-index: 5;
     position: fixed;
+    top: 0;
 `;
 
 

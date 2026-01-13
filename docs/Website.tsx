@@ -43,6 +43,8 @@ const TabGroup = (props: { isMobile: boolean; zoomImg: string; setZoomImg: (img:
         if (target instanceof HTMLButtonElement || target instanceof HTMLImageElement) {
             if (target.innerText === "Show/Hide Controls" || target.title === "Show/Hide Controls") {
                 setActiveDemo(!activeDemo);
+            } else if (target.closest('#controlbuttons')) {
+                setActiveDemo(true);
             }
         }
     });

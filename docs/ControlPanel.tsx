@@ -38,7 +38,7 @@ const ControlButtonGroup = styled.div<{ isActive: boolean }>`
 `
 
 
-const controlTypes = ["visible", "rewind", "pause", "play", "fastForward", "mouse", "powerDown", "powerUp"];
+const controlTypes = ["visible", "rewind", "pause", "play", "fastForward", "mouse", "powerDown", "powerUp", "random", "fullscreen"];
 
 const controlMap = {
     visible: {
@@ -72,6 +72,14 @@ const controlMap = {
     powerDown: {
         path: "websiteIcons/PowerUpWhite.png",
         hover: "Increase Complexity"
+    },
+    random: {
+        path: "websiteIcons/random.png",
+        hover: "I'm feeling lucky!"
+    },
+    fullscreen: {
+        path: "websiteIcons/fullscreen.png",
+        hover: "Fullscreen"
     },
 };
 
