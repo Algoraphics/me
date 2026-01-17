@@ -22,7 +22,10 @@ PACIFIC_TZ = ZoneInfo('America/Los_Angeles')
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Camping availability scanner')
-    parser.add_argument('--sites', help='Comma-separated list of rec area IDs to scan (overrides rotation)')
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument('--sites', help='Comma-separated list of rec area IDs to scan')
+    mode.add_argument('--rotation', action='store_true', help='Run rotation scan (ignores favorites)')
+    mode.add_argument('--favorites', action='store_true', help='Scan only favorites')
     parser.add_argument('--start-date', help='Override start date (YYYY-MM-DD)')
     parser.add_argument('--end-date', help='Override end date (YYYY-MM-DD)')
     parser.add_argument('--dry-run', action='store_true', help='Run without saving state or sending notifications')
@@ -155,14 +158,8 @@ def get_enabled_areas(rec_areas, disabled):
     enabled = {k: v for k, v in rec_areas.items() if k not in disabled}
     return dict(sorted(enabled.items(), key=lambda x: x[0]))
 
-def select_areas_to_scan(rec_areas, favorites_data, scan_state):
-    favorites = favorites_data.get('favorites', [])
+def select_rotation_areas(rec_areas, favorites_data, scan_state):
     disabled = set(favorites_data.get('disabled', []))
-    
-    if favorites:
-        log(f"Favorites mode: scanning {len(favorites)} favorite areas")
-        return {k: rec_areas[k] for k in favorites if k in rec_areas and k not in disabled}
-    
     enabled = get_enabled_areas(rec_areas, disabled)
     if not enabled:
         log("No enabled areas to scan")
@@ -179,6 +176,17 @@ def select_areas_to_scan(rec_areas, favorites_data, scan_state):
     
     log(f"Rotation mode: scanning {len(selected_keys)} areas starting at index {current_index}")
     return {k: enabled[k] for k in selected_keys}
+
+def select_favorites_areas(rec_areas, favorites_data):
+    favorites = favorites_data.get('favorites', [])
+    disabled = set(favorites_data.get('disabled', []))
+    
+    if not favorites:
+        log("No favorites to scan")
+        return {}
+    
+    log(f"Favorites mode: scanning {len(favorites)} favorite areas")
+    return {k: rec_areas[k] for k in favorites if k in rec_areas and k not in disabled}
 
 def scan_area_month_by_month(area_key, area_data, start_date=None, end_date=None, verbose=False):
     rec_id = area_data['id']
@@ -396,18 +404,16 @@ def main():
     log(f"  dry_run={args.dry_run}, verbose={args.verbose}")
     
     rec_areas = load_json(REC_AREAS_FILE, {})
-    favorites_data = load_json(FAVORITES_FILE, {'favorites': [], 'disabled': [], 'settings': {}})
-    scan_state = load_json(SCAN_STATE_FILE, {'currentIndex': 0, 'sitesPerRun': 4})
+    favorites_data = load_json(FAVORITES_FILE, {'favorites': [], 'disabled': [], 'settings': {'notificationsEnabled': False}})
+    scan_state = load_json(SCAN_STATE_FILE, {
+        'currentIndex': 0,
+        'sitesPerRun': 4
+    })
     availability = load_json(AVAILABILITY_FILE, {'lastScan': None, 'openings': []})
     
     if not rec_areas:
         log("No recreation areas found. Run build_rec_areas.py first.")
         return 1
-    
-    settings = favorites_data.get('settings', {})
-    if not settings.get('dailyScanEnabled', False) and not args.sites:
-        log("Daily scanning is disabled. Enable it from the website or use --sites to scan specific areas.")
-        return 0
     
     if args.sites:
         site_ids = [s.strip() for s in args.sites.split(',')]
@@ -416,8 +422,13 @@ def main():
             if area['id'] in site_ids or key in site_ids:
                 areas_to_scan[key] = area
         log(f"Manual mode: scanning {len(areas_to_scan)} specified areas")
+    elif args.favorites:
+        areas_to_scan = select_favorites_areas(rec_areas, favorites_data)
+    elif args.rotation:
+        areas_to_scan = select_rotation_areas(rec_areas, favorites_data, scan_state)
     else:
-        areas_to_scan = select_areas_to_scan(rec_areas, favorites_data, scan_state)
+        log("No scan mode specified. Use --sites, --rotation, or --favorites")
+        return 1
     
     if not areas_to_scan:
         log("No areas to scan")
@@ -469,7 +480,7 @@ def main():
             })
     
     if not args.dry_run and scan_success:
-        if not args.sites and not favorites_data.get('favorites'):
+        if args.rotation:
             disabled = set(favorites_data.get('disabled', []))
             enabled = get_enabled_areas(rec_areas, disabled)
             num_enabled = len(enabled)

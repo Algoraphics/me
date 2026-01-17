@@ -53,9 +53,13 @@ interface FavoritesData {
     favorites: string[];
     disabled: string[];
     settings: {
-        dailyScanEnabled: boolean;
         notificationsEnabled: boolean;
     };
+}
+
+interface ScanState {
+    currentIndex: number;
+    sitesPerRun: number;
 }
 
 interface AvailabilityData {
@@ -413,12 +417,13 @@ function TabBar({ activeTab, onTabChange, favoriteCount }: {
 function CampingApp({ token }: { token: string }) {
     const [recAreas, setRecAreas] = useState<RecArea[]>([]);
     const [availability, setAvailability] = useState<AvailabilityData | null>(null);
-    const [favorites, setFavorites] = useState<FavoritesData>({ 
-        favorites: [], 
-        disabled: [], 
-        settings: { dailyScanEnabled: false, notificationsEnabled: false } 
-    });
+    const [favorites, setFavorites] = useState<FavoritesData>({ favorites: [], disabled: [], settings: { notificationsEnabled: false } });
     const [favoritesSha, setFavoritesSha] = useState<string | null>(null);
+    const [scanState, setScanState] = useState<ScanState>({
+        currentIndex: 0,
+        sitesPerRun: 4
+    });
+    const [scanStateSha, setScanStateSha] = useState<string | null>(null);
     const [workflowStates, setWorkflowStates] = useState<WorkflowState>({ rotation: false, favorites: false });
     const [activeTab, setActiveTab] = useState<'all' | 'favorites'>('all');
     const [searchQuery, setSearchQuery] = useState('');
@@ -432,10 +437,11 @@ function CampingApp({ token }: { token: string }) {
     const loadData = async () => {
         setLoading(true);
         try {
-            const [recAreasResult, availResult, favResult, workflows] = await Promise.all([
+            const [recAreasResult, availResult, favResult, scanStateResult, workflows] = await Promise.all([
                 fetchFile(token, `${CAMPING_PATH}/rec-areas.json`),
                 fetchFile(token, `${CAMPING_PATH}/availability.json`),
                 fetchFile(token, `${CAMPING_PATH}/favorites.json`),
+                fetchFile(token, `${CAMPING_PATH}/scan-state.json`),
                 getWorkflowStates(token)
             ]);
             
@@ -456,6 +462,11 @@ function CampingApp({ token }: { token: string }) {
             if (favResult.data) {
                 setFavorites(favResult.data);
                 setFavoritesSha(favResult.sha);
+            }
+            
+            if (scanStateResult.data) {
+                setScanState(scanStateResult.data);
+                setScanStateSha(scanStateResult.sha);
             }
             
             setWorkflowStates(workflows);
@@ -494,6 +505,25 @@ function CampingApp({ token }: { token: string }) {
         setSaving(false);
     };
 
+    const saveScanState = async (newScanState: ScanState) => {
+        setSaving(true);
+        try {
+            await saveFile(
+                token,
+                `${CAMPING_PATH}/scan-state.json`,
+                newScanState,
+                scanStateSha,
+                'Update scan settings'
+            );
+            const result = await fetchFile(token, `${CAMPING_PATH}/scan-state.json`);
+            setScanStateSha(result.sha);
+            setScanState(newScanState);
+        } catch (e) {
+            console.error('Error saving scan state:', e);
+        }
+        setSaving(false);
+    };
+
     const toggleFavorite = (areaKey: string) => {
         const newFavorites = { ...favorites };
         
@@ -524,9 +554,7 @@ function CampingApp({ token }: { token: string }) {
     const toggleWorkflow = async (workflow: 'rotation' | 'favorites') => {
         const currentState = workflowStates[workflow];
         const newState = !currentState;
-        
         setWorkflowStates(prev => ({ ...prev, [workflow]: newState }));
-        
         const success = await setWorkflowEnabled(token, workflow, newState);
         if (!success) {
             setWorkflowStates(prev => ({ ...prev, [workflow]: currentState }));
@@ -534,7 +562,7 @@ function CampingApp({ token }: { token: string }) {
     };
 
     const toggleNotifications = () => {
-        const newFavorites = { 
+        const newFavorites = {
             ...favorites,
             settings: {
                 ...favorites.settings,
