@@ -50728,11 +50728,7 @@ function CampingApp({ token }) {
                             '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
                                 backgroundColor: '#4ade80',
                             },
-                        } }), label: "Discord Notifications", sx: { color: '#e8e4df', '& .MuiFormControlLabel-label': { fontSize: '14px' } } })),
-            favoriteCount > 0 && (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "favorites-info" },
-                favoriteCount,
-                "/5 favorites selected",
-                favorites.settings.notificationsEnabled && ' • Will notify on new availability'))),
+                        } }), label: "Discord Notifications", sx: { color: '#e8e4df', '& .MuiFormControlLabel-label': { fontSize: '14px' } } }))),
         react__WEBPACK_IMPORTED_MODULE_0___default().createElement(SearchBar, { searchQuery: searchQuery, onSearchChange: setSearchQuery }),
         react__WEBPACK_IMPORTED_MODULE_0___default().createElement(TabBar, { activeTab: activeTab, onTabChange: setActiveTab, favoriteCount: favoriteCount }),
         saving && react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "saving-indicator" }, "Saving..."),

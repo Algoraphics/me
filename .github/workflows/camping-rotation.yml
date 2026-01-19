@@ -34,7 +34,7 @@ jobs:
         env:
           VIVARIUM_PATH: vivarium
           DISCORD_CAMPING_WEBHOOK: ${{ secrets.DISCORD_CAMPING_WEBHOOK }}
-        run: python me/scripts/check-camping.py --rotation
+        run: python me/scripts/check-camping.py --rotation --verbose
       
       - name: Commit results
         run: |

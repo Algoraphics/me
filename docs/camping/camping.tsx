@@ -702,13 +702,6 @@ function CampingApp({ token }: { token: string }) {
                         sx={{ color: '#e8e4df', '& .MuiFormControlLabel-label': { fontSize: '14px' } }}
                     />
                 </div>
-                
-                {favoriteCount > 0 && (
-                    <div className="favorites-info">
-                        {favoriteCount}/5 favorites selected
-                        {favorites.settings.notificationsEnabled && ' • Will notify on new availability'}
-                    </div>
-                )}
             </div>
             
             <SearchBar searchQuery={searchQuery} onSearchChange={setSearchQuery} />
