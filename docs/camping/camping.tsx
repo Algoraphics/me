@@ -316,10 +316,17 @@ function RecAreaCard({
     onToggleDisabled: () => void;
     onScan: () => void;
 }) {
+    const [isScanning, setIsScanning] = React.useState(false);
     const availability = area.recentWeekendAvailability || [];
     const hasAvailability = availability.length > 0;
     const scannable = canScan(areaId);
     const minutesAgo = getMinutesSinceScan(areaId);
+    
+    const handleScanClick = async () => {
+        setIsScanning(true);
+        await onScan();
+        setTimeout(() => setIsScanning(false), 1000);
+    };
     
     return (
         <div className={`rec-area-card ${isDisabled ? 'disabled' : ''}`}>
@@ -379,11 +386,11 @@ function RecAreaCard({
                 <div className="card-footer">
                     <span className="provider-label">{area.provider || 'Recreation.gov'}</span>
                     <button 
-                        className={`scan-button ${!scannable ? 'on-cooldown' : ''}`}
-                        onClick={(e) => { e.stopPropagation(); onScan(); }}
-                        disabled={!scannable}
+                        className={`scan-button ${!scannable || isScanning ? 'on-cooldown' : ''}`}
+                        onClick={(e) => { e.stopPropagation(); handleScanClick(); }}
+                        disabled={!scannable || isScanning}
                     >
-                        {scannable ? 'Scan now' : `Scanned ${minutesAgo}m ago`}
+                        {isScanning ? 'Scanning...' : scannable ? 'Scan now' : `Scanned ${minutesAgo}m ago`}
                     </button>
                 </div>
             </div>
@@ -446,13 +453,7 @@ function CampingApp({ token }: { token: string }) {
             ]);
             
             if (recAreasResult.data) {
-                const data = recAreasResult.data;
-                if (Array.isArray(data)) {
-                    setRecAreas(data as RecArea[]);
-                } else {
-                    const areas = Object.values(data) as RecArea[];
-                    setRecAreas(areas);
-                }
+                setRecAreas(recAreasResult.data as RecArea[]);
             }
             
             if (availResult.data) {
@@ -478,9 +479,9 @@ function CampingApp({ token }: { token: string }) {
 
 
     const handleScan = async (areaId: string) => {
-        setScanTime(areaId, Date.now());
         try {
             await triggerScanWorkflow(token, areaId);
+            setScanTime(areaId, Date.now());
         } catch (e) {
             console.error('Error triggering scan:', e);
         }

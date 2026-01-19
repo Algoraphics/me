@@ -153,6 +153,17 @@ body {
     border-radius: 6px;
 }
 
+.favorites-limit-label {
+    color: #6b7280;
+    font-size: 0.85em;
+    text-align: center;
+    padding: 8px 12px;
+    margin-bottom: 12px;
+    background: #1a2632;
+    border-radius: 8px;
+    border: 1px solid #2d3f50;
+}
+
 .scan-actions {
     display: flex;
     align-items: center;
@@ -363,7 +374,7 @@ body {
     flex-wrap: wrap;
 }
 
-.drive-time, .booking-horizon {
+.distance, .campground-count, .drive-time, .booking-horizon {
     color: #6b7280;
     font-size: 0.85em;
     background: #0f1419;
@@ -517,7 +528,45 @@ body {
 .provider-label {
     color: #6b7280;
     font-size: 0.8em;
-    margin-top: 8px;
+}
+
+.card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 12px;
+    gap: 12px;
+}
+
+.scan-button {
+    padding: 6px 14px;
+    background: #4ade80;
+    color: #0f1419;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.85em;
+    font-family: inherit;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.scan-button:hover:not(:disabled) {
+    background: #22c55e;
+    transform: translateY(-1px);
+}
+
+.scan-button:disabled {
+    background: #2d3f50;
+    color: #6b7280;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.scan-button.on-cooldown {
+    background: #2d3f50;
+    color: #6b7280;
 }
 
 .book-button {
