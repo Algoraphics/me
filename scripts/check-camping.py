@@ -167,7 +167,7 @@ def parse_camply_output(stdout, area_name, provider):
     return results
 
 def select_rotation_areas(rec_areas, favorites_data, scan_state):
-    disabled = set(favorites_data.get('disabled', []))
+    disabled = set(favorites_data.get('disabled', [])) | set(favorites_data.get('autoDisabled', []))
     enabled = [area for area in rec_areas if area['id'] not in disabled]
     
     if not enabled:
@@ -189,7 +189,7 @@ def select_rotation_areas(rec_areas, favorites_data, scan_state):
 
 def select_favorites_areas(rec_areas, favorites_data):
     favorites = set(favorites_data.get('favorites', []))
-    disabled = set(favorites_data.get('disabled', []))
+    disabled = set(favorites_data.get('disabled', [])) | set(favorites_data.get('autoDisabled', []))
     
     if not favorites:
         log("No favorites to scan")
@@ -199,6 +199,48 @@ def select_favorites_areas(rec_areas, favorites_data):
     log(f"Favorites mode: scanning {len(selected)} favorite areas")
     return selected
 
+def run_single_month_scan(rec_id, provider, name, start_date, end_date, verbose, dry_run):
+    """Run a single month camply scan and return the result"""
+    args = [
+        'campsites',
+        '--rec-area', str(rec_id),
+        '--start-date', start_date,
+        '--end-date', end_date,
+        '--provider', provider,
+        '--notifications', 'silent',
+        '--search-once'
+    ]
+    
+    result = run_camply(args, verbose, dry_run)
+    
+    if result.get('dry_run'):
+        return {
+            'success': True,
+            'parsed': {'total_sites': 0, 'campgrounds': [], 'dates': [], 'weekend_dates': [], 'booking_urls': []},
+            'duration': 0
+        }
+    
+    if result['returncode'] != 0:
+        error_msg = result['stderr']
+        if 'SearchError' in error_msg and 'No campgrounds found to search' in error_msg:
+            log(f"  Recreation area has no campgrounds (confirmed by Recreation.gov)")
+            return {
+                'success': True,
+                'parsed': {'total_sites': 0, 'campgrounds': [], 'dates': [], 'weekend_dates': [], 'booking_urls': []},
+                'duration': result['duration'],
+                'no_campgrounds': True,
+                'area_id': rec_id
+            }
+        else:
+            return {'success': False, 'error': error_msg}
+    
+    parsed = parse_camply_output(result['stdout'], name, provider)
+    return {
+        'success': True,
+        'parsed': parsed,
+        'duration': result['duration']
+    }
+
 def scan_area_month_by_month(area_data, start_date=None, end_date=None, verbose=False, dry_run=False):
     rec_id = area_data['id']
     provider = area_data.get('provider', 'RecreationDotGov')
@@ -207,34 +249,18 @@ def scan_area_month_by_month(area_data, start_date=None, end_date=None, verbose=
     log(f"Scanning {name}...")
     
     if start_date and end_date:
-        args = [
-            'campsites',
-            '--rec-area', str(rec_id),
-            '--start-date', start_date,
-            '--end-date', end_date,
-            '--provider', provider,
-            '--notifications', 'silent',
-            '--search-once'
-        ]
+        result = run_single_month_scan(rec_id, provider, name, start_date, end_date, verbose, dry_run)
         
-        result = run_camply(args, verbose, dry_run)
-        if result.get('dry_run'):
-            return {
-                'success': True,
-                'parsed': {'total_sites': 0, 'campgrounds': [], 'dates': [], 'weekend_dates': [], 'booking_urls': []},
-                'duration': 0
-            }
-        if result['returncode'] != 0:
-            log(f"  Error: {result['stderr'][:200]}")
-            return {'success': False, 'error': result['stderr']}
+        if not result.get('success'):
+            log(f"  Error: {result.get('error', 'Unknown error')}")
+            return result
         
-        parsed = parse_camply_output(result['stdout'], name, provider)
+        if result.get('no_campgrounds'):
+            return result
+        
+        parsed = result['parsed']
         log(f"  Found {parsed['total_sites']} sites, {len(parsed['weekend_dates'])} weekend dates ({result['duration']:.1f}s)")
-        return {
-            'success': True,
-            'parsed': parsed,
-            'duration': result['duration']
-        }
+        return result
     
     all_results = {
         'total_sites': 0,
@@ -256,27 +282,27 @@ def scan_area_month_by_month(area_data, start_date=None, end_date=None, verbose=
         
         log(f"  Month {month_offset + 1}/6: {start_str} to {end_str}...", verbose_only=True)
         
-        args = [
-            'campsites',
-            '--rec-area', str(rec_id),
-            '--start-date', start_str,
-            '--end-date', end_str,
-            '--provider', provider,
-            '--notifications', 'silent',
-            '--search-once'
-        ]
-        
-        result = run_camply(args, verbose, dry_run)
-        total_duration += result['duration']
+        result = run_single_month_scan(rec_id, provider, name, start_str, end_str, verbose, dry_run)
+        total_duration += result.get('duration', 0)
         
         if result.get('dry_run'):
             break
         
-        if result['returncode'] != 0:
-            log(f"  Month {month_offset + 1} error: {result['stderr'][:100]}", verbose_only=True)
-            continue
+        if not result.get('success'):
+            log(f"  Month {month_offset + 1} error: {result.get('error', 'Unknown error')}", verbose_only=True)
+            break
         
-        parsed = parse_camply_output(result['stdout'], name, provider)
+        if result.get('no_campgrounds'):
+            log(f"  This area should be disabled from future scans")
+            return {
+                'success': True,
+                'parsed': all_results,
+                'duration': total_duration,
+                'no_campgrounds': True,
+                'area_id': rec_id
+            }
+        
+        parsed = result['parsed']
         
         all_results['total_sites'] += parsed['total_sites']
         all_results['dates'].extend(parsed['dates'])
@@ -427,7 +453,7 @@ def main():
     log(f"  dry_run={args.dry_run}, verbose={args.verbose}")
     
     rec_areas = load_json(REC_AREAS_FILE, [])
-    favorites_data = load_json(FAVORITES_FILE, {'favorites': [], 'disabled': [], 'settings': {'notificationsEnabled': False}})
+    favorites_data = load_json(FAVORITES_FILE, {'favorites': [], 'disabled': [], 'autoDisabled': [], 'settings': {'notificationsEnabled': False}})
     scan_state = load_json(SCAN_STATE_FILE, {
         'currentIndex': 0,
         'sitesPerRun': 4
@@ -467,16 +493,28 @@ def main():
             args.dry_run
         )
         
+        area_id = area_data['id']
+        area = areas_by_id[area_id]
+        
         if not result['success']:
             log(f"  Error scanning {area_data.get('name')}: {result.get('error', 'Unknown error')}")
+            area['scanError'] = True
+            area['lastScanned'] = datetime.now().isoformat()
             scan_success = False
             continue
         
-        area_id = area_data['id']
         results_by_id[area_id] = result
         parsed = result['parsed']
         
-        area = areas_by_id[area_id]
+        area['scanError'] = False
+        
+        if result.get('no_campgrounds'):
+            log(f"  Auto-disabling {area_data.get('name')} (no campgrounds)")
+            if 'autoDisabled' not in favorites_data:
+                favorites_data['autoDisabled'] = []
+            if area_id not in favorites_data['autoDisabled']:
+                favorites_data['autoDisabled'].append(area_id)
+        
         area['lastScanned'] = datetime.now().isoformat()
         area['recentWeekendAvailability'] = parsed['weekend_dates'][:5]
         
@@ -504,7 +542,7 @@ def main():
     
     if not args.dry_run and scan_success:
         if args.rotation:
-            disabled = set(favorites_data.get('disabled', []))
+            disabled = set(favorites_data.get('disabled', [])) | set(favorites_data.get('autoDisabled', []))
             enabled = [area for area in rec_areas if area['id'] not in disabled]
             enabled = sorted(enabled, key=lambda a: a['id'])
             num_enabled = len(enabled)
@@ -520,6 +558,7 @@ def main():
         save_json(REC_AREAS_FILE, rec_areas)
         save_json(SCAN_STATE_FILE, scan_state)
         save_json(AVAILABILITY_FILE, availability)
+        save_json(FAVORITES_FILE, favorites_data)
         log("Saved state files")
     
     log(f"\n=== SCAN SUMMARY ===")

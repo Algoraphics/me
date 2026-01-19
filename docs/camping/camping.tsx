@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Switch, FormControlLabel } from '@mui/material';
+import { Switch, FormControlLabel, Tooltip } from '@mui/material';
 
 const REPO_OWNER = 'Algoraphics';
 const REPO_NAME = 'Vivarium';
@@ -47,11 +47,13 @@ interface RecArea {
     totalCampgrounds?: number;
     notified?: boolean;
     lastNotifiedAt?: string | null;
+    scanError?: boolean;
 }
 
 interface FavoritesData {
     favorites: string[];
     disabled: string[];
+    autoDisabled?: string[];
     settings: {
         notificationsEnabled: boolean;
     };
@@ -302,7 +304,9 @@ function RecAreaCard({
     area,
     isFavorite,
     isDisabled,
+    isAutoDisabled,
     favoriteCount,
+    isSaving,
     onToggleFavorite,
     onToggleDisabled,
     onScan
@@ -311,7 +315,9 @@ function RecAreaCard({
     area: RecArea;
     isFavorite: boolean;
     isDisabled: boolean;
+    isAutoDisabled: boolean;
     favoriteCount: number;
+    isSaving: boolean;
     onToggleFavorite: () => void;
     onToggleDisabled: () => void;
     onScan: () => void;
@@ -329,7 +335,7 @@ function RecAreaCard({
     };
     
     return (
-        <div className={`rec-area-card ${isDisabled ? 'disabled' : ''}`}>
+        <div className={`rec-area-card ${(isDisabled || isAutoDisabled) ? 'disabled' : ''}`}>
             <div className="card-header">
                 <div className="card-title">
                     <h3>{area.name}</h3>
@@ -348,16 +354,17 @@ function RecAreaCard({
                         className={`favorite-button ${isFavorite ? 'active' : ''}`}
                         onClick={(e) => { e.stopPropagation(); onToggleFavorite(); }}
                         title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
-                        disabled={!isFavorite && favoriteCount >= 5}
+                        disabled={isSaving || (!isFavorite && favoriteCount >= 5)}
                     >
                         {isFavorite ? '★' : '☆'}
                     </button>
                     <button 
-                        className={`disable-button ${isDisabled ? 'active' : ''}`}
+                        className={`disable-button ${(isDisabled || isAutoDisabled) ? 'active' : ''}`}
                         onClick={(e) => { e.stopPropagation(); onToggleDisabled(); }}
-                        title={isDisabled ? 'Enable in rotation' : 'Disable from rotation'}
+                        title={(isDisabled || isAutoDisabled) ? 'Enable in rotation' : 'Disable from rotation'}
+                        disabled={isSaving}
                     >
-                        {isDisabled ? '🚫' : '✓'}
+                        {(isDisabled || isAutoDisabled) ? '✓' : '✕'}
                     </button>
                 </div>
             </div>
@@ -372,6 +379,18 @@ function RecAreaCard({
                             {availability.slice(0, 3).join(', ')}
                             {availability.length > 3 && ` +${availability.length - 3} more`}
                         </div>
+                    </div>
+                ) : isAutoDisabled ? (
+                    <div className="availability-status no-availability">
+                        Disabled (no campgrounds found)
+                    </div>
+                ) : isDisabled ? (
+                    <div className="availability-status no-availability">
+                        Disabled manually
+                    </div>
+                ) : area.scanError ? (
+                    <div className="availability-status scan-error">
+                        ⚠️ Scan failed
                     </div>
                 ) : area.lastScanned ? (
                     <div className="availability-status no-availability">
@@ -424,7 +443,7 @@ function TabBar({ activeTab, onTabChange, favoriteCount }: {
 function CampingApp({ token }: { token: string }) {
     const [recAreas, setRecAreas] = useState<RecArea[]>([]);
     const [availability, setAvailability] = useState<AvailabilityData | null>(null);
-    const [favorites, setFavorites] = useState<FavoritesData>({ favorites: [], disabled: [], settings: { notificationsEnabled: false } });
+    const [favorites, setFavorites] = useState<FavoritesData>({ favorites: [], disabled: [], autoDisabled: [], settings: { notificationsEnabled: false } });
     const [favoritesSha, setFavoritesSha] = useState<string | null>(null);
     const [scanState, setScanState] = useState<ScanState>({
         currentIndex: 0,
@@ -435,7 +454,7 @@ function CampingApp({ token }: { token: string }) {
     const [activeTab, setActiveTab] = useState<'all' | 'favorites'>('all');
     const [searchQuery, setSearchQuery] = useState('');
     const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
+    const [savingAreaId, setSavingAreaId] = useState<string | null>(null);
 
     useEffect(() => {
         loadData();
@@ -487,8 +506,8 @@ function CampingApp({ token }: { token: string }) {
         }
     };
 
-    const saveFavorites = async (newFavorites: FavoritesData) => {
-        setSaving(true);
+    const saveFavorites = async (newFavorites: FavoritesData, areaId: string) => {
+        setSavingAreaId(areaId);
         try {
             await saveFile(
                 token,
@@ -503,11 +522,10 @@ function CampingApp({ token }: { token: string }) {
         } catch (e) {
             console.error('Error saving favorites:', e);
         }
-        setSaving(false);
+        setSavingAreaId(null);
     };
 
     const saveScanState = async (newScanState: ScanState) => {
-        setSaving(true);
         try {
             await saveFile(
                 token,
@@ -522,7 +540,6 @@ function CampingApp({ token }: { token: string }) {
         } catch (e) {
             console.error('Error saving scan state:', e);
         }
-        setSaving(false);
     };
 
     const toggleFavorite = (areaKey: string) => {
@@ -532,24 +549,28 @@ function CampingApp({ token }: { token: string }) {
             newFavorites.favorites = newFavorites.favorites.filter(f => f !== areaKey);
         } else {
             if (newFavorites.favorites.length >= 5) {
-                return; // Max 4 favorites
+                return;
             }
             newFavorites.favorites = [...newFavorites.favorites, areaKey];
         }
         
-        saveFavorites(newFavorites);
+        saveFavorites(newFavorites, areaKey);
     };
 
     const toggleDisabled = (areaKey: string) => {
         const newFavorites = { ...favorites };
+        const isAutoDisabled = (newFavorites.autoDisabled || []).includes(areaKey);
+        const isManuallyDisabled = newFavorites.disabled.includes(areaKey);
         
-        if (newFavorites.disabled.includes(areaKey)) {
+        if (isAutoDisabled) {
+            newFavorites.autoDisabled = (newFavorites.autoDisabled || []).filter(d => d !== areaKey);
+        } else if (isManuallyDisabled) {
             newFavorites.disabled = newFavorites.disabled.filter(d => d !== areaKey);
         } else {
             newFavorites.disabled = [...newFavorites.disabled, areaKey];
         }
         
-        saveFavorites(newFavorites);
+        saveFavorites(newFavorites, areaKey);
     };
 
     const toggleWorkflow = async (workflow: 'rotation' | 'favorites') => {
@@ -570,7 +591,7 @@ function CampingApp({ token }: { token: string }) {
                 notificationsEnabled: !favorites.settings.notificationsEnabled
             }
         };
-        saveFavorites(newFavorites);
+        saveFavorites(newFavorites, '');
     };
 
     const filteredAreas = recAreas.filter(area => {
@@ -582,15 +603,29 @@ function CampingApp({ token }: { token: string }) {
     const sortedAreas = [...filteredAreas].sort((areaA, areaB) => {
         const isFavA = favorites.favorites.includes(areaA.id);
         const isFavB = favorites.favorites.includes(areaB.id);
-        const isDisabledA = favorites.disabled.includes(areaA.id);
-        const isDisabledB = favorites.disabled.includes(areaB.id);
+        const isDisabledA = favorites.disabled.includes(areaA.id) || (favorites.autoDisabled || []).includes(areaA.id);
+        const isDisabledB = favorites.disabled.includes(areaB.id) || (favorites.autoDisabled || []).includes(areaB.id);
+        const hasAvailA = (areaA.recentWeekendAvailability || []).length > 0;
+        const hasAvailB = (areaB.recentWeekendAvailability || []).length > 0;
+        const hasErrorA = (areaA.scanError || false) && !isDisabledA;
+        const hasErrorB = (areaB.scanError || false) && !isDisabledB;
+        const hasNoAvailA = !!areaA.lastScanned && !hasAvailA && !hasErrorA && !isDisabledA;
+        const hasNoAvailB = !!areaB.lastScanned && !hasAvailB && !hasErrorB && !isDisabledB;
         
-        if (isDisabledA && !isDisabledB) return 1;
-        if (!isDisabledA && isDisabledB) return -1;
+        const getPriority = (isFav: boolean, hasAvail: boolean, hasError: boolean, hasNoAvail: boolean, isDisabled: boolean) => {
+            if (isFav) return 0;
+            if (hasAvail) return 1;
+            if (hasError) return 2;
+            if (hasNoAvail) return 3;
+            if (isDisabled) return 5;
+            return 4;
+        };
         
-        if (!isDisabledA && !isDisabledB) {
-            if (isFavA && !isFavB) return -1;
-            if (!isFavA && isFavB) return 1;
+        const priorityA = getPriority(isFavA, hasAvailA, hasErrorA, hasNoAvailA, isDisabledA);
+        const priorityB = getPriority(isFavB, hasAvailB, hasErrorB, hasNoAvailB, isDisabledB);
+        
+        if (priorityA !== priorityB) {
+            return priorityA - priorityB;
         }
         
         return areaA.distanceMiles - areaB.distanceMiles;
@@ -612,17 +647,36 @@ function CampingApp({ token }: { token: string }) {
     const totalAreas = recAreas.length;
     const scannedAreas = recAreas.filter(a => a.lastScanned).length;
 
+    const scrollToBottom = () => {
+        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    };
+
+    const scrollToTop = () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
     return (
         <div id="camping-app">
             <header id="camping-header">
-                <h1>California Camping</h1>
-                <div className="stats">
-                    <span>{totalAreas} recreation areas</span>
-                    <span>•</span>
-                    <span>{scannedAreas} scanned</span>
-                    <span>•</span>
-                    <span>Last scan: {lastScanDate}</span>
+                <div>
+                    <h1>California Camping</h1>
+                    <div className="stats">
+                        <span>{totalAreas} recreation areas</span>
+                        <span>•</span>
+                        <span>{scannedAreas} scanned</span>
+                        <span>•</span>
+                        <span>Last scan: {lastScanDate}</span>
+                    </div>
                 </div>
+                <Tooltip title="Jump to bottom" arrow>
+                    <button
+                        onClick={scrollToBottom}
+                        className="jump-to-bottom-button"
+                        aria-label="Jump to bottom"
+                    >
+                        ↓
+                    </button>
+                </Tooltip>
             </header>
             
             <div className="scan-controls">
@@ -708,8 +762,6 @@ function CampingApp({ token }: { token: string }) {
             
             <TabBar activeTab={activeTab} onTabChange={setActiveTab} favoriteCount={favoriteCount} />
             
-            {saving && <div className="saving-indicator">Saving...</div>}
-            
             {activeTab === 'favorites' && (
                 <div className="favorites-limit-label">You can have up to 5 favorites</div>
             )}
@@ -732,13 +784,27 @@ function CampingApp({ token }: { token: string }) {
                             area={area}
                             isFavorite={favorites.favorites.includes(area.id)}
                             isDisabled={favorites.disabled.includes(area.id)}
+                            isAutoDisabled={(favorites.autoDisabled || []).includes(area.id)}
                             favoriteCount={favoriteCount}
+                            isSaving={savingAreaId === area.id}
                             onToggleFavorite={() => toggleFavorite(area.id)}
                             onToggleDisabled={() => toggleDisabled(area.id)}
                             onScan={() => handleScan(area.id)}
                         />
                     ))
                 )}
+            </div>
+            
+            <div className="scroll-to-top-container">
+                <Tooltip title="Jump to top" arrow>
+                    <button
+                        onClick={scrollToTop}
+                        className="jump-to-top-button"
+                        aria-label="Jump to top"
+                    >
+                        ↑
+                    </button>
+                </Tooltip>
             </div>
         </div>
     );

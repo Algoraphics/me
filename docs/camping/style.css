@@ -108,8 +108,35 @@ body {
 }
 
 #camping-header {
-    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     margin-bottom: 24px;
+}
+
+#camping-header > div:first-child {
+    text-align: center;
+    flex: 1;
+}
+
+.jump-to-bottom-button {
+    background-color: transparent;
+    border: 1px solid #4b5563;
+    color: #e8e4df;
+    font-size: 1.5em;
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.jump-to-bottom-button:hover {
+    background-color: rgba(232, 228, 223, 0.1);
+    border-color: #6b7280;
 }
 
 #camping-header h1 {
@@ -506,6 +533,10 @@ body {
     color: #f87171;
 }
 
+.availability-status.scan-error {
+    color: #fb923c;
+}
+
 .availability-status.not-scanned {
     color: #6b7280;
 }
@@ -612,3 +643,29 @@ body {
     }
 }
 
+.scroll-to-top-container {
+    display: flex;
+    justify-content: flex-end;
+    padding: 32px 0;
+    margin-top: 24px;
+}
+
+.jump-to-top-button {
+    background-color: transparent;
+    border: 1px solid #4b5563;
+    color: #e8e4df;
+    font-size: 1.5em;
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.jump-to-top-button:hover {
+    background-color: rgba(232, 228, 223, 0.1);
+    border-color: #6b7280;
+}
