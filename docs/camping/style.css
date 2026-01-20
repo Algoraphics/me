@@ -362,9 +362,9 @@ body {
     transition: all 0.2s;
 }
 
+
 .rec-area-card:hover {
     border-color: #4ade80;
-    transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(74, 222, 128, 0.1);
 }
 
@@ -380,27 +380,6 @@ body {
     border-color: #1f2937;
 }
 
-.card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 16px;
-    margin-bottom: 12px;
-}
-
-.card-title h3 {
-    color: #f0fdf4;
-    font-size: 1.1em;
-    font-weight: 600;
-    margin-bottom: 4px;
-}
-
-.card-meta {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-}
-
 .distance, .campground-count, .drive-time, .booking-horizon {
     color: #6b7280;
     font-size: 0.85em;
@@ -409,16 +388,6 @@ body {
     border-radius: 4px;
 }
 
-.booking-horizon {
-    color: #4ade80;
-}
-
-.card-actions {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-shrink: 0;
-}
 
 .favorite-button {
     background: transparent;
@@ -485,11 +454,6 @@ body {
     user-select: none;
 }
 
-.card-content {
-    color: #d1d5db;
-    font-size: 0.9em;
-}
-
 .dates-list {
     margin-bottom: 8px;
 }
@@ -541,16 +505,10 @@ body {
     color: #6b7280;
 }
 
-.available-dates {
-    color: #9ca3af;
-    font-size: 0.85em;
-}
-
 .booking-buttons {
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
-    margin-top: 12px;
 }
 
 .booking-button {
@@ -566,12 +524,28 @@ body {
     transition: all 0.2s;
     cursor: pointer;
     min-width: 120px;
+    height: 80px;
+    box-sizing: border-box;
 }
 
 .booking-button:hover {
     background: #374151;
     border-color: #4ade80;
-    transform: translateY(-2px);
+}
+
+.booking-button.image-button {
+    padding: 0;
+    overflow: hidden;
+    justify-content: center;
+    max-width: 160px;
+}
+
+.booking-button.image-button img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    display: block;
 }
 
 .booking-button-name {
@@ -585,16 +559,6 @@ body {
     font-size: 0.75em;
     color: #4ade80;
     font-weight: 600;
-}
-
-.raw-availability {
-    color: #9ca3af;
-    font-family: monospace;
-    font-size: 0.85em;
-    background: #0f1419;
-    padding: 8px 12px;
-    border-radius: 6px;
-    margin-bottom: 8px;
 }
 
 .provider-label {
@@ -652,22 +616,45 @@ body {
     color: #6b7280;
 }
 
-.book-button {
-    display: inline-block;
-    margin-top: 12px;
-    padding: 8px 16px;
-    background: #4ade80;
-    color: #0f1419;
-    text-decoration: none;
-    border-radius: 6px;
-    font-weight: 600;
-    font-size: 0.9em;
-    transition: all 0.2s;
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 12px;
 }
 
-.book-button:hover {
-    background: #22c55e;
-    transform: translateY(-1px);
+.card-title {
+    flex: 1;
+    min-width: 0;
+}
+
+.card-title h3 {
+    color: #f0fdf4;
+    font-size: 1.1em;
+    font-weight: 600;
+    margin: 0;
+    display: inline;
+    margin-right: 12px;
+}
+
+.card-meta {
+    display: inline-flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.card-content {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.card-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
 }
 
 @media (max-width: 600px) {
@@ -679,14 +666,27 @@ body {
         font-size: 1.6em;
     }
     
-    .card-header {
-        flex-direction: column;
-        gap: 12px;
+    .rec-area-card {
+        position: relative;
     }
     
     .card-actions {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+    }
+    
+    .booking-buttons {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+    
+    .booking-button,
+    .booking-button.image-button {
+        min-width: 0;
+        max-width: 100%;
         width: 100%;
-        justify-content: space-between;
     }
     
     .tab-button {

@@ -5,6 +5,9 @@ import os
 import sys
 import logging
 import io
+import requests
+import signal
+from base64 import b64decode
 from datetime import datetime, timedelta
 from pathlib import Path
 import urllib.request
@@ -30,6 +33,7 @@ def parse_args():
     mode.add_argument('--sites', help='Comma-separated list of rec area IDs to scan')
     mode.add_argument('--rotation', action='store_true', help='Run rotation scan (ignores favorites)')
     mode.add_argument('--favorites', action='store_true', help='Scan only favorites')
+    parser.add_argument('--rotation-size', type=int, default=4, help='Number of areas to scan in rotation mode (default: 4)')
     parser.add_argument('--start-date', help='Override start date (YYYY-MM-DD)')
     parser.add_argument('--end-date', help='Override end date (YYYY-MM-DD)')
     parser.add_argument('--dry-run', action='store_true', help='Run without saving state or sending notifications')
@@ -76,7 +80,13 @@ def is_quiet_hours():
     now = datetime.now(PACIFIC_TZ)
     return 0 <= now.hour < 8
 
-def scan_campground_with_camply(campground_id, campground_name, start_date, end_date, provider_name, verbose=False):
+class TimeoutException(Exception):
+    pass
+
+def timeout_handler(signum, frame):
+    raise TimeoutException("Query timeout")
+
+def scan_campground_with_camply(campground_id, campground_name, start_date, end_date, provider_name, verbose=False, timeout_seconds=30):
     """
     Scan a single campground using camply Python API (RecreationDotGov only).
     Returns dict with success status and availability data.
@@ -92,7 +102,14 @@ def scan_campground_with_camply(campground_id, campground_name, start_date, end_
         else:
             return {'success': False, 'error': f'Unsupported provider: {provider_name}'}
         
-        campsites = searcher.get_matching_campsites(log=False, verbose=False, continuous=False)
+        # Set a timeout alarm
+        signal.signal(signal.SIGALRM, timeout_handler)
+        signal.alarm(timeout_seconds)
+        
+        try:
+            campsites = searcher.get_matching_campsites(log=False, verbose=False, continuous=False)
+        finally:
+            signal.alarm(0)
         
         available_dates = {}
         weekend_dates = []
@@ -119,6 +136,12 @@ def scan_campground_with_camply(campground_id, campground_name, start_date, end_
             'campground_names': list(campground_names)
         }
         
+    except TimeoutException:
+        return {
+            'success': False,
+            'error': 'Query timeout (30s)',
+            'is_validation_error': False
+        }
     except Exception as e:
         error_msg = str(e)
         is_validation_error = 'ValidationError' in error_msg
@@ -132,7 +155,7 @@ def scan_campground_with_camply(campground_id, campground_name, start_date, end_
             'is_validation_error': is_validation_error
         }
 
-def scan_rec_area_with_camply(rec_area_id, rec_area_name, start_date, end_date, provider_name, verbose=False):
+def scan_rec_area_with_camply(rec_area_id, rec_area_name, start_date, end_date, provider_name, verbose=False, timeout_seconds=30):
     """
     Scan entire rec area at once (for providers like ReserveCalifornia that don't support per-campground).
     Returns dict with success status and campground-level data.
@@ -149,7 +172,14 @@ def scan_rec_area_with_camply(rec_area_id, rec_area_name, start_date, end_date, 
         else:
             return {'success': False, 'error': f'Provider {provider_name} not supported for rec-area scan'}
         
-        campsites = searcher.get_matching_campsites(log=False, verbose=False, continuous=False)
+        # Set a timeout alarm
+        signal.signal(signal.SIGALRM, timeout_handler)
+        signal.alarm(timeout_seconds)
+        
+        try:
+            campsites = searcher.get_matching_campsites(log=False, verbose=False, continuous=False)
+        finally:
+            signal.alarm(0)
         
         # Aggregate by campground
         by_campground = {}
@@ -181,6 +211,12 @@ def scan_rec_area_with_camply(rec_area_id, rec_area_name, start_date, end_date, 
             'weekend_dates': sorted(all_weekend_dates)
         }
         
+    except TimeoutException:
+        return {
+            'success': False,
+            'error': 'Query timeout (30s)',
+            'is_validation_error': False
+        }
     except Exception as e:
         error_msg = str(e)
         is_validation_error = 'ValidationError' in error_msg
@@ -194,7 +230,7 @@ def scan_rec_area_with_camply(rec_area_id, rec_area_name, start_date, end_date, 
             'is_validation_error': is_validation_error
         }
 
-def select_rotation_areas(rec_areas, favorites_data, scan_state):
+def select_rotation_areas(rec_areas, favorites_data, scan_state, rotation_size=4):
     disabled = set(favorites_data.get('disabled', [])) | set(favorites_data.get('autoDisabled', []))
     enabled = [area for area in rec_areas if area['id'] not in disabled]
     
@@ -205,10 +241,9 @@ def select_rotation_areas(rec_areas, favorites_data, scan_state):
     enabled = sorted(enabled, key=lambda a: a['id'])
     
     current_index = scan_state.get('currentIndex', 0) % len(enabled)
-    sites_per_run = scan_state.get('sitesPerRun', 4)
     
     selected = []
-    for i in range(sites_per_run):
+    for i in range(rotation_size):
         idx = (current_index + i) % len(enabled)
         selected.append(enabled[idx])
     
@@ -226,6 +261,35 @@ def select_favorites_areas(rec_areas, favorites_data):
     selected = [area for area in rec_areas if area['id'] in favorites and area['id'] not in disabled]
     log(f"Favorites mode: scanning {len(selected)} favorite areas")
     return selected
+
+def get_area_image_url(rec_id, provider_name):
+    """Fetch official image URL from Recreation.gov API"""
+    try:
+        numeric_id = int(rec_id.replace('recgov-', '').replace('reserveca-', ''))
+        
+        if provider_name == 'RecreationDotGov':
+            # Use RIDB API to get media
+            api_key = b64decode(b"YTc0MTY0NzEtMWI1ZC00YTY0LWFkM2QtYTIzM2U3Y2I1YzQ0").decode("utf-8")
+            
+            url = f"https://ridb.recreation.gov/api/v1/recareas/{numeric_id}/media"
+            response = requests.get(
+                url,
+                headers={'apikey': api_key},
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                media_items = data.get('RECDATA', [])
+                
+                # Find first image
+                for item in media_items:
+                    if item.get('URL') and item.get('MediaType') == 'Image':
+                        return item['URL']
+        
+        return None
+    except Exception:
+        return None
 
 def get_campgrounds_for_area(rec_id, provider_name, verbose=False):
     """Get list of campgrounds for a recreation area"""
@@ -374,13 +438,14 @@ def scan_area_month_by_month(area_data, start_date=None, end_date=None, verbose=
                         log(f"    [{i}/{len(campgrounds)}] {cg_name}: ✓ (no availability)")
                 else:
                     is_validation = result.get('is_validation_error', False)
+                    error_msg = result.get('error', 'Unknown error')[:100]
                     error_type = "validation error" if is_validation else "error"
-                    log(f"    [{i}/{len(campgrounds)}] {cg_name}: ✗ ({error_type})")
+                    log(f"    [{i}/{len(campgrounds)}] {cg_name}: ✗ ({error_type}: {error_msg})")
                     
                     all_results['failed_campgrounds'].append({
                         'name': cg_name,
                         'id': cg_id,
-                        'error': result.get('error', 'Unknown error')[:100],
+                        'error': error_msg,
                         'is_validation': is_validation
                     })
         
@@ -542,12 +607,27 @@ def main():
     log("Starting camping availability scan")
     log(f"  dry_run={args.dry_run}, verbose={args.verbose}")
     
-    rec_areas = load_json(REC_AREAS_FILE, [])
-    favorites_data = load_json(FAVORITES_FILE, {'favorites': [], 'disabled': [], 'autoDisabled': [], 'settings': {'notificationsEnabled': False}})
+    # Load immutable area metadata
+    rec_areas_metadata = load_json(REC_AREAS_FILE, [])
+    metadata_by_id = {area['id']: area for area in rec_areas_metadata}
+    
+    # Load dynamic scan state
     scan_state = load_json(SCAN_STATE_FILE, {
         'currentIndex': 0,
-        'sitesPerRun': 4
+        'areas': {}
     })
+    
+    # Merge scan state into rec areas for processing
+    rec_areas = []
+    for area_meta in rec_areas_metadata:
+        merged_area = {**area_meta}
+        state_data = scan_state.get('areas', {}).get(area_meta['id'], {})
+        merged_area.update(state_data)
+        rec_areas.append(merged_area)
+    
+    areas_by_id = {area['id']: area for area in rec_areas}
+    
+    favorites_data = load_json(FAVORITES_FILE, {'favorites': [], 'disabled': [], 'autoDisabled': [], 'settings': {'notificationsEnabled': False}})
     
     if not rec_areas:
         log("No recreation areas found. Run build_rec_areas.py first.")
@@ -560,7 +640,7 @@ def main():
     elif args.favorites:
         areas_to_scan = select_favorites_areas(rec_areas, favorites_data)
     elif args.rotation:
-        areas_to_scan = select_rotation_areas(rec_areas, favorites_data, scan_state)
+        areas_to_scan = select_rotation_areas(rec_areas, favorites_data, scan_state, args.rotation_size)
     else:
         log("No scan mode specified. Use --sites, --rotation, or --favorites")
         return 1
@@ -610,6 +690,15 @@ def main():
         horizon = calculate_booking_horizon(parsed['weekend_dates'])
         if horizon:
             area['bookingHorizon'] = horizon
+        
+        # Fetch image if we don't have one yet (opportunistic enrichment)
+        # Check against original metadata, not merged area
+        if not metadata_by_id[area_id].get('imageUrl'):
+            image_url = get_area_image_url(area_id, area.get('provider', 'RecreationDotGov'))
+            if image_url:
+                metadata_by_id[area_id]['imageUrl'] = image_url
+                area['imageUrl'] = image_url
+                log(f"  Fetched official image", verbose_only=True)
     
     process_notifications(rec_areas, results_by_id, favorites_data, args.dry_run)
     
@@ -620,12 +709,33 @@ def main():
             enabled = sorted(enabled, key=lambda a: a['id'])
             num_enabled = len(enabled)
             if num_enabled > 0:
-                sites_per_run = scan_state.get('sitesPerRun', 4)
-                new_index = (scan_state.get('currentIndex', 0) + sites_per_run) % num_enabled
+                new_index = (scan_state.get('currentIndex', 0) + args.rotation_size) % num_enabled
                 scan_state['currentIndex'] = new_index
                 log(f"Updated rotation index to {new_index}")
         
-        save_json(REC_AREAS_FILE, rec_areas)
+        # Extract scan state from areas before saving
+        for area in rec_areas:
+            area_id = area['id']
+            state_info = {}
+            
+            if area.get('lastScanned'):
+                state_info['lastScanned'] = area['lastScanned']
+            if area.get('weekendDates'):
+                state_info['weekendDates'] = area['weekendDates']
+            if area.get('bookingHorizon'):
+                state_info['bookingHorizon'] = area['bookingHorizon']
+            if 'scanError' in area:
+                state_info['scanError'] = area['scanError']
+            if area.get('notified') is not None:
+                state_info['notified'] = area['notified']
+            if area.get('lastNotifiedAt'):
+                state_info['lastNotifiedAt'] = area['lastNotifiedAt']
+            
+            if state_info:
+                scan_state['areas'][area_id] = state_info
+        
+        # Save all state files
+        save_json(REC_AREAS_FILE, rec_areas_metadata)
         save_json(SCAN_STATE_FILE, scan_state)
         save_json(FAVORITES_FILE, favorites_data)
         log("Saved state files")

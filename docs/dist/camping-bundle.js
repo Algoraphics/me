@@ -56606,11 +56606,12 @@ function RecAreaCard({ areaId, area, isFavorite, isDisabled, isAutoDisabled, fav
         }
         else {
             // RecreationDotGov
-            // Format: checkin=MM/DD/YYYY&checkout=MM/DD/YYYY (1 night)
+            // Format: q={name}&recarea={id}&inventory_type=camping&checkin=MM/DD/YYYY&checkout=MM/DD/YYYY
             const checkin = dateObj.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
             const checkoutDate = new Date(year, month - 1, day + 1);
             const checkout = checkoutDate.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
-            return `https://www.recreation.gov/search?entity_id=${numericId}&entity_type=recarea&inventory_type=camping&checkin=${checkin}&checkout=${checkout}`;
+            const encodedName = encodeURIComponent(area.name);
+            return `https://www.recreation.gov/search?q=${encodedName}&recarea=${numericId}&inventory_type=camping&checkin=${checkin}&checkout=${checkout}`;
         }
     };
     const handleScanClick = async () => {
@@ -56626,19 +56627,20 @@ function RecAreaCard({ areaId, area, isFavorite, isDisabled, isAutoDisabled, fav
                     react__WEBPACK_IMPORTED_MODULE_0___default().createElement("span", { className: "distance" },
                         Math.round(area.distanceMiles),
                         " mi"),
-                    area.totalCampgrounds !== undefined && (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("span", { className: "campground-count" },
-                        area.totalCampgrounds,
-                        " campgrounds")),
                     area.bookingHorizon && (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("span", { className: "booking-horizon" },
+                        "Found available within ",
                         area.bookingHorizon,
-                        "d horizon")))),
+                        "d")))),
             react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "card-actions" },
                 react__WEBPACK_IMPORTED_MODULE_0___default().createElement("button", { className: `favorite-button ${isFavorite ? 'active' : ''}`, onClick: (e) => { e.stopPropagation(); onToggleFavorite(); }, title: isFavorite ? 'Remove from favorites' : 'Add to favorites', disabled: isSaving || (!isFavorite && favoriteCount >= 5) }, isFavorite ? '★' : '☆'),
                 react__WEBPACK_IMPORTED_MODULE_0___default().createElement("button", { className: `disable-button ${(isDisabled || isAutoDisabled) ? 'active' : ''}`, onClick: (e) => { e.stopPropagation(); onToggleDisabled(); }, title: (isDisabled || isAutoDisabled) ? 'Enable in rotation' : 'Disable from rotation', disabled: isSaving }, (isDisabled || isAutoDisabled) ? '✓' : '✕'))),
         react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "card-content" },
-            hasAvailability ? (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "availability-info" },
-                react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "booking-buttons" }, weekendDates.slice(0, 5).map((date, idx) => {
-                    // Parse date in local timezone to avoid UTC offset issues
+            hasAvailability ? (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "booking-buttons" },
+                area.imageUrl && (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("a", { href: provider === 'ReserveCalifornia'
+                        ? `https://reservecalifornia.com/park/${numericId}`
+                        : `https://www.recreation.gov/search?q=${encodeURIComponent(area.name)}&recarea=${numericId}&inventory_type=camping`, target: "_blank", rel: "noopener noreferrer", className: "booking-button image-button", onClick: (e) => e.stopPropagation() },
+                    react__WEBPACK_IMPORTED_MODULE_0___default().createElement("img", { src: area.imageUrl, alt: area.name }))),
+                weekendDates.slice(0, 5).map((date, idx) => {
                     const [year, month, day] = date.split('-').map(Number);
                     const dateObj = new Date(year, month - 1, day);
                     const dayOfWeek = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
@@ -56649,7 +56651,7 @@ function RecAreaCard({ areaId, area, isFavorite, isDisabled, isAutoDisabled, fav
                     return (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("a", { key: idx, href: buildBookingUrl(date), target: "_blank", rel: "noopener noreferrer", className: "booking-button", onClick: (e) => e.stopPropagation() },
                         react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "booking-button-name" }, dayOfWeek),
                         react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "booking-button-date" }, displayDate)));
-                })))) : isAutoDisabled ? (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "availability-status no-availability" }, "Disabled (no campgrounds found)")) : isDisabled ? (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "availability-status no-availability" }, "Disabled manually")) : area.scanError ? (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "availability-status scan-error" }, "Scan failed")) : area.lastScanned ? (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "availability-status no-availability" }, "No weekend availability found")) : (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "availability-status not-scanned" }, "Not yet scanned")),
+                }))) : isAutoDisabled ? (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "availability-status no-availability" }, "Disabled (no campgrounds found)")) : isDisabled ? (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "availability-status no-availability" }, "Disabled manually")) : area.scanError ? (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "availability-status scan-error" }, "Scan failed")) : area.lastScanned ? (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "availability-status no-availability" }, "No weekend availability found")) : (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "availability-status not-scanned" }, "Not yet scanned")),
             react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "card-footer" },
                 react__WEBPACK_IMPORTED_MODULE_0___default().createElement("span", { className: "provider-label" }, area.provider || 'Recreation.gov'),
                 react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "footer-right" },
@@ -56694,16 +56696,25 @@ function CampingApp({ token }) {
                 fetchFile(token, `${CAMPING_PATH}/scan-state.json`),
                 getWorkflowStates(token)
             ]);
-            if (recAreasResult.data) {
+            // Merge rec areas with scan state
+            if (recAreasResult.data && scanStateResult.data) {
+                const areas = recAreasResult.data;
+                const state = scanStateResult.data;
+                // Merge scan state into area objects
+                const mergedAreas = areas.map(area => ({
+                    ...area,
+                    ...(state.areas?.[area.id] || {})
+                }));
+                setRecAreas(mergedAreas);
+                setScanState({ currentIndex: state.currentIndex || 0, sitesPerRun: 4 });
+                setScanStateSha(scanStateResult.sha);
+            }
+            else if (recAreasResult.data) {
                 setRecAreas(recAreasResult.data);
             }
             if (favResult.data) {
                 setFavorites(favResult.data);
                 setFavoritesSha(favResult.sha);
-            }
-            if (scanStateResult.data) {
-                setScanState(scanStateResult.data);
-                setScanStateSha(scanStateResult.sha);
             }
             setWorkflowStates(workflows);
         }

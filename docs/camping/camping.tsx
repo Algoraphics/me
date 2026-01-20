@@ -41,6 +41,7 @@ interface RecArea {
     longitude: number;
     distanceMiles: number;
     provider?: string;
+    imageUrl?: string;
     lastScanned?: string | null;
     bookingHorizon?: number | null;
     weekendDates?: string[];
@@ -339,12 +340,13 @@ function RecAreaCard({
             return `https://reservecalifornia.com/park/${numericId}?date=${date}&night=1`;
         } else {
             // RecreationDotGov
-            // Format: checkin=MM/DD/YYYY&checkout=MM/DD/YYYY (1 night)
+            // Format: q={name}&recarea={id}&inventory_type=camping&checkin=MM/DD/YYYY&checkout=MM/DD/YYYY
             const checkin = dateObj.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
             const checkoutDate = new Date(year, month - 1, day + 1);
             const checkout = checkoutDate.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+            const encodedName = encodeURIComponent(area.name);
             
-            return `https://www.recreation.gov/search?entity_id=${numericId}&entity_type=recarea&inventory_type=camping&checkin=${checkin}&checkout=${checkout}`;
+            return `https://www.recreation.gov/search?q=${encodedName}&recarea=${numericId}&inventory_type=camping&checkin=${checkin}&checkout=${checkout}`;
         }
     };
     
@@ -361,11 +363,8 @@ function RecAreaCard({
                     <h3>{area.name}</h3>
                     <div className="card-meta">
                         <span className="distance">{Math.round(area.distanceMiles)} mi</span>
-                        {area.totalCampgrounds !== undefined && (
-                            <span className="campground-count">{area.totalCampgrounds} campgrounds</span>
-                        )}
                         {area.bookingHorizon && (
-                            <span className="booking-horizon">{area.bookingHorizon}d horizon</span>
+                            <span className="booking-horizon">Found available within {area.bookingHorizon}d</span>
                         )}
                     </div>
                 </div>
@@ -388,36 +387,46 @@ function RecAreaCard({
                     </button>
                 </div>
             </div>
-            
+
             <div className="card-content">
                 {hasAvailability ? (
-                    <div className="availability-info">
-                        <div className="booking-buttons">
-                            {weekendDates.slice(0, 5).map((date, idx) => {
-                                // Parse date in local timezone to avoid UTC offset issues
-                                const [year, month, day] = date.split('-').map(Number);
-                                const dateObj = new Date(year, month - 1, day);
-                                const dayOfWeek = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
-                                const displayDate = dateObj.toLocaleDateString('en-US', { 
-                                    month: 'short', 
-                                    day: 'numeric' 
-                                });
-                                
-                                return (
-                                    <a
-                                        key={idx}
-                                        href={buildBookingUrl(date)}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="booking-button"
-                                        onClick={(e) => e.stopPropagation()}
-                                    >
-                                        <div className="booking-button-name">{dayOfWeek}</div>
-                                        <div className="booking-button-date">{displayDate}</div>
-                                    </a>
-                                );
-                            })}
-                        </div>
+                    <div className="booking-buttons">
+                        {area.imageUrl && (
+                            <a
+                                href={provider === 'ReserveCalifornia' 
+                                    ? `https://reservecalifornia.com/park/${numericId}`
+                                    : `https://www.recreation.gov/search?q=${encodeURIComponent(area.name)}&recarea=${numericId}&inventory_type=camping`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="booking-button image-button"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                <img src={area.imageUrl} alt={area.name} />
+                            </a>
+                        )}
+                        {weekendDates.slice(0, 5).map((date, idx) => {
+                            const [year, month, day] = date.split('-').map(Number);
+                            const dateObj = new Date(year, month - 1, day);
+                            const dayOfWeek = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
+                            const displayDate = dateObj.toLocaleDateString('en-US', { 
+                                month: 'short', 
+                                day: 'numeric' 
+                            });
+                            
+                            return (
+                                <a
+                                    key={idx}
+                                    href={buildBookingUrl(date)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="booking-button"
+                                    onClick={(e) => e.stopPropagation()}
+                                >
+                                    <div className="booking-button-name">{dayOfWeek}</div>
+                                    <div className="booking-button-date">{displayDate}</div>
+                                </a>
+                            );
+                        })}
                     </div>
                 ) : isAutoDisabled ? (
                     <div className="availability-status no-availability">
@@ -520,18 +529,27 @@ function CampingApp({ token }: { token: string }) {
                 getWorkflowStates(token)
             ]);
             
-            if (recAreasResult.data) {
+            // Merge rec areas with scan state
+            if (recAreasResult.data && scanStateResult.data) {
+                const areas = recAreasResult.data as RecArea[];
+                const state = scanStateResult.data;
+                
+                // Merge scan state into area objects
+                const mergedAreas = areas.map(area => ({
+                    ...area,
+                    ...(state.areas?.[area.id] || {})
+                }));
+                
+                setRecAreas(mergedAreas);
+                setScanState({ currentIndex: state.currentIndex || 0, sitesPerRun: 4 });
+                setScanStateSha(scanStateResult.sha);
+            } else if (recAreasResult.data) {
                 setRecAreas(recAreasResult.data as RecArea[]);
             }
             
             if (favResult.data) {
                 setFavorites(favResult.data);
                 setFavoritesSha(favResult.sha);
-            }
-            
-            if (scanStateResult.data) {
-                setScanState(scanStateResult.data);
-                setScanStateSha(scanStateResult.sha);
             }
             
             setWorkflowStates(workflows);
