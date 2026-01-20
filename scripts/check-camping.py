@@ -33,7 +33,7 @@ def parse_args():
     mode.add_argument('--sites', help='Comma-separated list of rec area IDs to scan')
     mode.add_argument('--rotation', action='store_true', help='Run rotation scan (ignores favorites)')
     mode.add_argument('--favorites', action='store_true', help='Scan only favorites')
-    parser.add_argument('--rotation-size', type=int, default=4, help='Number of areas to scan in rotation mode (default: 4)')
+    parser.add_argument('--rotation-size', type=int, default=10, help='Number of areas to scan in rotation mode (default: 10)')
     parser.add_argument('--start-date', help='Override start date (YYYY-MM-DD)')
     parser.add_argument('--end-date', help='Override end date (YYYY-MM-DD)')
     parser.add_argument('--dry-run', action='store_true', help='Run without saving state or sending notifications')
@@ -86,7 +86,7 @@ class TimeoutException(Exception):
 def timeout_handler(signum, frame):
     raise TimeoutException("Query timeout")
 
-def scan_campground_with_camply(campground_id, campground_name, start_date, end_date, provider_name, verbose=False, timeout_seconds=30):
+def scan_campground_with_camply(campground_id, campground_name, start_date, end_date, provider_name, verbose=False, timeout_seconds=10):
     """
     Scan a single campground using camply Python API (RecreationDotGov only).
     Returns dict with success status and availability data.
@@ -139,7 +139,7 @@ def scan_campground_with_camply(campground_id, campground_name, start_date, end_
     except TimeoutException:
         return {
             'success': False,
-            'error': 'Query timeout (30s)',
+            'error': 'Query timeout (10s)',
             'is_validation_error': False
         }
     except Exception as e:
@@ -155,7 +155,7 @@ def scan_campground_with_camply(campground_id, campground_name, start_date, end_
             'is_validation_error': is_validation_error
         }
 
-def scan_rec_area_with_camply(rec_area_id, rec_area_name, start_date, end_date, provider_name, verbose=False, timeout_seconds=30):
+def scan_rec_area_with_camply(rec_area_id, rec_area_name, start_date, end_date, provider_name, verbose=False, timeout_seconds=10):
     """
     Scan entire rec area at once (for providers like ReserveCalifornia that don't support per-campground).
     Returns dict with success status and campground-level data.
@@ -214,7 +214,7 @@ def scan_rec_area_with_camply(rec_area_id, rec_area_name, start_date, end_date, 
     except TimeoutException:
         return {
             'success': False,
-            'error': 'Query timeout (30s)',
+            'error': 'Query timeout (10s)',
             'is_validation_error': False
         }
     except Exception as e:
