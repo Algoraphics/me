@@ -43,7 +43,12 @@ interface RecArea {
     provider?: string;
     lastScanned?: string | null;
     bookingHorizon?: number | null;
-    recentWeekendAvailability?: string[];
+    topCampgrounds?: Array<{
+        name: string;
+        sites: number;
+        facilityId?: number;
+        earliestWeekendDate?: string;
+    }>;
     totalCampgrounds?: number;
     notified?: boolean;
     lastNotifiedAt?: string | null;
@@ -64,10 +69,6 @@ interface ScanState {
     sitesPerRun: number;
 }
 
-interface AvailabilityData {
-    lastScan: string;
-    openings: any[];
-}
 
 async function githubAPI(token: string, endpoint: string, options: any = {}) {
     const response = await fetch(`https://api.github.com${endpoint}`, {
@@ -323,8 +324,8 @@ function RecAreaCard({
     onScan: () => void;
 }) {
     const [isScanning, setIsScanning] = React.useState(false);
-    const availability = area.recentWeekendAvailability || [];
-    const hasAvailability = availability.length > 0;
+    const topCampgrounds = area.topCampgrounds || [];
+    const hasAvailability = topCampgrounds.length > 0 && topCampgrounds.some(cg => cg.earliestWeekendDate);
     const scannable = canScan(areaId);
     const minutesAgo = getMinutesSinceScan(areaId);
     
@@ -372,12 +373,27 @@ function RecAreaCard({
             <div className="card-content">
                 {hasAvailability ? (
                     <div className="availability-info">
-                        <div className="availability-status available">
-                            ✅ {availability.length} weekend dates available
-                        </div>
-                        <div className="available-dates">
-                            {availability.slice(0, 3).join(', ')}
-                            {availability.length > 3 && ` +${availability.length - 3} more`}
+                        <div className="booking-buttons">
+                            {topCampgrounds.map((cg, idx) => (
+                                cg.facilityId && cg.earliestWeekendDate ? (
+                                    <a
+                                        key={idx}
+                                        href={`https://www.recreation.gov/camping/campgrounds/${cg.facilityId}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="booking-button"
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        <div className="booking-button-name">{cg.name}</div>
+                                        <div className="booking-button-date">
+                                            {new Date(cg.earliestWeekendDate).toLocaleDateString('en-US', { 
+                                                month: 'short', 
+                                                day: 'numeric' 
+                                            })}
+                                        </div>
+                                    </a>
+                                ) : null
+                            ))}
                         </div>
                     </div>
                 ) : isAutoDisabled ? (
@@ -390,27 +406,39 @@ function RecAreaCard({
                     </div>
                 ) : area.scanError ? (
                     <div className="availability-status scan-error">
-                        ⚠️ Scan failed
+                        Scan failed
                     </div>
                 ) : area.lastScanned ? (
                     <div className="availability-status no-availability">
-                        ❌ No weekend availability found
+                        No weekend availability found
                     </div>
                 ) : (
                     <div className="availability-status not-scanned">
-                        ⏳ Not yet scanned
+                        Not yet scanned
                     </div>
                 )}
                 
                 <div className="card-footer">
                     <span className="provider-label">{area.provider || 'Recreation.gov'}</span>
-                    <button 
-                        className={`scan-button ${!scannable || isScanning ? 'on-cooldown' : ''}`}
-                        onClick={(e) => { e.stopPropagation(); handleScanClick(); }}
-                        disabled={!scannable || isScanning}
-                    >
-                        {isScanning ? 'Scanning...' : scannable ? 'Scan now' : `Scanned ${minutesAgo}m ago`}
-                    </button>
+                    <div className="footer-right">
+                        {area.lastScanned && (
+                            <span className="last-scanned">
+                                {new Date(area.lastScanned).toLocaleDateString('en-US', { 
+                                    month: 'short', 
+                                    day: 'numeric',
+                                    hour: 'numeric',
+                                    minute: '2-digit'
+                                })}
+                            </span>
+                        )}
+                        <button 
+                            className={`scan-button ${!scannable || isScanning ? 'on-cooldown' : ''}`}
+                            onClick={(e) => { e.stopPropagation(); handleScanClick(); }}
+                            disabled={!scannable || isScanning}
+                        >
+                            {isScanning ? 'Scanning...' : scannable ? 'Scan now' : `Scanned ${minutesAgo}m ago`}
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -442,7 +470,6 @@ function TabBar({ activeTab, onTabChange, favoriteCount }: {
 
 function CampingApp({ token }: { token: string }) {
     const [recAreas, setRecAreas] = useState<RecArea[]>([]);
-    const [availability, setAvailability] = useState<AvailabilityData | null>(null);
     const [favorites, setFavorites] = useState<FavoritesData>({ favorites: [], disabled: [], autoDisabled: [], settings: { notificationsEnabled: false } });
     const [favoritesSha, setFavoritesSha] = useState<string | null>(null);
     const [scanState, setScanState] = useState<ScanState>({
@@ -463,9 +490,8 @@ function CampingApp({ token }: { token: string }) {
     const loadData = async () => {
         setLoading(true);
         try {
-            const [recAreasResult, availResult, favResult, scanStateResult, workflows] = await Promise.all([
+            const [recAreasResult, favResult, scanStateResult, workflows] = await Promise.all([
                 fetchFile(token, `${CAMPING_PATH}/rec-areas.json`),
-                fetchFile(token, `${CAMPING_PATH}/availability.json`),
                 fetchFile(token, `${CAMPING_PATH}/favorites.json`),
                 fetchFile(token, `${CAMPING_PATH}/scan-state.json`),
                 getWorkflowStates(token)
@@ -473,10 +499,6 @@ function CampingApp({ token }: { token: string }) {
             
             if (recAreasResult.data) {
                 setRecAreas(recAreasResult.data as RecArea[]);
-            }
-            
-            if (availResult.data) {
-                setAvailability(availResult.data);
             }
             
             if (favResult.data) {
@@ -508,6 +530,10 @@ function CampingApp({ token }: { token: string }) {
 
     const saveFavorites = async (newFavorites: FavoritesData, areaId: string) => {
         setSavingAreaId(areaId);
+        
+        // Optimistically update state immediately
+        setFavorites(newFavorites);
+        
         try {
             await saveFile(
                 token,
@@ -518,9 +544,12 @@ function CampingApp({ token }: { token: string }) {
             );
             const result = await fetchFile(token, `${CAMPING_PATH}/favorites.json`);
             setFavoritesSha(result.sha);
-            setFavorites(newFavorites);
         } catch (e) {
             console.error('Error saving favorites:', e);
+            // On error, reload to get actual state from GitHub
+            const result = await fetchFile(token, `${CAMPING_PATH}/favorites.json`);
+            setFavorites(result.data);
+            setFavoritesSha(result.sha);
         }
         setSavingAreaId(null);
     };
@@ -605,8 +634,8 @@ function CampingApp({ token }: { token: string }) {
         const isFavB = favorites.favorites.includes(areaB.id);
         const isDisabledA = favorites.disabled.includes(areaA.id) || (favorites.autoDisabled || []).includes(areaA.id);
         const isDisabledB = favorites.disabled.includes(areaB.id) || (favorites.autoDisabled || []).includes(areaB.id);
-        const hasAvailA = (areaA.recentWeekendAvailability || []).length > 0;
-        const hasAvailB = (areaB.recentWeekendAvailability || []).length > 0;
+        const hasAvailA = (areaA.topCampgrounds || []).some(cg => cg.earliestWeekendDate);
+        const hasAvailB = (areaB.topCampgrounds || []).some(cg => cg.earliestWeekendDate);
         const hasErrorA = (areaA.scanError || false) && !isDisabledA;
         const hasErrorB = (areaB.scanError || false) && !isDisabledB;
         const hasNoAvailA = !!areaA.lastScanned && !hasAvailA && !hasErrorA && !isDisabledA;
@@ -639,8 +668,18 @@ function CampingApp({ token }: { token: string }) {
         return <div id="loading-screen">Loading...</div>;
     }
 
-    const lastScanDate = availability?.lastScan 
-        ? new Date(availability.lastScan).toLocaleString()
+    // Calculate last scan from most recent area scan
+    const lastScanDate = recAreas.length > 0
+        ? (() => {
+            const scannedAreas = recAreas.filter(a => a.lastScanned);
+            if (scannedAreas.length === 0) return 'Never';
+            const mostRecent = scannedAreas.reduce((latest, area) => {
+                const areaTime = new Date(area.lastScanned!).getTime();
+                const latestTime = new Date(latest.lastScanned!).getTime();
+                return areaTime > latestTime ? area : latest;
+            });
+            return new Date(mostRecent.lastScanned!).toLocaleString();
+        })()
         : 'Never';
 
     const favoriteCount = favorites.favorites.length;

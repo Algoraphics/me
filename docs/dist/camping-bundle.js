@@ -56588,8 +56588,8 @@ function SearchBar({ searchQuery, onSearchChange }) {
 }
 function RecAreaCard({ areaId, area, isFavorite, isDisabled, isAutoDisabled, favoriteCount, isSaving, onToggleFavorite, onToggleDisabled, onScan }) {
     const [isScanning, setIsScanning] = react__WEBPACK_IMPORTED_MODULE_0___default().useState(false);
-    const availability = area.recentWeekendAvailability || [];
-    const hasAvailability = availability.length > 0;
+    const topCampgrounds = area.topCampgrounds || [];
+    const hasAvailability = topCampgrounds.length > 0 && topCampgrounds.some(cg => cg.earliestWeekendDate);
     const scannable = canScan(areaId);
     const minutesAgo = getMinutesSinceScan(areaId);
     const handleScanClick = async () => {
@@ -56616,16 +56616,22 @@ function RecAreaCard({ areaId, area, isFavorite, isDisabled, isAutoDisabled, fav
                 react__WEBPACK_IMPORTED_MODULE_0___default().createElement("button", { className: `disable-button ${(isDisabled || isAutoDisabled) ? 'active' : ''}`, onClick: (e) => { e.stopPropagation(); onToggleDisabled(); }, title: (isDisabled || isAutoDisabled) ? 'Enable in rotation' : 'Disable from rotation', disabled: isSaving }, (isDisabled || isAutoDisabled) ? '✓' : '✕'))),
         react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "card-content" },
             hasAvailability ? (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "availability-info" },
-                react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "availability-status available" },
-                    "\u2705 ",
-                    availability.length,
-                    " weekend dates available"),
-                react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "available-dates" },
-                    availability.slice(0, 3).join(', '),
-                    availability.length > 3 && ` +${availability.length - 3} more`))) : isAutoDisabled ? (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "availability-status no-availability" }, "Disabled (no campgrounds found)")) : isDisabled ? (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "availability-status no-availability" }, "Disabled manually")) : area.scanError ? (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "availability-status scan-error" }, "\u26A0\uFE0F Scan failed")) : area.lastScanned ? (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "availability-status no-availability" }, "\u274C No weekend availability found")) : (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "availability-status not-scanned" }, "\u23F3 Not yet scanned")),
+                react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "booking-buttons" }, topCampgrounds.map((cg, idx) => (cg.facilityId && cg.earliestWeekendDate ? (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("a", { key: idx, href: `https://www.recreation.gov/camping/campgrounds/${cg.facilityId}`, target: "_blank", rel: "noopener noreferrer", className: "booking-button", onClick: (e) => e.stopPropagation() },
+                    react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "booking-button-name" }, cg.name),
+                    react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "booking-button-date" }, new Date(cg.earliestWeekendDate).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric'
+                    })))) : null))))) : isAutoDisabled ? (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "availability-status no-availability" }, "Disabled (no campgrounds found)")) : isDisabled ? (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "availability-status no-availability" }, "Disabled manually")) : area.scanError ? (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "availability-status scan-error" }, "Scan failed")) : area.lastScanned ? (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "availability-status no-availability" }, "No weekend availability found")) : (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "availability-status not-scanned" }, "Not yet scanned")),
             react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "card-footer" },
                 react__WEBPACK_IMPORTED_MODULE_0___default().createElement("span", { className: "provider-label" }, area.provider || 'Recreation.gov'),
-                react__WEBPACK_IMPORTED_MODULE_0___default().createElement("button", { className: `scan-button ${!scannable || isScanning ? 'on-cooldown' : ''}`, onClick: (e) => { e.stopPropagation(); handleScanClick(); }, disabled: !scannable || isScanning }, isScanning ? 'Scanning...' : scannable ? 'Scan now' : `Scanned ${minutesAgo}m ago`)))));
+                react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "footer-right" },
+                    area.lastScanned && (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("span", { className: "last-scanned" }, new Date(area.lastScanned).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: 'numeric',
+                        minute: '2-digit'
+                    }))),
+                    react__WEBPACK_IMPORTED_MODULE_0___default().createElement("button", { className: `scan-button ${!scannable || isScanning ? 'on-cooldown' : ''}`, onClick: (e) => { e.stopPropagation(); handleScanClick(); }, disabled: !scannable || isScanning }, isScanning ? 'Scanning...' : scannable ? 'Scan now' : `Scanned ${minutesAgo}m ago`))))));
 }
 function TabBar({ activeTab, onTabChange, favoriteCount }) {
     return (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "tab-bar" },
@@ -56636,7 +56642,6 @@ function TabBar({ activeTab, onTabChange, favoriteCount }) {
 }
 function CampingApp({ token }) {
     const [recAreas, setRecAreas] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)([]);
-    const [availability, setAvailability] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)(null);
     const [favorites, setFavorites] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)({ favorites: [], disabled: [], autoDisabled: [], settings: { notificationsEnabled: false } });
     const [favoritesSha, setFavoritesSha] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)(null);
     const [scanState, setScanState] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)({
@@ -56655,18 +56660,14 @@ function CampingApp({ token }) {
     const loadData = async () => {
         setLoading(true);
         try {
-            const [recAreasResult, availResult, favResult, scanStateResult, workflows] = await Promise.all([
+            const [recAreasResult, favResult, scanStateResult, workflows] = await Promise.all([
                 fetchFile(token, `${CAMPING_PATH}/rec-areas.json`),
-                fetchFile(token, `${CAMPING_PATH}/availability.json`),
                 fetchFile(token, `${CAMPING_PATH}/favorites.json`),
                 fetchFile(token, `${CAMPING_PATH}/scan-state.json`),
                 getWorkflowStates(token)
             ]);
             if (recAreasResult.data) {
                 setRecAreas(recAreasResult.data);
-            }
-            if (availResult.data) {
-                setAvailability(availResult.data);
             }
             if (favResult.data) {
                 setFavorites(favResult.data);
@@ -56694,14 +56695,19 @@ function CampingApp({ token }) {
     };
     const saveFavorites = async (newFavorites, areaId) => {
         setSavingAreaId(areaId);
+        // Optimistically update state immediately
+        setFavorites(newFavorites);
         try {
             await saveFile(token, `${CAMPING_PATH}/favorites.json`, newFavorites, favoritesSha, 'Update camping favorites');
             const result = await fetchFile(token, `${CAMPING_PATH}/favorites.json`);
             setFavoritesSha(result.sha);
-            setFavorites(newFavorites);
         }
         catch (e) {
             console.error('Error saving favorites:', e);
+            // On error, reload to get actual state from GitHub
+            const result = await fetchFile(token, `${CAMPING_PATH}/favorites.json`);
+            setFavorites(result.data);
+            setFavoritesSha(result.sha);
         }
         setSavingAreaId(null);
     };
@@ -56774,8 +56780,8 @@ function CampingApp({ token }) {
         const isFavB = favorites.favorites.includes(areaB.id);
         const isDisabledA = favorites.disabled.includes(areaA.id) || (favorites.autoDisabled || []).includes(areaA.id);
         const isDisabledB = favorites.disabled.includes(areaB.id) || (favorites.autoDisabled || []).includes(areaB.id);
-        const hasAvailA = (areaA.recentWeekendAvailability || []).length > 0;
-        const hasAvailB = (areaB.recentWeekendAvailability || []).length > 0;
+        const hasAvailA = (areaA.topCampgrounds || []).some(cg => cg.earliestWeekendDate);
+        const hasAvailB = (areaB.topCampgrounds || []).some(cg => cg.earliestWeekendDate);
         const hasErrorA = (areaA.scanError || false) && !isDisabledA;
         const hasErrorB = (areaB.scanError || false) && !isDisabledB;
         const hasNoAvailA = !!areaA.lastScanned && !hasAvailA && !hasErrorA && !isDisabledA;
@@ -56806,8 +56812,19 @@ function CampingApp({ token }) {
     if (loading) {
         return react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { id: "loading-screen" }, "Loading...");
     }
-    const lastScanDate = availability?.lastScan
-        ? new Date(availability.lastScan).toLocaleString()
+    // Calculate last scan from most recent area scan
+    const lastScanDate = recAreas.length > 0
+        ? (() => {
+            const scannedAreas = recAreas.filter(a => a.lastScanned);
+            if (scannedAreas.length === 0)
+                return 'Never';
+            const mostRecent = scannedAreas.reduce((latest, area) => {
+                const areaTime = new Date(area.lastScanned).getTime();
+                const latestTime = new Date(latest.lastScanned).getTime();
+                return areaTime > latestTime ? area : latest;
+            });
+            return new Date(mostRecent.lastScanned).toLocaleString();
+        })()
         : 'Never';
     const favoriteCount = favorites.favorites.length;
     const totalAreas = recAreas.length;

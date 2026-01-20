@@ -10,7 +10,7 @@ from pathlib import Path
 import urllib.request
 from zoneinfo import ZoneInfo
 
-from camply.search import SearchRecreationDotGov
+from camply.search import SearchRecreationDotGov, SearchReserveCalifornia
 from camply.containers import SearchWindow
 from camply.providers import RecreationDotGov, ReserveCalifornia
 
@@ -78,7 +78,7 @@ def is_quiet_hours():
 
 def scan_campground_with_camply(campground_id, campground_name, start_date, end_date, provider_name, verbose=False):
     """
-    Scan a single campground using camply Python API.
+    Scan a single campground using camply Python API (RecreationDotGov only).
     Returns dict with success status and availability data.
     """
     try:
@@ -90,7 +90,6 @@ def scan_campground_with_camply(campground_id, campground_name, start_date, end_
                 campgrounds=[campground_id]
             )
         else:
-            log(f"Provider {provider_name} not yet supported for Python API")
             return {'success': False, 'error': f'Unsupported provider: {provider_name}'}
         
         campsites = searcher.get_matching_campsites(log=False, verbose=False, continuous=False)
@@ -98,7 +97,6 @@ def scan_campground_with_camply(campground_id, campground_name, start_date, end_
         available_dates = {}
         weekend_dates = []
         campground_names = set()
-        booking_urls = set()
         
         for campsite in campsites:
             date_str = campsite.booking_date.strftime('%Y-%m-%d')
@@ -110,19 +108,77 @@ def scan_campground_with_camply(campground_id, campground_name, start_date, end_
                 if date_str not in weekend_dates:
                     weekend_dates.append(date_str)
             
-            if hasattr(campsite, 'campground_name'):
-                campground_names.add(campsite.campground_name)
-            
-            if hasattr(campsite, 'booking_url') and campsite.booking_url:
-                booking_urls.add(campsite.booking_url)
+            if hasattr(campsite, 'facility_name'):
+                campground_names.add(campsite.facility_name)
         
         return {
             'success': True,
             'total_sites': len(campsites),
             'available_dates': available_dates,
             'weekend_dates': sorted(weekend_dates),
-            'campground_names': list(campground_names),
-            'booking_urls': list(booking_urls)
+            'campground_names': list(campground_names)
+        }
+        
+    except Exception as e:
+        error_msg = str(e)
+        is_validation_error = 'ValidationError' in error_msg
+        
+        if verbose:
+            log(f"  Error details: {error_msg[:200]}")
+        
+        return {
+            'success': False,
+            'error': error_msg[:200],
+            'is_validation_error': is_validation_error
+        }
+
+def scan_rec_area_with_camply(rec_area_id, rec_area_name, start_date, end_date, provider_name, verbose=False):
+    """
+    Scan entire rec area at once (for providers like ReserveCalifornia that don't support per-campground).
+    Returns dict with success status and campground-level data.
+    """
+    try:
+        search_window = SearchWindow(start_date=start_date, end_date=end_date)
+        numeric_id = int(rec_area_id.replace('recgov-', '').replace('reserveca-', ''))
+        
+        if provider_name == 'ReserveCalifornia':
+            searcher = SearchReserveCalifornia(
+                search_window=search_window,
+                recreation_area=[numeric_id]
+            )
+        else:
+            return {'success': False, 'error': f'Provider {provider_name} not supported for rec-area scan'}
+        
+        campsites = searcher.get_matching_campsites(log=False, verbose=False, continuous=False)
+        
+        # Aggregate by campground
+        by_campground = {}
+        for campsite in campsites:
+            cg_name = campsite.facility_name
+            date_str = campsite.booking_date.strftime('%Y-%m-%d')
+            is_weekend = campsite.booking_date.weekday() in [4, 5, 6]
+            
+            if cg_name not in by_campground:
+                by_campground[cg_name] = {
+                    'facility_id': campsite.facility_id if hasattr(campsite, 'facility_id') else None,
+                    'sites': 0,
+                    'weekend_dates': set()
+                }
+            
+            by_campground[cg_name]['sites'] += 1
+            if is_weekend:
+                by_campground[cg_name]['weekend_dates'].add(date_str)
+        
+        # Aggregate total weekend dates
+        all_weekend_dates = set()
+        for cg_data in by_campground.values():
+            all_weekend_dates.update(cg_data['weekend_dates'])
+        
+        return {
+            'success': True,
+            'total_sites': len(campsites),
+            'by_campground': by_campground,
+            'weekend_dates': sorted(all_weekend_dates)
         }
         
     except Exception as e:
@@ -222,7 +278,7 @@ def scan_area_month_by_month(area_data, start_date=None, end_date=None, verbose=
         log(f"  [DRY RUN] Would scan rec area {rec_id}")
         return {
             'success': True,
-            'parsed': {'total_sites': 0, 'campgrounds': [], 'dates': [], 'weekend_dates': [], 'booking_urls': []},
+            'parsed': {'total_sites': 0, 'campgrounds': [], 'dates': [], 'weekend_dates': []},
             'duration': 0
         }
     
@@ -243,7 +299,7 @@ def scan_area_month_by_month(area_data, start_date=None, end_date=None, verbose=
     if not campgrounds:
         return {
             'success': True,
-            'parsed': {'total_sites': 0, 'campgrounds': [], 'dates': [], 'weekend_dates': [], 'booking_urls': []},
+            'parsed': {'total_sites': 0, 'campgrounds': [], 'dates': [], 'weekend_dates': []},
             'duration': time.time() - start_time,
             'no_campgrounds': True,
             'area_id': rec_id
@@ -278,49 +334,82 @@ def scan_area_month_by_month(area_data, start_date=None, end_date=None, verbose=
         month_weekends = 0
         successful = 0
         
-        for i, cg in enumerate(campgrounds, 1):
-            cg_id = cg.facility_id
-            cg_name = cg.facility_name
-            
-            result = scan_campground_with_camply(
-                cg_id, cg_name, month_start, month_end, provider, verbose
-            )
+        # ReserveCalifornia: Query entire rec area at once (can't do per-campground)
+        if provider == 'ReserveCalifornia':
+            result = scan_rec_area_with_camply(rec_id, name, month_start, month_end, provider, verbose)
             
             if result['success']:
-                month_sites += result['total_sites']
-                month_weekends += len(result.get('weekend_dates', []))
+                month_sites = result['total_sites']
+                month_weekends = len(result.get('weekend_dates', []))
                 all_results['total_sites'] += result['total_sites']
                 all_results['weekend_dates'].update(result.get('weekend_dates', []))
                 
-                # Track campground details by ID for later URL building
-                if cg_id not in campground_details:
-                    campground_details[cg_id] = {
-                        'name': cg_name,
-                        'facility_id': cg_id,
-                        'total_sites': 0
-                    }
-                campground_details[cg_id]['total_sites'] += result['total_sites']
+                # Process by_campground data
+                for cg_name, cg_data in result.get('by_campground', {}).items():
+                    cg_id = cg_data['facility_id']
+                    if cg_id and cg_id not in campground_details:
+                        campground_details[cg_id] = {
+                            'name': cg_name,
+                            'facility_id': cg_id,
+                            'total_sites': 0,
+                            'weekend_dates': set()
+                        }
+                    if cg_id:
+                        campground_details[cg_id]['total_sites'] += cg_data['sites']
+                        campground_details[cg_id]['weekend_dates'].update(cg_data['weekend_dates'])
                 
-                successful += 1
-                
-                # Show availability info
-                num_dates = len(result.get('available_dates', {}))
-                num_weekends = len(result.get('weekend_dates', []))
-                if result['total_sites'] > 0:
-                    log(f"    [{i}/{len(campgrounds)}] {cg_name}: ✓ ({result['total_sites']} sites, {num_dates} dates, {num_weekends} weekends)")
-                else:
-                    log(f"    [{i}/{len(campgrounds)}] {cg_name}: ✓ (no availability)")
+                log(f"  Scanned entire rec area: {month_sites} sites, {month_weekends} weekend dates")
+                successful = len(campgrounds)
             else:
-                is_validation = result.get('is_validation_error', False)
-                error_type = "validation error" if is_validation else "error"
-                log(f"    [{i}/{len(campgrounds)}] {cg_name}: ✗ ({error_type})")
+                log(f"  Rec area scan failed: {result.get('error', 'Unknown error')[:100]}")
+        
+        # RecreationDotGov: Query each campground separately (more resilient)
+        else:
+            for i, cg in enumerate(campgrounds, 1):
+                cg_id = cg.facility_id
+                cg_name = cg.facility_name
                 
-                all_results['failed_campgrounds'].append({
-                    'name': cg_name,
-                    'id': cg_id,
-                    'error': result.get('error', 'Unknown error')[:100],
-                    'is_validation': is_validation
-                })
+                result = scan_campground_with_camply(
+                    cg_id, cg_name, month_start, month_end, provider, verbose
+                )
+                
+                if result['success']:
+                    month_sites += result['total_sites']
+                    month_weekends += len(result.get('weekend_dates', []))
+                    all_results['total_sites'] += result['total_sites']
+                    all_results['weekend_dates'].update(result.get('weekend_dates', []))
+                    
+                    # Track campground details by ID for later URL building
+                    if cg_id not in campground_details:
+                        campground_details[cg_id] = {
+                            'name': cg_name,
+                            'facility_id': cg_id,
+                            'total_sites': 0,
+                            'weekend_dates': set()
+                        }
+                    campground_details[cg_id]['total_sites'] += result['total_sites']
+                    campground_details[cg_id]['weekend_dates'].update(result.get('weekend_dates', []))
+                    
+                    successful += 1
+                    
+                    # Show availability info
+                    num_dates = len(result.get('available_dates', {}))
+                    num_weekends = len(result.get('weekend_dates', []))
+                    if result['total_sites'] > 0:
+                        log(f"    [{i}/{len(campgrounds)}] {cg_name}: ✓ ({result['total_sites']} sites, {num_dates} dates, {num_weekends} weekends)")
+                    else:
+                        log(f"    [{i}/{len(campgrounds)}] {cg_name}: ✓ (no availability)")
+                else:
+                    is_validation = result.get('is_validation_error', False)
+                    error_type = "validation error" if is_validation else "error"
+                    log(f"    [{i}/{len(campgrounds)}] {cg_name}: ✗ ({error_type})")
+                    
+                    all_results['failed_campgrounds'].append({
+                        'name': cg_name,
+                        'id': cg_id,
+                        'error': result.get('error', 'Unknown error')[:100],
+                        'is_validation': is_validation
+                    })
         
         log(f"  Month {month_offset + 1} summary: {month_sites} sites, {month_weekends} weekend dates ({successful}/{len(campgrounds)} campgrounds)")
         
@@ -333,33 +422,32 @@ def scan_area_month_by_month(area_data, start_date=None, end_date=None, verbose=
     
     weekend_list = sorted(list(all_results['weekend_dates']))
     
-    # Build campground list for backward compatibility
-    campground_list = [{'name': v['name'], 'sites': v['total_sites']} 
-                       for v in campground_details.values()]
-    
-    # Build booking links with smart heuristic:
-    # - Filter out campgrounds with 0 sites
+    # Build topCampgrounds with priority heuristic:
+    # - Filter to campgrounds with weekend availability
     # - Sort by LEAST sites (popular ones booking up but still have space)
+    # - Include facility ID and earliest weekend date for booking
     # - Limit to top 5
-    campgrounds_with_availability = [cg for cg in campground_details.values() if cg['total_sites'] > 0]
-    priority_campgrounds = sorted(campgrounds_with_availability, key=lambda x: x['total_sites'])[:5]
+    campgrounds_with_weekends = [
+        cg for cg in campground_details.values() 
+        if cg['total_sites'] > 0 and cg['weekend_dates']
+    ]
+    priority_campgrounds = sorted(campgrounds_with_weekends, key=lambda x: x['total_sites'])[:5]
     
-    booking_links = []
+    top_campgrounds = []
     for cg in priority_campgrounds:
-        booking_links.append({
-            'campgroundName': cg['name'],
-            'availableSites': cg['total_sites'],
-            'url': f"https://www.recreation.gov/camping/campgrounds/{cg['facility_id']}"
+        weekend_dates = sorted(cg['weekend_dates'])
+        earliest_weekend = weekend_dates[0] if weekend_dates else None
+        
+        top_campgrounds.append({
+            'name': cg['name'],
+            'sites': cg['total_sites'],
+            'facilityId': cg['facility_id'],
+            'earliestWeekendDate': earliest_weekend
         })
     
     duration = time.time() - start_time
     
     log(f"  Total: {all_results['total_sites']} sites, {len(weekend_list)} weekend dates ({duration:.1f}s)")
-    
-    if campground_list:
-        top_campgrounds = sorted(campground_list, key=lambda x: x['sites'], reverse=True)[:3]
-        for cg in top_campgrounds:
-            log(f"    - {cg['name']}: {cg['sites']} sites")
     
     if all_results['failed_campgrounds']:
         validation_errors = [c for c in all_results['failed_campgrounds'] if c['is_validation']]
@@ -378,19 +466,19 @@ def scan_area_month_by_month(area_data, start_date=None, end_date=None, verbose=
         if len(weekend_list) > 10:
             log(f"    ... and {len(weekend_list) - 10} more")
     
-    if booking_links:
-        log(f"  Priority booking links (least → most available):")
-        for link in booking_links:
-            log(f"    - {link['campgroundName']}: {link['availableSites']} sites")
+    if top_campgrounds:
+        log(f"  Top campgrounds to book (least → most available):")
+        for cg in top_campgrounds:
+            date_display = f" - {cg['earliestWeekendDate']}" if cg.get('earliestWeekendDate') else ""
+            log(f"    - {cg['name']}: {cg['sites']} sites{date_display}")
     
     return {
         'success': True,
         'parsed': {
             'total_sites': all_results['total_sites'],
-            'campgrounds': campground_list,
+            'campgrounds': top_campgrounds,
             'dates': [],
-            'weekend_dates': weekend_list[:50],
-            'booking_urls': booking_links
+            'weekend_dates': weekend_list[:50]
         },
         'duration': duration,
         'failed_campgrounds': all_results['failed_campgrounds']
@@ -437,13 +525,19 @@ def process_notifications(rec_areas, results_by_id, favorites_data, dry_run=Fals
         area = areas_by_id.get(area_id, {})
         parsed = result.get('parsed', {})
         
-        prev_availability = set(area.get('recentWeekendAvailability', []))
-        curr_availability = set(parsed.get('weekend_dates', []))
+        # Get weekend dates from topCampgrounds for comparison
+        prev_dates = set()
+        if area.get('topCampgrounds'):
+            for cg in area['topCampgrounds']:
+                if cg.get('earliestWeekendDate'):
+                    prev_dates.add(cg['earliestWeekendDate'])
         
-        if curr_availability == prev_availability:
+        curr_dates = set(parsed.get('weekend_dates', []))
+        
+        if curr_dates == prev_dates:
             continue
         
-        new_dates = curr_availability - prev_availability
+        new_dates = curr_dates - prev_dates
         if not new_dates:
             continue
         
@@ -518,7 +612,6 @@ def main():
         'currentIndex': 0,
         'sitesPerRun': 4
     })
-    availability = load_json(AVAILABILITY_FILE, {'lastScan': None, 'openings': []})
     
     if not rec_areas:
         log("No recreation areas found. Run build_rec_areas.py first.")
@@ -576,29 +669,13 @@ def main():
                 favorites_data['autoDisabled'].append(area_id)
         
         area['lastScanned'] = datetime.now().isoformat()
-        area['recentWeekendAvailability'] = parsed['weekend_dates'][:5]
+        area['topCampgrounds'] = parsed['campgrounds']
         
         horizon = calculate_booking_horizon(parsed['weekend_dates'])
         if horizon:
             area['bookingHorizon'] = horizon
     
     process_notifications(rec_areas, results_by_id, favorites_data, args.dry_run)
-    
-    openings = []
-    for area_id, result in results_by_id.items():
-        parsed = result.get('parsed', {})
-        area = areas_by_id.get(area_id, {})
-        
-        if parsed.get('total_sites', 0) > 0:
-            openings.append({
-                'recAreaId': area_id,
-                'recAreaName': area.get('name', ''),
-                'provider': area.get('provider', 'RecreationDotGov'),
-                'totalSites': parsed['total_sites'],
-                'weekendDates': parsed['weekend_dates'][:5],
-                'topCampgrounds': parsed['campgrounds'][:5],
-                'bookingUrls': parsed.get('booking_urls', [])
-            })
     
     if not args.dry_run and scan_success:
         if args.rotation:
@@ -612,12 +689,8 @@ def main():
                 scan_state['currentIndex'] = new_index
                 log(f"Updated rotation index to {new_index}")
         
-        availability['lastScan'] = datetime.now().isoformat()
-        availability['openings'] = openings
-        
         save_json(REC_AREAS_FILE, rec_areas)
         save_json(SCAN_STATE_FILE, scan_state)
-        save_json(AVAILABILITY_FILE, availability)
         save_json(FAVORITES_FILE, favorites_data)
         log("Saved state files")
     

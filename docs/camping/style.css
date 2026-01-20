@@ -546,6 +546,47 @@ body {
     font-size: 0.85em;
 }
 
+.booking-buttons {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+}
+
+.booking-button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px 12px;
+    background: #1f2937;
+    border: 1px solid #374151;
+    border-radius: 6px;
+    text-decoration: none;
+    color: #e5e7eb;
+    transition: all 0.2s;
+    cursor: pointer;
+    min-width: 120px;
+}
+
+.booking-button:hover {
+    background: #374151;
+    border-color: #4ade80;
+    transform: translateY(-2px);
+}
+
+.booking-button-name {
+    font-size: 0.85em;
+    font-weight: 500;
+    text-align: center;
+    margin-bottom: 4px;
+}
+
+.booking-button-date {
+    font-size: 0.75em;
+    color: #4ade80;
+    font-weight: 600;
+}
+
 .raw-availability {
     color: #9ca3af;
     font-family: monospace;
@@ -557,6 +598,17 @@ body {
 }
 
 .provider-label {
+    color: #6b7280;
+    font-size: 0.8em;
+}
+
+.footer-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.last-scanned {
     color: #6b7280;
     font-size: 0.8em;
 }
