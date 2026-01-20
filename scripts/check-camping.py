@@ -2,13 +2,17 @@
 import argparse
 import json
 import os
-import re
-import subprocess
 import sys
+import logging
+import io
 from datetime import datetime, timedelta
 from pathlib import Path
 import urllib.request
 from zoneinfo import ZoneInfo
+
+from camply.search import SearchRecreationDotGov
+from camply.containers import SearchWindow
+from camply.providers import RecreationDotGov, ReserveCalifornia
 
 VIVARIUM_PATH = Path(os.environ.get('VIVARIUM_PATH', '../Vivarium'))
 CAMPING_PATH = VIVARIUM_PATH / 'camping'
@@ -32,10 +36,10 @@ def parse_args():
     parser.add_argument('--verbose', '-v', action='store_true', help='Extra logging for debugging')
     return parser.parse_args()
 
-def log(msg, verbose_only=False):
+def log(msg, verbose_only=False, flush=True):
     if verbose_only and not getattr(log, 'verbose', False):
         return
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] {msg}")
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] {msg}", flush=flush)
 
 def load_json(path, default=None):
     if not path.exists():
@@ -72,99 +76,67 @@ def is_quiet_hours():
     now = datetime.now(PACIFIC_TZ)
     return 0 <= now.hour < 8
 
-def run_camply(args, verbose=False, dry_run=False):
-    full_command = ['camply'] + args
-    command_str = ' '.join(full_command)
-    
-    if dry_run:
-        log(f"[DRY RUN] Would run: {command_str}")
-        return {
-            'stdout': '',
-            'stderr': '',
-            'returncode': 0,
-            'duration': 0,
-            'dry_run': True
-        }
-    
-    if verbose:
-        log(f"Running: {command_str}")
-    
-    start_time = datetime.now()
+def scan_campground_with_camply(campground_id, campground_name, start_date, end_date, provider_name, verbose=False):
+    """
+    Scan a single campground using camply Python API.
+    Returns dict with success status and availability data.
+    """
     try:
-        result = subprocess.run(
-            full_command,
-            capture_output=True,
-            text=True,
-            timeout=600
-        )
-        duration = (datetime.now() - start_time).total_seconds()
+        search_window = SearchWindow(start_date=start_date, end_date=end_date)
+        
+        if provider_name == 'RecreationDotGov':
+            searcher = SearchRecreationDotGov(
+                search_window=search_window,
+                campgrounds=[campground_id]
+            )
+        else:
+            log(f"Provider {provider_name} not yet supported for Python API")
+            return {'success': False, 'error': f'Unsupported provider: {provider_name}'}
+        
+        campsites = searcher.get_matching_campsites(log=False, verbose=False, continuous=False)
+        
+        available_dates = {}
+        weekend_dates = []
+        campground_names = set()
+        booking_urls = set()
+        
+        for campsite in campsites:
+            date_str = campsite.booking_date.strftime('%Y-%m-%d')
+            if date_str not in available_dates:
+                available_dates[date_str] = 0
+            available_dates[date_str] += 1
+            
+            if campsite.booking_date.weekday() in [4, 5, 6]:
+                if date_str not in weekend_dates:
+                    weekend_dates.append(date_str)
+            
+            if hasattr(campsite, 'campground_name'):
+                campground_names.add(campsite.campground_name)
+            
+            if hasattr(campsite, 'booking_url') and campsite.booking_url:
+                booking_urls.add(campsite.booking_url)
         
         return {
-            'stdout': result.stdout,
-            'stderr': result.stderr,
-            'returncode': result.returncode,
-            'duration': duration
+            'success': True,
+            'total_sites': len(campsites),
+            'available_dates': available_dates,
+            'weekend_dates': sorted(weekend_dates),
+            'campground_names': list(campground_names),
+            'booking_urls': list(booking_urls)
         }
-    except subprocess.TimeoutExpired:
-        log(f"Command timed out after 600s")
-        return {'stdout': '', 'stderr': 'Timeout', 'returncode': 1, 'duration': 600}
-    except FileNotFoundError:
-        log("camply command not found")
-        return {'stdout': '', 'stderr': 'Command not found', 'returncode': 1, 'duration': 0}
-
-def parse_camply_output(stdout, area_name, provider):
-    results = {
-        'total_sites': 0,
-        'campgrounds': [],
-        'dates': [],
-        'weekend_dates': [],
-        'booking_urls': []
-    }
-    
-    total_match = re.search(r'(\d+)\s+Reservable Campsites', stdout)
-    if total_match:
-        results['total_sites'] = int(total_match.group(1))
-    
-    for line in stdout.split('\n'):
-        date_match = re.search(r'📅\s+(Sun|Sat|Mon|Tue|Wed|Thu|Fri),\s+(\w+)\s+(\d+)\s+🏕\s+(\d+)\s+sites?', line)
-        if date_match:
-            day_name = date_match.group(1)
-            month_name = date_match.group(2)
-            day_num = date_match.group(3)
-            site_count = int(date_match.group(4))
-            
-            try:
-                year = datetime.now().year
-                date_str = f"{month_name} {day_num}, {year}"
-                date_obj = datetime.strptime(date_str, "%B %d, %Y")
-                if date_obj < datetime.now():
-                    date_obj = date_obj.replace(year=year + 1)
-                
-                formatted_date = date_obj.strftime('%Y-%m-%d')
-                results['dates'].append({
-                    'date': formatted_date,
-                    'day': day_name,
-                    'sites': site_count
-                })
-                
-                if day_name in ('Sat', 'Sun', 'Fri'):
-                    results['weekend_dates'].append(formatted_date)
-            except ValueError:
-                pass
         
-        campground_match = re.search(r'🏕\s+([^:]+):\s+⛺\s+(\d+)\s+sites?', line)
-        if campground_match:
-            results['campgrounds'].append({
-                'name': campground_match.group(1).strip(),
-                'sites': int(campground_match.group(2))
-            })
+    except Exception as e:
+        error_msg = str(e)
+        is_validation_error = 'ValidationError' in error_msg
         
-        url_match = re.search(r'(https://www\.recreation\.gov/camping/campsites/\d+)', line)
-        if url_match:
-            if url_match.group(1) not in results['booking_urls']:
-                results['booking_urls'].append(url_match.group(1))
-    
-    return results
+        if verbose:
+            log(f"  Error details: {error_msg[:200]}")
+        
+        return {
+            'success': False,
+            'error': error_msg[:200],
+            'is_validation_error': is_validation_error
+        }
 
 def select_rotation_areas(rec_areas, favorites_data, scan_state):
     disabled = set(favorites_data.get('disabled', [])) | set(favorites_data.get('autoDisabled', []))
@@ -199,47 +171,45 @@ def select_favorites_areas(rec_areas, favorites_data):
     log(f"Favorites mode: scanning {len(selected)} favorite areas")
     return selected
 
-def run_single_month_scan(rec_id, provider, name, start_date, end_date, verbose, dry_run):
-    """Run a single month camply scan and return the result"""
-    args = [
-        'campsites',
-        '--rec-area', str(rec_id),
-        '--start-date', start_date,
-        '--end-date', end_date,
-        '--provider', provider,
-        '--notifications', 'silent',
-        '--search-once'
-    ]
+def get_campgrounds_for_area(rec_id, provider_name, verbose=False):
+    """Get list of campgrounds for a recreation area"""
     
-    result = run_camply(args, verbose, dry_run)
+    # Set up logging to capture camply's messages
+    camply_logger = logging.getLogger('camply')
+    log_capture = io.StringIO()
+    handler = logging.StreamHandler(log_capture)
+    handler.setLevel(logging.INFO)
+    camply_logger.addHandler(handler)
+    camply_logger.setLevel(logging.INFO)
     
-    if result.get('dry_run'):
-        return {
-            'success': True,
-            'parsed': {'total_sites': 0, 'campgrounds': [], 'dates': [], 'weekend_dates': [], 'booking_urls': []},
-            'duration': 0
-        }
-    
-    if result['returncode'] != 0:
-        error_msg = result['stderr']
-        if 'SearchError' in error_msg and 'No campgrounds found to search' in error_msg:
-            log(f"  Recreation area has no campgrounds (confirmed by Recreation.gov)")
-            return {
-                'success': True,
-                'parsed': {'total_sites': 0, 'campgrounds': [], 'dates': [], 'weekend_dates': [], 'booking_urls': []},
-                'duration': result['duration'],
-                'no_campgrounds': True,
-                'area_id': rec_id
-            }
+    try:
+        numeric_id = int(rec_id.replace('recgov-', '').replace('reserveca-', ''))
+        
+        if provider_name == 'RecreationDotGov':
+            provider = RecreationDotGov()
+            campgrounds = provider.find_campgrounds(rec_area_id=[numeric_id])
+        elif provider_name == 'ReserveCalifornia':
+            provider = ReserveCalifornia()
+            campgrounds = provider.find_campgrounds(rec_area_id=[numeric_id])
         else:
-            return {'success': False, 'error': error_msg}
-    
-    parsed = parse_camply_output(result['stdout'], name, provider)
-    return {
-        'success': True,
-        'parsed': parsed,
-        'duration': result['duration']
-    }
+            return (None, f"Provider {provider_name} not yet supported")
+        
+        # Get camply's log output
+        log_output = log_capture.getvalue()
+        
+        # Show relevant camply messages
+        for line in log_output.split('\n'):
+            if 'Matching Campgrounds Found' in line or 'Retrieving Facility' in line:
+                message = line.split(' - ')[-1].strip() if ' - ' in line else line.strip()
+                if message:
+                    log(f"  [camply] {message}")
+        
+        return (campgrounds, None)
+    except Exception as e:
+        log(f"  Exception during campground lookup: {str(e)[:200]}")
+        return (None, str(e)[:200])
+    finally:
+        camply_logger.removeHandler(handler)
 
 def scan_area_month_by_month(area_data, start_date=None, end_date=None, verbose=False, dry_run=False):
     rec_id = area_data['id']
@@ -248,92 +218,182 @@ def scan_area_month_by_month(area_data, start_date=None, end_date=None, verbose=
     
     log(f"Scanning {name}...")
     
-    if start_date and end_date:
-        result = run_single_month_scan(rec_id, provider, name, start_date, end_date, verbose, dry_run)
-        
-        if not result.get('success'):
-            log(f"  Error: {result.get('error', 'Unknown error')}")
-            return result
-        
-        if result.get('no_campgrounds'):
-            return result
-        
-        parsed = result['parsed']
-        log(f"  Found {parsed['total_sites']} sites, {len(parsed['weekend_dates'])} weekend dates ({result['duration']:.1f}s)")
-        return result
+    if dry_run:
+        log(f"  [DRY RUN] Would scan rec area {rec_id}")
+        return {
+            'success': True,
+            'parsed': {'total_sites': 0, 'campgrounds': [], 'dates': [], 'weekend_dates': [], 'booking_urls': []},
+            'duration': 0
+        }
+    
+    import time
+    start_time = time.time()
+    
+    log(f"  Getting campgrounds list...")
+    campgrounds, error = get_campgrounds_for_area(rec_id, provider, verbose)
+    
+    if error:
+        log(f"  API error getting campgrounds: {error}")
+        return {
+            'success': False,
+            'error': error,
+            'duration': time.time() - start_time
+        }
+    
+    if not campgrounds:
+        return {
+            'success': True,
+            'parsed': {'total_sites': 0, 'campgrounds': [], 'dates': [], 'weekend_dates': [], 'booking_urls': []},
+            'duration': time.time() - start_time,
+            'no_campgrounds': True,
+            'area_id': rec_id
+        }
+    
+    # Track campground details including facility IDs
+    campground_details = {}
     
     all_results = {
         'total_sites': 0,
-        'campgrounds': [],
-        'dates': [],
-        'weekend_dates': [],
-        'booking_urls': []
+        'weekend_dates': set(),
+        'failed_campgrounds': []
     }
-    total_duration = 0
     
-    base_date = datetime.now()
+    if start_date and end_date:
+        scan_start = datetime.strptime(start_date, '%Y-%m-%d')
+        scan_end = datetime.strptime(end_date, '%Y-%m-%d')
+        num_months = 1
+    else:
+        scan_start = datetime.now()
+        scan_end = None
+        num_months = 6
     
-    for month_offset in range(6):
-        month_start = base_date + timedelta(days=30 * month_offset)
-        month_end = month_start + timedelta(days=30)
+    for month_offset in range(num_months):
+        month_start = scan_start + timedelta(days=30 * month_offset) if not end_date else scan_start
+        month_end = month_start + timedelta(days=30) if not end_date else scan_end
         
-        start_str = month_start.strftime('%Y-%m-%d')
-        end_str = month_end.strftime('%Y-%m-%d')
+        month_key = month_start.strftime('%Y-%m')
+        log(f"  Month {month_offset + 1}/{num_months}: {month_key}")
         
-        log(f"  Month {month_offset + 1}/6: {start_str} to {end_str}...", verbose_only=True)
+        month_sites = 0
+        month_weekends = 0
+        successful = 0
         
-        result = run_single_month_scan(rec_id, provider, name, start_str, end_str, verbose, dry_run)
-        total_duration += result.get('duration', 0)
-        
-        if result.get('dry_run'):
-            break
-        
-        if not result.get('success'):
-            log(f"  Month {month_offset + 1} error: {result.get('error', 'Unknown error')}", verbose_only=True)
-            break
-        
-        if result.get('no_campgrounds'):
-            log(f"  This area should be disabled from future scans")
-            return {
-                'success': True,
-                'parsed': all_results,
-                'duration': total_duration,
-                'no_campgrounds': True,
-                'area_id': rec_id
-            }
-        
-        parsed = result['parsed']
-        
-        all_results['total_sites'] += parsed['total_sites']
-        all_results['dates'].extend(parsed['dates'])
-        all_results['weekend_dates'].extend(parsed['weekend_dates'])
-        all_results['booking_urls'].extend(parsed['booking_urls'])
-        
-        for cg in parsed['campgrounds']:
-            existing = next((c for c in all_results['campgrounds'] if c['name'] == cg['name']), None)
-            if existing:
-                existing['sites'] += cg['sites']
+        for i, cg in enumerate(campgrounds, 1):
+            cg_id = cg.facility_id
+            cg_name = cg.facility_name
+            
+            result = scan_campground_with_camply(
+                cg_id, cg_name, month_start, month_end, provider, verbose
+            )
+            
+            if result['success']:
+                month_sites += result['total_sites']
+                month_weekends += len(result.get('weekend_dates', []))
+                all_results['total_sites'] += result['total_sites']
+                all_results['weekend_dates'].update(result.get('weekend_dates', []))
+                
+                # Track campground details by ID for later URL building
+                if cg_id not in campground_details:
+                    campground_details[cg_id] = {
+                        'name': cg_name,
+                        'facility_id': cg_id,
+                        'total_sites': 0
+                    }
+                campground_details[cg_id]['total_sites'] += result['total_sites']
+                
+                successful += 1
+                
+                # Show availability info
+                num_dates = len(result.get('available_dates', {}))
+                num_weekends = len(result.get('weekend_dates', []))
+                if result['total_sites'] > 0:
+                    log(f"    [{i}/{len(campgrounds)}] {cg_name}: ✓ ({result['total_sites']} sites, {num_dates} dates, {num_weekends} weekends)")
+                else:
+                    log(f"    [{i}/{len(campgrounds)}] {cg_name}: ✓ (no availability)")
             else:
-                all_results['campgrounds'].append(cg)
+                is_validation = result.get('is_validation_error', False)
+                error_type = "validation error" if is_validation else "error"
+                log(f"    [{i}/{len(campgrounds)}] {cg_name}: ✗ ({error_type})")
+                
+                all_results['failed_campgrounds'].append({
+                    'name': cg_name,
+                    'id': cg_id,
+                    'error': result.get('error', 'Unknown error')[:100],
+                    'is_validation': is_validation
+                })
         
-        if parsed['weekend_dates']:
-            log(f"  Found availability in month {month_offset + 1}! ({parsed['total_sites']} sites, {len(parsed['weekend_dates'])} weekend dates)")
+        log(f"  Month {month_offset + 1} summary: {month_sites} sites, {month_weekends} weekend dates ({successful}/{len(campgrounds)} campgrounds)")
+        
+        if month_weekends > 0:
+            log(f"  ✓ Found weekend availability! Stopping scan.")
+            break
+        
+        if end_date:
             break
     
-    all_results['weekend_dates'] = sorted(list(set(all_results['weekend_dates'])))
-    all_results['booking_urls'] = list(set(all_results['booking_urls']))[:10]
+    weekend_list = sorted(list(all_results['weekend_dates']))
     
-    log(f"  Total: {all_results['total_sites']} sites, {len(all_results['weekend_dates'])} weekend dates ({total_duration:.1f}s)")
+    # Build campground list for backward compatibility
+    campground_list = [{'name': v['name'], 'sites': v['total_sites']} 
+                       for v in campground_details.values()]
     
-    if all_results['campgrounds']:
-        top_campgrounds = sorted(all_results['campgrounds'], key=lambda x: x['sites'], reverse=True)[:3]
+    # Build booking links with smart heuristic:
+    # - Filter out campgrounds with 0 sites
+    # - Sort by LEAST sites (popular ones booking up but still have space)
+    # - Limit to top 5
+    campgrounds_with_availability = [cg for cg in campground_details.values() if cg['total_sites'] > 0]
+    priority_campgrounds = sorted(campgrounds_with_availability, key=lambda x: x['total_sites'])[:5]
+    
+    booking_links = []
+    for cg in priority_campgrounds:
+        booking_links.append({
+            'campgroundName': cg['name'],
+            'availableSites': cg['total_sites'],
+            'url': f"https://www.recreation.gov/camping/campgrounds/{cg['facility_id']}"
+        })
+    
+    duration = time.time() - start_time
+    
+    log(f"  Total: {all_results['total_sites']} sites, {len(weekend_list)} weekend dates ({duration:.1f}s)")
+    
+    if campground_list:
+        top_campgrounds = sorted(campground_list, key=lambda x: x['sites'], reverse=True)[:3]
         for cg in top_campgrounds:
             log(f"    - {cg['name']}: {cg['sites']} sites")
     
+    if all_results['failed_campgrounds']:
+        validation_errors = [c for c in all_results['failed_campgrounds'] if c['is_validation']]
+        other_errors = [c for c in all_results['failed_campgrounds'] if not c['is_validation']]
+        
+        if validation_errors:
+            log(f"  Note: {len(validation_errors)} campground(s) had validation errors (skipped)")
+        if other_errors:
+            log(f"  Warning: {len(other_errors)} campground(s) had other errors")
+    
+    if weekend_list:
+        log(f"  Weekend dates with availability ({len(weekend_list)} total):")
+        for date in weekend_list[:10]:
+            weekday = datetime.strptime(date, '%Y-%m-%d').strftime('%a')
+            log(f"    - {date} ({weekday})")
+        if len(weekend_list) > 10:
+            log(f"    ... and {len(weekend_list) - 10} more")
+    
+    if booking_links:
+        log(f"  Priority booking links (least → most available):")
+        for link in booking_links:
+            log(f"    - {link['campgroundName']}: {link['availableSites']} sites")
+    
     return {
         'success': True,
-        'parsed': all_results,
-        'duration': total_duration
+        'parsed': {
+            'total_sites': all_results['total_sites'],
+            'campgrounds': campground_list,
+            'dates': [],
+            'weekend_dates': weekend_list[:50],
+            'booking_urls': booking_links
+        },
+        'duration': duration,
+        'failed_campgrounds': all_results['failed_campgrounds']
     }
 
 def calculate_booking_horizon(weekend_dates):
@@ -537,7 +597,7 @@ def main():
                 'totalSites': parsed['total_sites'],
                 'weekendDates': parsed['weekend_dates'][:5],
                 'topCampgrounds': parsed['campgrounds'][:5],
-                'bookingUrls': parsed['booking_urls'][:5]
+                'bookingUrls': parsed.get('booking_urls', [])
             })
     
     if not args.dry_run and scan_success:
