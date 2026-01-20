@@ -56588,10 +56588,31 @@ function SearchBar({ searchQuery, onSearchChange }) {
 }
 function RecAreaCard({ areaId, area, isFavorite, isDisabled, isAutoDisabled, favoriteCount, isSaving, onToggleFavorite, onToggleDisabled, onScan }) {
     const [isScanning, setIsScanning] = react__WEBPACK_IMPORTED_MODULE_0___default().useState(false);
-    const topCampgrounds = area.topCampgrounds || [];
-    const hasAvailability = topCampgrounds.length > 0 && topCampgrounds.some(cg => cg.earliestWeekendDate);
+    const weekendDates = area.weekendDates || [];
+    const hasAvailability = weekendDates.length > 0;
     const scannable = canScan(areaId);
     const minutesAgo = getMinutesSinceScan(areaId);
+    // Extract numeric rec area ID for URL building
+    const numericId = areaId.replace('recgov-', '').replace('reserveca-', '');
+    const provider = area.provider || 'RecreationDotGov';
+    // Build booking URLs based on provider
+    const buildBookingUrl = (date) => {
+        // Parse date in local timezone
+        const [year, month, day] = date.split('-').map(Number);
+        const dateObj = new Date(year, month - 1, day);
+        if (provider === 'ReserveCalifornia') {
+            // Format: https://reservecalifornia.com/park/{parkId}?date=YYYY-MM-DD&night=1
+            return `https://reservecalifornia.com/park/${numericId}?date=${date}&night=1`;
+        }
+        else {
+            // RecreationDotGov
+            // Format: checkin=MM/DD/YYYY&checkout=MM/DD/YYYY (1 night)
+            const checkin = dateObj.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+            const checkoutDate = new Date(year, month - 1, day + 1);
+            const checkout = checkoutDate.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+            return `https://www.recreation.gov/search?entity_id=${numericId}&entity_type=recarea&inventory_type=camping&checkin=${checkin}&checkout=${checkout}`;
+        }
+    };
     const handleScanClick = async () => {
         setIsScanning(true);
         await onScan();
@@ -56616,12 +56637,19 @@ function RecAreaCard({ areaId, area, isFavorite, isDisabled, isAutoDisabled, fav
                 react__WEBPACK_IMPORTED_MODULE_0___default().createElement("button", { className: `disable-button ${(isDisabled || isAutoDisabled) ? 'active' : ''}`, onClick: (e) => { e.stopPropagation(); onToggleDisabled(); }, title: (isDisabled || isAutoDisabled) ? 'Enable in rotation' : 'Disable from rotation', disabled: isSaving }, (isDisabled || isAutoDisabled) ? '✓' : '✕'))),
         react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "card-content" },
             hasAvailability ? (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "availability-info" },
-                react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "booking-buttons" }, topCampgrounds.map((cg, idx) => (cg.facilityId && cg.earliestWeekendDate ? (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("a", { key: idx, href: `https://www.recreation.gov/camping/campgrounds/${cg.facilityId}`, target: "_blank", rel: "noopener noreferrer", className: "booking-button", onClick: (e) => e.stopPropagation() },
-                    react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "booking-button-name" }, cg.name),
-                    react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "booking-button-date" }, new Date(cg.earliestWeekendDate).toLocaleDateString('en-US', {
+                react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "booking-buttons" }, weekendDates.slice(0, 5).map((date, idx) => {
+                    // Parse date in local timezone to avoid UTC offset issues
+                    const [year, month, day] = date.split('-').map(Number);
+                    const dateObj = new Date(year, month - 1, day);
+                    const dayOfWeek = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
+                    const displayDate = dateObj.toLocaleDateString('en-US', {
                         month: 'short',
                         day: 'numeric'
-                    })))) : null))))) : isAutoDisabled ? (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "availability-status no-availability" }, "Disabled (no campgrounds found)")) : isDisabled ? (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "availability-status no-availability" }, "Disabled manually")) : area.scanError ? (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "availability-status scan-error" }, "Scan failed")) : area.lastScanned ? (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "availability-status no-availability" }, "No weekend availability found")) : (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "availability-status not-scanned" }, "Not yet scanned")),
+                    });
+                    return (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("a", { key: idx, href: buildBookingUrl(date), target: "_blank", rel: "noopener noreferrer", className: "booking-button", onClick: (e) => e.stopPropagation() },
+                        react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "booking-button-name" }, dayOfWeek),
+                        react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "booking-button-date" }, displayDate)));
+                })))) : isAutoDisabled ? (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "availability-status no-availability" }, "Disabled (no campgrounds found)")) : isDisabled ? (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "availability-status no-availability" }, "Disabled manually")) : area.scanError ? (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "availability-status scan-error" }, "Scan failed")) : area.lastScanned ? (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "availability-status no-availability" }, "No weekend availability found")) : (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "availability-status not-scanned" }, "Not yet scanned")),
             react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "card-footer" },
                 react__WEBPACK_IMPORTED_MODULE_0___default().createElement("span", { className: "provider-label" }, area.provider || 'Recreation.gov'),
                 react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "footer-right" },
@@ -56780,8 +56808,8 @@ function CampingApp({ token }) {
         const isFavB = favorites.favorites.includes(areaB.id);
         const isDisabledA = favorites.disabled.includes(areaA.id) || (favorites.autoDisabled || []).includes(areaA.id);
         const isDisabledB = favorites.disabled.includes(areaB.id) || (favorites.autoDisabled || []).includes(areaB.id);
-        const hasAvailA = (areaA.topCampgrounds || []).some(cg => cg.earliestWeekendDate);
-        const hasAvailB = (areaB.topCampgrounds || []).some(cg => cg.earliestWeekendDate);
+        const hasAvailA = (areaA.weekendDates || []).length > 0;
+        const hasAvailB = (areaB.weekendDates || []).length > 0;
         const hasErrorA = (areaA.scanError || false) && !isDisabledA;
         const hasErrorB = (areaB.scanError || false) && !isDisabledB;
         const hasNoAvailA = !!areaA.lastScanned && !hasAvailA && !hasErrorA && !isDisabledA;

@@ -104,7 +104,7 @@ def scan_campground_with_camply(campground_id, campground_name, start_date, end_
                 available_dates[date_str] = 0
             available_dates[date_str] += 1
             
-            if campsite.booking_date.weekday() in [4, 5, 6]:
+            if campsite.booking_date.weekday() in [4, 5]:
                 if date_str not in weekend_dates:
                     weekend_dates.append(date_str)
             
@@ -156,7 +156,7 @@ def scan_rec_area_with_camply(rec_area_id, rec_area_name, start_date, end_date, 
         for campsite in campsites:
             cg_name = campsite.facility_name
             date_str = campsite.booking_date.strftime('%Y-%m-%d')
-            is_weekend = campsite.booking_date.weekday() in [4, 5, 6]
+            is_weekend = campsite.booking_date.weekday() in [4, 5]
             
             if cg_name not in by_campground:
                 by_campground[cg_name] = {
@@ -278,7 +278,7 @@ def scan_area_month_by_month(area_data, start_date=None, end_date=None, verbose=
         log(f"  [DRY RUN] Would scan rec area {rec_id}")
         return {
             'success': True,
-            'parsed': {'total_sites': 0, 'campgrounds': [], 'dates': [], 'weekend_dates': []},
+            'parsed': {'total_sites': 0, 'weekend_dates': []},
             'duration': 0
         }
     
@@ -299,14 +299,11 @@ def scan_area_month_by_month(area_data, start_date=None, end_date=None, verbose=
     if not campgrounds:
         return {
             'success': True,
-            'parsed': {'total_sites': 0, 'campgrounds': [], 'dates': [], 'weekend_dates': []},
+            'parsed': {'total_sites': 0, 'weekend_dates': []},
             'duration': time.time() - start_time,
             'no_campgrounds': True,
             'area_id': rec_id
         }
-    
-    # Track campground details including facility IDs
-    campground_details = {}
     
     all_results = {
         'total_sites': 0,
@@ -344,19 +341,6 @@ def scan_area_month_by_month(area_data, start_date=None, end_date=None, verbose=
                 all_results['total_sites'] += result['total_sites']
                 all_results['weekend_dates'].update(result.get('weekend_dates', []))
                 
-                # Process by_campground data
-                for cg_name, cg_data in result.get('by_campground', {}).items():
-                    cg_id = cg_data['facility_id']
-                    if cg_id and cg_id not in campground_details:
-                        campground_details[cg_id] = {
-                            'name': cg_name,
-                            'facility_id': cg_id,
-                            'total_sites': 0,
-                            'weekend_dates': set()
-                        }
-                    if cg_id:
-                        campground_details[cg_id]['total_sites'] += cg_data['sites']
-                        campground_details[cg_id]['weekend_dates'].update(cg_data['weekend_dates'])
                 
                 log(f"  Scanned entire rec area: {month_sites} sites, {month_weekends} weekend dates")
                 successful = len(campgrounds)
@@ -378,17 +362,6 @@ def scan_area_month_by_month(area_data, start_date=None, end_date=None, verbose=
                     month_weekends += len(result.get('weekend_dates', []))
                     all_results['total_sites'] += result['total_sites']
                     all_results['weekend_dates'].update(result.get('weekend_dates', []))
-                    
-                    # Track campground details by ID for later URL building
-                    if cg_id not in campground_details:
-                        campground_details[cg_id] = {
-                            'name': cg_name,
-                            'facility_id': cg_id,
-                            'total_sites': 0,
-                            'weekend_dates': set()
-                        }
-                    campground_details[cg_id]['total_sites'] += result['total_sites']
-                    campground_details[cg_id]['weekend_dates'].update(result.get('weekend_dates', []))
                     
                     successful += 1
                     
@@ -422,29 +395,6 @@ def scan_area_month_by_month(area_data, start_date=None, end_date=None, verbose=
     
     weekend_list = sorted(list(all_results['weekend_dates']))
     
-    # Build topCampgrounds with priority heuristic:
-    # - Filter to campgrounds with weekend availability
-    # - Sort by LEAST sites (popular ones booking up but still have space)
-    # - Include facility ID and earliest weekend date for booking
-    # - Limit to top 5
-    campgrounds_with_weekends = [
-        cg for cg in campground_details.values() 
-        if cg['total_sites'] > 0 and cg['weekend_dates']
-    ]
-    priority_campgrounds = sorted(campgrounds_with_weekends, key=lambda x: x['total_sites'])[:5]
-    
-    top_campgrounds = []
-    for cg in priority_campgrounds:
-        weekend_dates = sorted(cg['weekend_dates'])
-        earliest_weekend = weekend_dates[0] if weekend_dates else None
-        
-        top_campgrounds.append({
-            'name': cg['name'],
-            'sites': cg['total_sites'],
-            'facilityId': cg['facility_id'],
-            'earliestWeekendDate': earliest_weekend
-        })
-    
     duration = time.time() - start_time
     
     log(f"  Total: {all_results['total_sites']} sites, {len(weekend_list)} weekend dates ({duration:.1f}s)")
@@ -466,18 +416,10 @@ def scan_area_month_by_month(area_data, start_date=None, end_date=None, verbose=
         if len(weekend_list) > 10:
             log(f"    ... and {len(weekend_list) - 10} more")
     
-    if top_campgrounds:
-        log(f"  Top campgrounds to book (least → most available):")
-        for cg in top_campgrounds:
-            date_display = f" - {cg['earliestWeekendDate']}" if cg.get('earliestWeekendDate') else ""
-            log(f"    - {cg['name']}: {cg['sites']} sites{date_display}")
-    
     return {
         'success': True,
         'parsed': {
             'total_sites': all_results['total_sites'],
-            'campgrounds': top_campgrounds,
-            'dates': [],
             'weekend_dates': weekend_list[:50]
         },
         'duration': duration,
@@ -525,13 +467,7 @@ def process_notifications(rec_areas, results_by_id, favorites_data, dry_run=Fals
         area = areas_by_id.get(area_id, {})
         parsed = result.get('parsed', {})
         
-        # Get weekend dates from topCampgrounds for comparison
-        prev_dates = set()
-        if area.get('topCampgrounds'):
-            for cg in area['topCampgrounds']:
-                if cg.get('earliestWeekendDate'):
-                    prev_dates.add(cg['earliestWeekendDate'])
-        
+        prev_dates = set(area.get('weekendDates', []))
         curr_dates = set(parsed.get('weekend_dates', []))
         
         if curr_dates == prev_dates:
@@ -669,7 +605,7 @@ def main():
                 favorites_data['autoDisabled'].append(area_id)
         
         area['lastScanned'] = datetime.now().isoformat()
-        area['topCampgrounds'] = parsed['campgrounds']
+        area['weekendDates'] = parsed['weekend_dates'][:10]
         
         horizon = calculate_booking_horizon(parsed['weekend_dates'])
         if horizon:

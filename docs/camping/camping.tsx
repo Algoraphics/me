@@ -43,12 +43,7 @@ interface RecArea {
     provider?: string;
     lastScanned?: string | null;
     bookingHorizon?: number | null;
-    topCampgrounds?: Array<{
-        name: string;
-        sites: number;
-        facilityId?: number;
-        earliestWeekendDate?: string;
-    }>;
+    weekendDates?: string[];
     totalCampgrounds?: number;
     notified?: boolean;
     lastNotifiedAt?: string | null;
@@ -324,10 +319,34 @@ function RecAreaCard({
     onScan: () => void;
 }) {
     const [isScanning, setIsScanning] = React.useState(false);
-    const topCampgrounds = area.topCampgrounds || [];
-    const hasAvailability = topCampgrounds.length > 0 && topCampgrounds.some(cg => cg.earliestWeekendDate);
+    const weekendDates = area.weekendDates || [];
+    const hasAvailability = weekendDates.length > 0;
     const scannable = canScan(areaId);
     const minutesAgo = getMinutesSinceScan(areaId);
+    
+    // Extract numeric rec area ID for URL building
+    const numericId = areaId.replace('recgov-', '').replace('reserveca-', '');
+    const provider = area.provider || 'RecreationDotGov';
+    
+    // Build booking URLs based on provider
+    const buildBookingUrl = (date: string) => {
+        // Parse date in local timezone
+        const [year, month, day] = date.split('-').map(Number);
+        const dateObj = new Date(year, month - 1, day);
+        
+        if (provider === 'ReserveCalifornia') {
+            // Format: https://reservecalifornia.com/park/{parkId}?date=YYYY-MM-DD&night=1
+            return `https://reservecalifornia.com/park/${numericId}?date=${date}&night=1`;
+        } else {
+            // RecreationDotGov
+            // Format: checkin=MM/DD/YYYY&checkout=MM/DD/YYYY (1 night)
+            const checkin = dateObj.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+            const checkoutDate = new Date(year, month - 1, day + 1);
+            const checkout = checkoutDate.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+            
+            return `https://www.recreation.gov/search?entity_id=${numericId}&entity_type=recarea&inventory_type=camping&checkin=${checkin}&checkout=${checkout}`;
+        }
+    };
     
     const handleScanClick = async () => {
         setIsScanning(true);
@@ -374,26 +393,30 @@ function RecAreaCard({
                 {hasAvailability ? (
                     <div className="availability-info">
                         <div className="booking-buttons">
-                            {topCampgrounds.map((cg, idx) => (
-                                cg.facilityId && cg.earliestWeekendDate ? (
+                            {weekendDates.slice(0, 5).map((date, idx) => {
+                                // Parse date in local timezone to avoid UTC offset issues
+                                const [year, month, day] = date.split('-').map(Number);
+                                const dateObj = new Date(year, month - 1, day);
+                                const dayOfWeek = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
+                                const displayDate = dateObj.toLocaleDateString('en-US', { 
+                                    month: 'short', 
+                                    day: 'numeric' 
+                                });
+                                
+                                return (
                                     <a
                                         key={idx}
-                                        href={`https://www.recreation.gov/camping/campgrounds/${cg.facilityId}`}
+                                        href={buildBookingUrl(date)}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="booking-button"
                                         onClick={(e) => e.stopPropagation()}
                                     >
-                                        <div className="booking-button-name">{cg.name}</div>
-                                        <div className="booking-button-date">
-                                            {new Date(cg.earliestWeekendDate).toLocaleDateString('en-US', { 
-                                                month: 'short', 
-                                                day: 'numeric' 
-                                            })}
-                                        </div>
+                                        <div className="booking-button-name">{dayOfWeek}</div>
+                                        <div className="booking-button-date">{displayDate}</div>
                                     </a>
-                                ) : null
-                            ))}
+                                );
+                            })}
                         </div>
                     </div>
                 ) : isAutoDisabled ? (
@@ -634,8 +657,8 @@ function CampingApp({ token }: { token: string }) {
         const isFavB = favorites.favorites.includes(areaB.id);
         const isDisabledA = favorites.disabled.includes(areaA.id) || (favorites.autoDisabled || []).includes(areaA.id);
         const isDisabledB = favorites.disabled.includes(areaB.id) || (favorites.autoDisabled || []).includes(areaB.id);
-        const hasAvailA = (areaA.topCampgrounds || []).some(cg => cg.earliestWeekendDate);
-        const hasAvailB = (areaB.topCampgrounds || []).some(cg => cg.earliestWeekendDate);
+        const hasAvailA = (areaA.weekendDates || []).length > 0;
+        const hasAvailB = (areaB.weekendDates || []).length > 0;
         const hasErrorA = (areaA.scanError || false) && !isDisabledA;
         const hasErrorB = (areaB.scanError || false) && !isDisabledB;
         const hasNoAvailA = !!areaA.lastScanned && !hasAvailA && !hasErrorA && !isDisabledA;
