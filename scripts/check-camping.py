@@ -8,7 +8,7 @@ import io
 import requests
 import signal
 from base64 import b64decode
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import urllib.request
 from zoneinfo import ZoneInfo
@@ -372,7 +372,8 @@ def scan_area_month_by_month(area_data, start_date=None, end_date=None, verbose=
     all_results = {
         'total_sites': 0,
         'weekend_dates': set(),
-        'failed_campgrounds': []
+        'failed_campgrounds': [],
+        'any_success': False
     }
     
     if start_date and end_date:
@@ -404,7 +405,8 @@ def scan_area_month_by_month(area_data, start_date=None, end_date=None, verbose=
                 month_weekends = len(result.get('weekend_dates', []))
                 all_results['total_sites'] += result['total_sites']
                 all_results['weekend_dates'].update(result.get('weekend_dates', []))
-                
+                all_results['any_success'] = True
+                all_results['consecutive_failures'] = 0
                 
                 log(f"  Scanned entire rec area: {month_sites} sites, {month_weekends} weekend dates")
                 successful = len(campgrounds)
@@ -426,6 +428,7 @@ def scan_area_month_by_month(area_data, start_date=None, end_date=None, verbose=
                     month_weekends += len(result.get('weekend_dates', []))
                     all_results['total_sites'] += result['total_sites']
                     all_results['weekend_dates'].update(result.get('weekend_dates', []))
+                    all_results['any_success'] = True
                     
                     successful += 1
                     
@@ -453,6 +456,7 @@ def scan_area_month_by_month(area_data, start_date=None, end_date=None, verbose=
         
         if month_weekends > 0:
             log(f"  ✓ Found weekend availability! Stopping scan.")
+            all_results['any_success'] = True
             break
         
         if end_date:
@@ -461,6 +465,15 @@ def scan_area_month_by_month(area_data, start_date=None, end_date=None, verbose=
     weekend_list = sorted(list(all_results['weekend_dates']))
     
     duration = time.time() - start_time
+    
+    # If all attempts failed (no successful queries), return error
+    if not all_results['any_success'] and provider == 'ReserveCalifornia':
+        log(f"  All scan attempts failed ({duration:.1f}s)")
+        return {
+            'success': False,
+            'error': 'All months timed out or failed',
+            'duration': duration
+        }
     
     log(f"  Total: {all_results['total_sites']} sites, {len(weekend_list)} weekend dates ({duration:.1f}s)")
     
@@ -520,7 +533,7 @@ def process_notifications(rec_areas, results_by_id, favorites_data, dry_run=Fals
         return
     
     quiet = is_quiet_hours()
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     
     areas_by_id = {area['id']: area for area in rec_areas}
     areas_to_notify = {}
@@ -668,7 +681,7 @@ def main():
         if not result['success']:
             log(f"  Error scanning {area_data.get('name')}: {result.get('error', 'Unknown error')}")
             area['scanError'] = True
-            area['lastScanned'] = datetime.now().isoformat()
+            area['lastScanned'] = datetime.now(timezone.utc).isoformat()
             scan_success = False
             continue
         
@@ -684,7 +697,7 @@ def main():
             if area_id not in favorites_data['autoDisabled']:
                 favorites_data['autoDisabled'].append(area_id)
         
-        area['lastScanned'] = datetime.now().isoformat()
+        area['lastScanned'] = datetime.now(timezone.utc).isoformat()
         area['weekendDates'] = parsed['weekend_dates'][:10]
         
         horizon = calculate_booking_horizon(parsed['weekend_dates'])

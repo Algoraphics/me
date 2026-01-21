@@ -494,11 +494,11 @@ body {
 }
 
 .availability-status.no-availability {
-    color: #f87171;
+    color: #fbbf24;
 }
 
 .availability-status.scan-error {
-    color: #fb923c;
+    color: #f87171;
 }
 
 .availability-status.not-scanned {
