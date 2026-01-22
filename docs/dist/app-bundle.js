@@ -455,21 +455,22 @@ const TabGroup = (props) => {
     const handleTogglePanel = () => {
         setActiveDemo(prev => !prev);
     };
+    const handleTabChange = (tab) => {
+        setActiveTab(tab);
+        if (tab === "Demo") {
+            window.controlActivateDemo?.();
+        }
+        else {
+            setActiveDemo(false);
+            window.controlDeactivateDemo?.();
+        }
+    };
     return (react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_styles__WEBPACK_IMPORTED_MODULE_7__.TabPage, { id: "window", maxWidth: props.isMobile ? "625px" : "1200px" },
         react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_styles__WEBPACK_IMPORTED_MODULE_7__.TabButtons, { className: "tab-buttons" },
-            react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_styles__WEBPACK_IMPORTED_MODULE_7__.FixedButtons, null, tabs.map((type) => (react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_styles__WEBPACK_IMPORTED_MODULE_7__.Tab, { padding: props.isMobile ? "8 12" : "8 20", border: props.isMobile ? "solid" : "none", key: type, activeTab: activeTab === type, onClick: () => {
-                    setActiveTab(type);
-                    if (type === "Demo") {
-                        window.controlActivateDemo?.();
-                    }
-                    else {
-                        setActiveDemo(false);
-                        window.controlDeactivateDemo?.();
-                    }
-                } }, type)))),
+            react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_styles__WEBPACK_IMPORTED_MODULE_7__.FixedButtons, null, tabs.map((type) => (react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_styles__WEBPACK_IMPORTED_MODULE_7__.Tab, { padding: props.isMobile ? "8 12" : "8 20", border: props.isMobile ? "solid" : "none", key: type, activeTab: activeTab === type, onClick: () => handleTabChange(type) }, type)))),
             react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_ControlPanel__WEBPACK_IMPORTED_MODULE_5__["default"], { isMobile: props.isMobile, isActive: activeTab === "Demo", onTogglePanel: handleTogglePanel })),
         react__WEBPACK_IMPORTED_MODULE_0___default().createElement("br", null),
-        react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_styles__WEBPACK_IMPORTED_MODULE_7__.Window, { id: "tabwindow", demoActive: activeDemo, fontSize: props.isMobile ? "14px" : "17px", radius: props.isMobile ? "0%" : "2%" }, getWindow(activeTab, props.isMobile, setActiveTab, zoomImg, setZoomImg))));
+        react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_styles__WEBPACK_IMPORTED_MODULE_7__.Window, { id: "tabwindow", demoActive: activeDemo, fontSize: props.isMobile ? "14px" : "17px", radius: props.isMobile ? "0%" : "2%" }, getWindow(activeTab, props.isMobile, handleTabChange, zoomImg, setZoomImg))));
 };
 /* Track full page width to determine if we should resize for mobile */
 const WebsiteContainer = () => {

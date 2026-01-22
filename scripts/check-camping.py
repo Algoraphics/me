@@ -466,12 +466,11 @@ def scan_area_month_by_month(area_data, start_date=None, end_date=None, verbose=
     
     duration = time.time() - start_time
     
-    # If all attempts failed (no successful queries), return error
-    if not all_results['any_success'] and provider == 'ReserveCalifornia':
+    if not all_results['any_success']:
         log(f"  All scan attempts failed ({duration:.1f}s)")
         return {
             'success': False,
-            'error': 'All months timed out or failed',
+            'error': 'All queries timed out or failed',
             'duration': duration
         }
     
@@ -663,7 +662,6 @@ def main():
         return 0
     
     results_by_id = {}
-    scan_success = True
     areas_by_id = {area['id']: area for area in rec_areas}
     
     for area_data in areas_to_scan:
@@ -682,7 +680,6 @@ def main():
             log(f"  Error scanning {area_data.get('name')}: {result.get('error', 'Unknown error')}")
             area['scanError'] = True
             area['lastScanned'] = datetime.now(timezone.utc).isoformat()
-            scan_success = False
             continue
         
         results_by_id[area_id] = result
@@ -715,7 +712,7 @@ def main():
     
     process_notifications(rec_areas, results_by_id, favorites_data, args.dry_run)
     
-    if not args.dry_run and scan_success:
+    if not args.dry_run:
         if args.rotation:
             disabled = set(favorites_data.get('disabled', [])) | set(favorites_data.get('autoDisabled', []))
             enabled = [area for area in rec_areas if area['id'] not in disabled]
@@ -726,7 +723,6 @@ def main():
                 scan_state['currentIndex'] = new_index
                 log(f"Updated rotation index to {new_index}")
         
-        # Extract scan state from areas before saving
         for area in rec_areas:
             area_id = area['id']
             state_info = {}
@@ -747,7 +743,6 @@ def main():
             if state_info:
                 scan_state['areas'][area_id] = state_info
         
-        # Save all state files
         save_json(REC_AREAS_FILE, rec_areas_metadata)
         save_json(SCAN_STATE_FILE, scan_state)
         save_json(FAVORITES_FILE, favorites_data)

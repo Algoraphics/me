@@ -58,6 +58,16 @@ const TabGroup = (props: { isMobile: boolean; zoomImg: string; setZoomImg: (img:
     const handleTogglePanel = () => {
         setActiveDemo(prev => !prev);
     };
+
+    const handleTabChange = (tab: string) => {
+        setActiveTab(tab);
+        if (tab === "Demo") {
+            window.controlActivateDemo?.();
+        } else {
+            setActiveDemo(false);
+            window.controlDeactivateDemo?.();
+        }
+    };
     
     return (
         <TabPage id="window" maxWidth={props.isMobile ? "625px" : "1200px"}>
@@ -69,15 +79,7 @@ const TabGroup = (props: { isMobile: boolean; zoomImg: string; setZoomImg: (img:
                             border={props.isMobile ? "solid" : "none"}
                             key={type}
                             activeTab={activeTab === type}
-                            onClick={() => {
-                                setActiveTab(type);
-                                if (type === "Demo") {
-                                    window.controlActivateDemo?.();
-                                } else {
-                                    setActiveDemo(false);
-                                    window.controlDeactivateDemo?.();
-                                }
-                            }}
+                            onClick={() => handleTabChange(type)}
                         >
                             {type}
                         </Tab>
@@ -90,7 +92,7 @@ const TabGroup = (props: { isMobile: boolean; zoomImg: string; setZoomImg: (img:
                 fontSize={props.isMobile ? "14px" : "17px"}
                 radius={props.isMobile ? "0%" : "2%"}
             >
-                {getWindow(activeTab, props.isMobile, setActiveTab, zoomImg, setZoomImg)}
+                {getWindow(activeTab, props.isMobile, handleTabChange, zoomImg, setZoomImg)}
             </Window>
         </TabPage>
     );
