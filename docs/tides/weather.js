@@ -1,16 +1,6 @@
 const SF_LATITUDE = 37.7749;
 const SF_LONGITUDE = -122.4194;
 
-function updateLastUpdated() {
-    const now = new Date();
-    const timeString = now.toLocaleTimeString('en-US', { 
-        hour: 'numeric', 
-        minute: '2-digit',
-        hour12: true 
-    });
-    document.getElementById('last-updated').textContent = `Last updated: ${timeString}`;
-}
-
 const GOLDEN_GATE_STATION = '9414290';
 const TIDE_HEIGHT_THRESHOLD = 0.5;
 const SUPER_LOW_TIDE_THRESHOLD = -0.5;
@@ -130,6 +120,11 @@ function renderTideChart(predictions) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            layout: {
+                padding: {
+                    right: 20
+                }
+            },
             interaction: {
                 intersect: false,
                 mode: 'index'
@@ -497,7 +492,6 @@ async function loadTidePooling() {
     try {
         const goodDays = await analyzeGoodTidePoolingDays();
         displayTidePoolingDays(goodDays);
-        updateLastUpdated();
         loading.style.display = 'none';
     } catch (err) {
         loading.style.display = 'none';
