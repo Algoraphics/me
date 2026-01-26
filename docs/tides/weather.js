@@ -267,8 +267,6 @@ async function fetchBulkSunsetData(startDate, endDate) {
         }
         
         const data = await response.json();
-        console.log('Sunset API response sample:', data.results?.[0]);
-        
         const sunsetMap = {};
         if (data.results) {
             data.results.forEach(day => {
@@ -295,7 +293,6 @@ async function fetchBulkSunsetData(startDate, endDate) {
             });
         }
         
-        console.log('Sunset map sample:', Object.entries(sunsetMap)[0]);
         return sunsetMap;
     } catch (error) {
         console.error('Error fetching sunset data:', error);
@@ -351,9 +348,6 @@ async function analyzeGoodTidePoolingDays() {
             fetchBulkSunsetData(now, endDate)
         ]);
         
-        console.log('Total tides received:', tides.length);
-        console.log('Sunset map entries:', Object.keys(sunsetMap).length);
-        
         const dayData = {};
         let lowTideCount = 0;
         
@@ -383,24 +377,18 @@ async function analyzeGoodTidePoolingDays() {
             });
         }
         
-        console.log('Low tides below threshold:', lowTideCount);
-        console.log('Days with low tides:', Object.keys(dayData).length);
-        
         const goodDays = [];
         
         for (const dateKey in dayData) {
             const day = dayData[dateKey];
             
             if (!day.sunset) {
-                console.log('Missing sunset for:', dateKey);
                 continue;
             }
             
             for (const tide of day.lowTides) {
                 const tideHour = tide.time.getHours() + tide.time.getMinutes() / 60;
                 const sunsetHour = day.sunset.getHours() + day.sunset.getMinutes() / 60;
-                
-                console.log(`${dateKey}: Tide=${tideHour.toFixed(2)}h, Sunset=${sunsetHour.toFixed(2)}h, Weekend=${day.isWeekend}`);
                 
                 let isGoodTime = false;
                 
@@ -411,7 +399,6 @@ async function analyzeGoodTidePoolingDays() {
                 }
                 
                 if (isGoodTime) {
-                    console.log('✓ GOOD TIME FOUND');
                     goodDays.push({
                         date: day.date,
                         tideTime: tide.time,
@@ -421,7 +408,6 @@ async function analyzeGoodTidePoolingDays() {
             }
         }
         
-        console.log('Total good days found:', goodDays.length);
         goodDays.sort((a, b) => a.date - b.date);
         
         return goodDays;
