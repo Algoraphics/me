@@ -6,22 +6,24 @@
     <title>SF Tide Pooling</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="../emoji/blob-emoji.css">
+    <script src="chart.min.js"></script>
+    <script src="chartjs-adapter-date-fns.min.js"></script>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1><img src="../emoji/blob/emoji_u1f30a.svg" class="blob-emoji"> SF Tide Pooling Guide</h1>
+            <h1><img src="../emoji/blob/emoji_u1f30a.svg" class="blob-emoji"> Tide Pooling</h1>
             <div id="last-updated"></div>
         </header>
 
         <main>
-            <section class="tide-pooling">
-                <h2>Good Tide Pooling Days</h2>
-                <div id="tide-loading" class="tide-status">Loading tide data...</div>
-                <div id="tide-error" class="tide-status" style="display: none;">Unable to load tide data</div>
-                <div class="tide-list" id="tide-container">
-                </div>
-            </section>
+            <div class="tide-chart-container">
+                <canvas id="tide-chart"></canvas>
+            </div>
+            <div id="tide-loading" class="tide-status">Loading tide data...</div>
+            <div id="tide-error" class="tide-status" style="display: none;">Unable to load tide data</div>
+            <div class="tide-list" id="tide-container">
+            </div>
         </main>
     </div>
 
