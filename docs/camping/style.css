@@ -1,0 +1,724 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #0f1419;
+    color: #e0e0e0;
+    line-height: 1.6;
+}
+
+#login-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    background: linear-gradient(135deg, #0f1419 0%, #1a2632 100%);
+}
+
+#login-box {
+    background: #1a2632;
+    padding: 40px;
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    text-align: center;
+    max-width: 400px;
+    border: 1px solid #2d3f50;
+}
+
+#login-box h1 {
+    color: #4ade80;
+    margin-bottom: 30px;
+    font-size: 2.5em;
+    font-weight: 600;
+}
+
+#login-form {
+    display: block;
+}
+
+#token-input {
+    width: 100%;
+    max-width: 300px;
+    padding: 12px 16px;
+    font-size: 16px;
+    border: 2px solid #2d3f50;
+    border-radius: 8px;
+    background: #0f1419;
+    color: #e0e0e0;
+    margin: 0 auto 20px auto;
+    display: block;
+    font-family: inherit;
+}
+
+#token-input:focus {
+    outline: none;
+    border-color: #4ade80;
+}
+
+#loading-message {
+    color: #4ade80;
+    margin-top: 15px;
+}
+
+#login-button {
+    width: 100%;
+    max-width: 300px;
+    padding: 12px;
+    font-size: 16px;
+    font-weight: 600;
+    background: #4ade80;
+    color: #0f1419;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: block;
+    margin: 0 auto;
+    font-family: inherit;
+}
+
+#login-button:hover {
+    background: #22c55e;
+    transform: translateY(-1px);
+}
+
+#error-message {
+    color: #f87171;
+    margin-top: 15px;
+}
+
+#loading-screen {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    color: #4ade80;
+    font-size: 1.2em;
+}
+
+#camping-app {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+#camping-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+}
+
+#camping-header > div:first-child {
+    text-align: center;
+    flex: 1;
+}
+
+.jump-to-bottom-button {
+    background-color: transparent;
+    border: 1px solid #4b5563;
+    color: #e8e4df;
+    font-size: 1.5em;
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.jump-to-bottom-button:hover {
+    background-color: rgba(232, 228, 223, 0.1);
+    border-color: #6b7280;
+}
+
+#camping-header h1 {
+    color: #4ade80;
+    font-size: 2em;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.stats {
+    color: #6b7280;
+    font-size: 0.9em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.scan-controls {
+    background: #1a2632;
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 16px;
+    border: 1px solid #2d3f50;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.settings-row {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+}
+
+.favorites-info {
+    color: #6b7280;
+    font-size: 0.85em;
+    padding: 8px 12px;
+    background: #0f1419;
+    border-radius: 6px;
+}
+
+.favorites-limit-label {
+    color: #6b7280;
+    font-size: 0.85em;
+    text-align: center;
+    padding: 8px 12px;
+    margin-bottom: 12px;
+    background: #1a2632;
+    border-radius: 8px;
+    border: 1px solid #2d3f50;
+}
+
+.scan-actions {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.run-scan-button {
+    padding: 10px 20px;
+    background: #4ade80;
+    color: #0f1419;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 14px;
+    font-family: inherit;
+    transition: all 0.2s;
+}
+
+.run-scan-button:hover:not(:disabled) {
+    background: #22c55e;
+    transform: translateY(-1px);
+}
+
+.run-scan-button:disabled {
+    background: #2d3f50;
+    color: #6b7280;
+    cursor: not-allowed;
+}
+
+.scan-message {
+    color: #9ca3af;
+    font-size: 0.9em;
+}
+
+.scan-message.complete {
+    color: #4ade80;
+}
+
+.refresh-link {
+    background: transparent;
+    border: none;
+    color: #4ade80;
+    cursor: pointer;
+    text-decoration: underline;
+    font-size: inherit;
+    font-family: inherit;
+    padding: 0;
+}
+
+.refresh-link:hover {
+    color: #22c55e;
+}
+
+.scan-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    color: #9ca3af;
+    font-size: 0.9em;
+}
+
+.scan-toggle input {
+    accent-color: #4ade80;
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+.scan-status {
+    color: #6b7280;
+    font-size: 0.85em;
+    margin-left: 4px;
+}
+
+.notify-status {
+    color: #6b7280;
+    font-size: 0.85em;
+}
+
+.search-container {
+    margin-bottom: 16px;
+}
+
+.search-input {
+    width: 100%;
+    padding: 12px 16px;
+    border: 2px solid #2d3f50;
+    border-radius: 10px;
+    background: #1a2632;
+    color: #e0e0e0;
+    font-size: 16px;
+    font-family: inherit;
+    transition: border-color 0.2s;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: #4ade80;
+}
+
+.search-input::placeholder {
+    color: #6b7280;
+}
+
+.tab-bar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    background: #1a2632;
+    padding: 6px;
+    border-radius: 12px;
+}
+
+.tab-button {
+    flex: 1;
+    padding: 12px 20px;
+    background: transparent;
+    color: #9ca3af;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 15px;
+    transition: all 0.2s;
+    font-family: inherit;
+}
+
+.tab-button:hover {
+    background: #2d3f50;
+    color: #e0e0e0;
+}
+
+.tab-button.active {
+    background: #4ade80;
+    color: #0f1419;
+}
+
+.saving-indicator {
+    text-align: center;
+    color: #4ade80;
+    padding: 8px;
+    margin-bottom: 12px;
+    font-size: 0.9em;
+}
+
+#rec-areas-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.empty-state {
+    text-align: center;
+    color: #6b7280;
+    padding: 60px 20px;
+    background: #1a2632;
+    border-radius: 12px;
+    border: 1px dashed #2d3f50;
+}
+
+.rec-area-card {
+    background: #1a2632;
+    border-radius: 12px;
+    padding: 16px 20px;
+    border: 1px solid #2d3f50;
+    transition: all 0.2s;
+}
+
+
+.rec-area-card:hover {
+    border-color: #4ade80;
+    box-shadow: 0 4px 12px rgba(74, 222, 128, 0.1);
+}
+
+.rec-area-card.disabled {
+    opacity: 0.5;
+    background: #111827;
+    border-color: #1f2937;
+}
+
+.rec-area-card.disabled:hover {
+    transform: none;
+    box-shadow: none;
+    border-color: #1f2937;
+}
+
+.distance, .campground-count, .drive-time, .booking-horizon {
+    color: #6b7280;
+    font-size: 0.85em;
+    background: #0f1419;
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+
+.favorite-button {
+    background: transparent;
+    border: none;
+    font-size: 1.5em;
+    cursor: pointer;
+    color: #4b5563;
+    transition: all 0.2s;
+    padding: 4px;
+    line-height: 1;
+}
+
+.favorite-button:hover {
+    color: #fbbf24;
+    transform: scale(1.1);
+}
+
+.favorite-button.active {
+    color: #fbbf24;
+}
+
+.favorite-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.disable-button {
+    background: transparent;
+    border: none;
+    font-size: 1.2em;
+    cursor: pointer;
+    color: #4b5563;
+    transition: all 0.2s;
+    padding: 4px;
+    line-height: 1;
+}
+
+.disable-button:hover {
+    color: #f87171;
+    transform: scale(1.1);
+}
+
+.disable-button.active {
+    color: #f87171;
+}
+
+.notify-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-size: 0.85em;
+    color: #9ca3af;
+}
+
+.notify-toggle input {
+    accent-color: #4ade80;
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+.notify-label {
+    user-select: none;
+}
+
+.dates-list {
+    margin-bottom: 8px;
+}
+
+.dates-label {
+    color: #6b7280;
+    margin-right: 8px;
+}
+
+.dates-value {
+    color: #4ade80;
+}
+
+.scan-status {
+    margin-bottom: 8px;
+}
+
+.scan-label {
+    color: #6b7280;
+    margin-right: 8px;
+}
+
+.scan-value {
+    color: #9ca3af;
+}
+
+.availability-info {
+    margin-bottom: 8px;
+}
+
+.availability-status {
+    font-weight: 500;
+    margin-bottom: 4px;
+}
+
+.availability-status.available {
+    color: #4ade80;
+}
+
+.availability-status.no-availability {
+    color: #fbbf24;
+}
+
+.availability-status.scan-error {
+    color: #f87171;
+}
+
+.availability-status.not-scanned {
+    color: #6b7280;
+}
+
+.booking-buttons {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.booking-button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px 12px;
+    background: #1f2937;
+    border: 1px solid #374151;
+    border-radius: 6px;
+    text-decoration: none;
+    color: #e5e7eb;
+    transition: all 0.2s;
+    cursor: pointer;
+    min-width: 120px;
+    height: 80px;
+    box-sizing: border-box;
+}
+
+.booking-button:hover {
+    background: #374151;
+    border-color: #4ade80;
+}
+
+.booking-button.image-button {
+    padding: 0;
+    overflow: hidden;
+    justify-content: center;
+    max-width: 160px;
+}
+
+.booking-button.image-button img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    display: block;
+}
+
+.booking-button-name {
+    font-size: 0.85em;
+    font-weight: 500;
+    text-align: center;
+    margin-bottom: 4px;
+}
+
+.booking-button-date {
+    font-size: 0.75em;
+    color: #4ade80;
+    font-weight: 600;
+}
+
+.provider-label {
+    color: #6b7280;
+    font-size: 0.8em;
+}
+
+.footer-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.last-scanned {
+    color: #6b7280;
+    font-size: 0.8em;
+}
+
+.card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 12px;
+    gap: 12px;
+}
+
+.scan-button {
+    padding: 6px 14px;
+    background: #4ade80;
+    color: #0f1419;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.85em;
+    font-family: inherit;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.scan-button:hover:not(:disabled) {
+    background: #22c55e;
+    transform: translateY(-1px);
+}
+
+.scan-button:disabled {
+    background: #2d3f50;
+    color: #6b7280;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.scan-button.on-cooldown {
+    background: #2d3f50;
+    color: #6b7280;
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 12px;
+}
+
+.card-title {
+    flex: 1;
+    min-width: 0;
+}
+
+.card-title h3 {
+    color: #f0fdf4;
+    font-size: 1.1em;
+    font-weight: 600;
+    margin: 0;
+    display: inline;
+    margin-right: 12px;
+}
+
+.card-meta {
+    display: inline-flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.card-content {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.card-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+}
+
+@media (max-width: 600px) {
+    #camping-app {
+        padding: 16px;
+    }
+    
+    #camping-header h1 {
+        font-size: 1.6em;
+    }
+    
+    .rec-area-card {
+        position: relative;
+    }
+    
+    .card-actions {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+    }
+    
+    .booking-buttons {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+    
+    .booking-button,
+    .booking-button.image-button {
+        min-width: 0;
+        max-width: 100%;
+        width: 100%;
+    }
+    
+    .tab-button {
+        padding: 10px 12px;
+        font-size: 14px;
+    }
+}
+
+.scroll-to-top-container {
+    display: flex;
+    justify-content: center;
+    padding: 32px 0;
+    margin-top: 24px;
+}
+
+.jump-to-top-button {
+    background-color: transparent;
+    border: 1px solid #4b5563;
+    color: #e8e4df;
+    font-size: 1.5em;
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.jump-to-top-button:hover {
+    background-color: rgba(232, 228, 223, 0.1);
+    border-color: #6b7280;
+}
+

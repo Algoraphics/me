@@ -1,0 +1,17 @@
+.blob-emoji {
+    width: 1.2em;
+    height: 1.2em;
+    vertical-align: -0.2em;
+    display: inline-block;
+}
+
+.blob-emoji-lg {
+    width: 1.5em;
+    height: 1.5em;
+}
+
+.blob-emoji-xl {
+    width: 2em;
+    height: 2em;
+}
+

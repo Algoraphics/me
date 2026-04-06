@@ -1,0 +1,16 @@
+@import url(https://fonts.googleapis.com/css?family=Montserrat:700,400);
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;600&display=swap');
+
+body {
+    display: flex;
+    justify-content: center;
+    background: #212121;
+    font-family: 'IBM Plex Sans', sans-serif;
+    line-height: 1.65;
+}
+
+h2 {
+    font-family: 'Montserrat', sans-serif;
+    border-left: 3px solid yellow;
+    padding-left: 12px;
+}

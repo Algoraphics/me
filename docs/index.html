@@ -1,0 +1,482 @@
+<head>
+    <meta charset="utf-8">
+    <title>Ethan Rabb: The Website</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <link rel="shortcut icon" href="Exbot.jpg" type="image/x-icon" />
+    <script>
+        // Hardcoded here because we need to set the z-index manually for github pages
+        // -- https://xemantic.github.io/shader-web-background/
+        const shaderWebBackground = {}; (() => {
+            'use strict'; const t = (a, b) => {
+                b.initHalfFloatRGBATexture(b.width, b.height); a.texParameteri(a.TEXTURE_2D,
+                    a.TEXTURE_MIN_FILTER, a.LINEAR); a.texParameteri(a.TEXTURE_2D, a.TEXTURE_MAG_FILTER,
+                        a.LINEAR); a.texParameteri(a.TEXTURE_2D, a.TEXTURE_WRAP_S, a.CLAMP_TO_EDGE); a.texParameteri(a.TEXTURE_2D,
+                            a.TEXTURE_WRAP_T, a.CLAMP_TO_EDGE)
+            }, x = (a, b) => {
+                console.warn("shader-web-background cannot shade, adding fallback CSS classes");
+                document.documentElement.classList.add("shader-web-background-fallback"); b.classList.add("shader-web-background-fallback");
+                if (a instanceof shaderWebBackground.GlError) console.warn("Not sufficient WebGL support:",
+                    a); else throw a;
+            };
+            function y(a, b) { if (!a) throw new shaderWebBackground.ConfigError(b); }
+            function z(a) {
+                y(a instanceof HTMLCanvasElement, "config.canvas must be instance of canvas");
+                return a
+            }
+            function A() {
+                const a = document.createElement("canvas"), b = a.style; a.id = "shader-web-background"; b.width =
+                    "100vw"; b.height = "100vh"; b.position = "fixed"; b.top = "0"; b.left = "0"; b.zIndex = 0; return a
+            }
+            function B(a, b, c) {
+                y(a instanceof HTMLScriptElement && a.type === b, 'Shader source element of id "' +
+                    c + '" should be of type: <script type="' + (b + '" id="' + c + '">'))
+            }
+            function D(a) {
+                const b = document.getElementById(a); y(b, 'Missing shader source: <script type="x-shader/x-fragment" id="' +
+                    (a + '">')); B(b, "x-shader/x-fragment", a); return b.text
+            }
+            function E(a) {
+                a += "Vertex"; const b = document.getElementById(a); return b ? (B(b, "x-shader/x-vertex",
+                    a), b.text) : "attribute vec2 V;void main(){gl_Position=vec4(V,0,1);}"
+            }
+            function F(a, b) { "loading" !== document.readyState ? b() : window.addEventListener(a, b) }
+            class G {
+                constructor(a, b, c, d) {
+                    this.g = c; const l = a.gl; this.h = () => {
+                        for (const f of d) f.u(l,
+                            f.location, b)
+                    }; this.i = () => {
+                        var f = c.v, h = a.gl; h.bindBuffer(h.ARRAY_BUFFER, a.j); h.enableVertexAttribArray(f);
+                        h.vertexAttribPointer(f, 2, h.FLOAT, !1, 0, 0); h.drawArrays(h.TRIANGLE_STRIP, 0, 4); h.disableVertexAttribArray(f);
+                        h.bindBuffer(h.ARRAY_BUFFER, null); f = a.gl; for (h = 0; h < a.g; h++)f.activeTexture(f.TEXTURE0 +
+                            h), f.bindTexture(f.TEXTURE_2D, null); a.g = 0
+                    }
+                }
+            }
+            function H(a) {
+                var b = { antialias: !1, depth: !1, alpha: !1 }; try { return new I(a, b) } catch (c) {
+                    throw new shaderWebBackground.GlError(c.message);
+                }
+            }
+            function J(a, b, c, d, l, f) {
+                function h(e, m, n) {
+                    try {
+                        {
+                            var k = p; const q = k.gl, P = K(k, e, q.VERTEX_SHADER, m),
+                                Q = K(k, e, q.FRAGMENT_SHADER, n), v = q.createProgram(); q.attachShader(v, P); q.attachShader(v,
+                                    Q); q.linkProgram(v); var r = v
+                        } return r
+                    } catch (q) {
+                        throw new shaderWebBackground.ConfigError(q.message);
+                    }
+                } const p = H(a), w = [], g = {
+                    gl: p.gl, canvas: a, width: 0, height: 0, cssPixelRatio: 0, cssWidth: 0,
+                    cssHeight: 0, isOverShader: (e, m) => {
+                        const n = a.getBoundingClientRect(); return e >= n.left &&
+                            e <= n.right && m >= n.top && m <= n.bottom
+                    }, toShaderX: e => (e - a.getBoundingClientRect().left) *
+                        g.cssPixelRatio + .5, toShaderY: e => a.height - (e - a.getBoundingClientRect().top) * g.cssPixelRatio -
+                            .5, s: () => g.cssWidth !== a.clientWidth || g.cssHeight !== a.clientHeight ? (g.resize(), !0) :
+                                !1, resize: () => {
+                                    const e = window.devicePixelRatio || 1, m = a.clientWidth, n = a.clientHeight,
+                                        k = Math.floor(m * e), r = Math.floor(n * e); a.width = k; a.height = r; g.width = k; g.height = r; g.cssPixelRatio =
+                                            e; g.cssWidth = m; g.cssHeight = n; p.gl.viewport(0, 0, p.canvas.width, p.canvas.height); for (const q of w) q.g.l(k,
+                                                r)
+                                }, texture: (e, m) => {
+                                    {
+                                        var n = p; const k = n.gl; m = m instanceof L ? m.g : m; k.activeTexture(k.TEXTURE0 +
+                                            n.g); k.bindTexture(k.TEXTURE_2D, m); k.uniform1i(e, n.g++)
+                                    }
+                                }, buffers: {}, initHalfFloatRGBATexture: (e,
+                                    m) => { p.h.g(e, m) }
+                }, R = Object.keys(b).length - 1; let S = 0; for (const e in b) {
+                    if (S++ < R) {
+                        const k =
+                            b[e].texture || t; g.buffers[e] = M(p, () => { k(p.gl, g) })
+                    } const m = N(p, h(e, E(e), D(e)), g.buffers[e]),
+                        n = b[e].uniforms || {}; var u = Object.keys(n); for (const k of m.m) y(n[k.name], 'No configuration for uniform "' +
+                            k.name + '" defined in shader "' + e + '"'), u = u.filter(r => r !== k.name); 0 !== u.length && console.warn('Extra uniforms configured for shader "' +
+                                e + '", which are not present in the shader code - might have been removed by GLSL compiler if not used: ' +
+                                u.join(", ")); u = m.m.map(k => ({ location: k.location, u: n[k.name] })); w.push(new G(p, g,
+                                    m, u))
+                } const C = () => {
+                    g.s() && d && d(g.width, g.height, g); l && l(g); for (const e of w) e.g.i(e.h,
+                        e.i); f && f(g); requestAnimationFrame(C)
+                }; F("load", () => {
+                    g.resize(); c && c(g); d && d(g.width,
+                        g.height, g); requestAnimationFrame(C)
+                }); return g
+            }
+            shaderWebBackground.Error = class extends Error { constructor(a) { super(a); this.name = "shaderWebBackground.Error" } };
+            shaderWebBackground.ConfigError = class extends shaderWebBackground.Error {
+                constructor(a) {
+                    super(a);
+                    this.name = "shaderWebBackground.ConfigError"
+                }
+            };
+            shaderWebBackground.GlError = class extends shaderWebBackground.Error {
+                constructor(a) {
+                    super(a); this.name =
+                        "shaderWebBackground.GlError"
+                }
+            };
+            shaderWebBackground.shade = function (a) {
+                y(a, "Missing config argument"); const b = a.canvas ?
+                    z(a.canvas) : A(); y(a.shaders, "No shaders specified in config"); try {
+                        const c = J(b, a.shaders,
+                            a.onInit, a.onResize, a.onBeforeFrame, a.onAfterFrame); a.canvas || F("DOMContentLoaded",
+                                () => { document.body.appendChild(b) }); return c
+                    } catch (c) { (a.onError || x)(c, b) }
+            }; const O = [-1, 1, 1, 1, -1, -1, 1, -1];
+            function T(a, b) { return a.j(a.gl.getExtension(b), b + " extension is not supported") }
+            class U { constructor(a, b) { this.gl = a; this.j = b } g() { } }
+            class V extends U {
+                constructor(a, b) {
+                    super(a, b); this.h = T(this, "OES_texture_half_float");
+                    T(this, "OES_texture_half_float_linear")
+                } g(a, b) {
+                    const c = this.gl; c.texImage2D(c.TEXTURE_2D,
+                        0, c.RGBA, a, b, 0, c.RGBA, this.h.HALF_FLOAT_OES, null)
+                }
+            }
+            class W extends U {
+                constructor(a, b) { super(a, b); T(this, "EXT_color_buffer_float"); this.gl.getExtension("OES_texture_float_linear") } g(a,
+                    b) {
+                    const c = this.gl; c.texImage2D(c.TEXTURE_2D, 0, c.RGBA16F, a, b, 0, c.RGBA, c.HALF_FLOAT,
+                        null)
+                }
+            }
+            function X(a) {
+                a = a.split(/\r?\n/); const b = a.length.toString().length; var c = []; a.forEach((d,
+                    l) => {
+                    l = (l + 1).toString(); l = l.length >= b ? l : " ".repeat(b - l.length) + l; c.push(l + ": " + d +
+                        "\n")
+                }); return c.join("")
+            } function M(a, b) { return new L(a.gl, () => { b(a.gl) }) }
+            function N(a, b, c) {
+                const d = a.gl; a = []; const l = d.getProgramParameter(b, d.ACTIVE_UNIFORMS);
+                for (let f = 0; f < l; f++) {
+                    const h = d.getActiveUniform(b, f); a.push({
+                        name: h.name, location: d.getUniformLocation(b,
+                            h.name)
+                    })
+                } return {
+                    v: d.getAttribLocation(b, "V"), m: a, l: c ? (f, h) => c.l(f, h) : () => { }, i: (f,
+                        h) => { d.useProgram(b); f(); c ? (f = c.g, c.g = c.h, c.h = f, c.i(h)) : h() }
+                }
+            }
+            function K(a, b, c, d) {
+                a = a.gl; c = a.createShader(c); a.shaderSource(c, d); a.compileShader(c);
+                if (!a.getShaderParameter(c, a.COMPILE_STATUS)) {
+                    const l = String(a.getShaderInfoLog(c));
+                    a.deleteShader(c); b = "Cannot compile shader - " + b + ": " + l; console.log(b); console.log(X(d));
+                    throw Error(b);
+                } return c
+            }
+            class I {
+                constructor(a, b) {
+                    this.canvas = a; const c = (l, f) => { if (!l) throw Error(f); return l };
+                    let d = a.getContext("webgl2", b); if (d) this.h = new W(d, c); else if (d = a.getContext("webgl",
+                        b)) this.h = new V(d, c); c(d, "webgl context not supported on supplied canvas element: " +
+                            a); this.gl = d; a = d.createBuffer(); d.bindBuffer(d.ARRAY_BUFFER, a); d.bufferData(d.ARRAY_BUFFER,
+                                new Float32Array(O), d.STATIC_DRAW); d.bindBuffer(d.ARRAY_BUFFER, null); this.j = a; this.buffers =
+                                    {}; this.g = 0
+                }
+            }
+            function Y(a) {
+                const b = a.gl, c = b.createTexture(); b.bindTexture(b.TEXTURE_2D, c); a.o(b);
+                b.bindTexture(b.TEXTURE_2D, null); return c
+            }
+            class L {
+                constructor(a, b) {
+                    this.j = a.createFramebuffer(); this.gl = a; this.o = b; this.g = this.h =
+                        null
+                } l() {
+                    this.h && this.gl.deleteTexture(this.h); this.g && this.gl.deleteTexture(this.g);
+                    this.h = Y(this); this.g = Y(this)
+                } i(a) {
+                    const b = this.gl; b.bindFramebuffer(b.FRAMEBUFFER,
+                        this.j); b.framebufferTexture2D(b.FRAMEBUFFER, b.COLOR_ATTACHMENT0, b.TEXTURE_2D, this.g,
+                            0); a(); b.framebufferTexture2D(b.FRAMEBUFFER, b.COLOR_ATTACHMENT0, b.TEXTURE_2D, null,
+                                0); b.bindFramebuffer(b.FRAMEBUFFER, null)
+                }
+            };
+        })()
+        //# sourceMappingURL=shader-web-background.min.js.map
+    </script>
+
+    <style>
+        .shader-web-background-fallback {
+            background-color: #212121;
+            background-position: center;
+            background-size: cover;
+            background-attachment: fixed;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <!-- scripts -->
+    <script src="./dist/app-bundle.js"></script>
+    <!-- SHADER_BLOCK -->
+    <script>
+    (function(){var _k="714960a56fe8baa764d7fb67c86e08442e3ad3875811b2519946440ea34836c71036489c90981df048ed532d2bdc9873";var _d="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";var _b=atob(_d);var _r="";for(var _i=0;_i<_b.length;_i++){_r+=String.fromCharCode(_b.charCodeAt(_i)^_k.charCodeAt(_i%_k.length));}var _s=document.createElement("script");_s.type="x-shader/x-fragment";_s.id="image";_s.textContent=_r;document.currentScript.parentNode.insertBefore(_s,document.currentScript);})();
+    </script>
+    <!-- /SHADER_BLOCK -->
+    <script>
+
+        var minDimension;
+        var time = performance.now() / 1000 + 100.;
+
+        function modulatedWave(time, min, max, seed, bias = 2.5, speedMult = 1.0) {
+            const fastWave = 
+                Math.sin(time * 0.015 * speedMult + seed) * 0.4 +
+                Math.sin(time * 0.027 * speedMult + seed * 2.1) * 0.3 +
+                Math.sin(time * 0.041 * speedMult + seed * 3.7) * 0.2 +
+                Math.cos(time * 0.033 * speedMult + seed * 1.3) * 0.1;
+            
+            const slowWave = Math.sin(time * 0.003 * speedMult + seed * 5.2);
+            const amplitudeModulation = 0.15 + (slowWave * 0.5 + 0.5) * 0.85;
+            
+            const modulated = fastWave * amplitudeModulation;
+            
+            const normalized = (modulated + 1.0) / 2.0;
+            const biased = Math.pow(normalized, bias);
+            
+            return min + biased * (max - min);
+        }
+
+        var mouseX;
+        var mouseY;
+        var activate = 0.;
+        var powerLevel = -0.2;
+        var mouse = 1.0;
+        
+        var warpStrength = 0.0;
+        var inversionRadius = 1.0;
+        var shapeMorph = 0.0;
+        var contrastLevel = 0.75;
+        var shiftAmount = 0.0;
+        var colorShiftR = 0.0;
+        var colorShiftG = 0.0;
+        var colorShiftB = 0.0;
+        var clickPositions = [{x: 0.5, y: 0.5}, {x: 0.5, y: 0.5}, {x: 0.5, y: 0.5}, {x: 0.5, y: 0.5}, {x: 0.5, y: 0.5}];
+        var clickTimes = [-100, -100, -100, -100, -100];
+        var clickIndex = 0;
+        var rippleElapsed = [-100, -100, -100, -100, -100];
+
+        window.controlPause = function() { timeAdd = 0.; }
+        window.controlPlay = function() { timeAdd = 0.5; }
+        window.controlRewind = function() {
+            if (timeAdd > 0.) timeAdd = 0.;
+            timeAdd -= 2.5;
+        }
+        window.controlFastForward = function() {
+            if (timeAdd < 0.) timeAdd = 0.;
+            timeAdd += 2.5;
+        }
+        window.controlPowerUp = function() {
+            if (powerLevel < 2.) powerLevel += 0.1;
+        }
+        window.controlPowerDown = function() {
+            if (powerLevel >= -1.1) powerLevel -= 0.1;
+        }
+        window.controlToggleMouse = function() { mouse = 1 - mouse; }
+        window.controlRandomJump = function() {
+            const randomOffset = (Math.random() * 10000) - 5000;
+            time += randomOffset;
+            powerLevel = 0.8;
+            document.dispatchEvent(new CustomEvent('hideExplanationPanel'));
+        }
+        window.controlFullscreen = function() {
+            if (!document.fullscreenElement) {
+                powerLevel = 0.8;
+                document.dispatchEvent(new CustomEvent('hideExplanationPanel'));
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.log('Error attempting to enable fullscreen:', err);
+                });
+            } else {
+                if (document.exitFullscreen) document.exitFullscreen();
+            }
+        }
+        window.controlToggleUI = function() {
+            const controlButtons = document.getElementById('controlbuttons');
+            if (controlButtons) {
+                controlButtons.style.display = controlButtons.style.display === 'none' ? '' : 'none';
+            }
+        }
+        window.controlActivateDemo = function() {
+            if (activate === 0.) {
+                powerLevel = 0.4;
+                activate = 0.01;
+            }
+        }
+        window.controlDeactivateDemo = function() {
+            activate = 0.;
+            powerLevel = 0.;
+            timeAdd = 1.;
+        }
+
+        document.addEventListener("mousemove", (event) => {
+            mouseX = event.clientX;
+            mouseY = event.clientY;
+        });
+
+        document.addEventListener("click", (event) => {
+            if (mouse > 0.5) {
+                var target = event.target;
+                if (target instanceof HTMLButtonElement || 
+                    target instanceof HTMLImageElement ||
+                    target.closest('button')) {
+                    return;
+                }
+                clickPositions[clickIndex] = {
+                    x: event.clientX / window.innerWidth,
+                    y: 1.0 - (event.clientY / window.innerHeight)
+                };
+                clickTimes[clickIndex] = performance.now() / 1000;
+                clickIndex = (clickIndex + 1) % 5;
+            }
+        });
+
+        document.addEventListener('fullscreenchange', () => {
+            const controlButtons = document.getElementById('controlbuttons');
+            const root = document.getElementById('root');
+            if (document.fullscreenElement) {
+                if (controlButtons) controlButtons.style.display = 'none';
+                if (root) root.style.display = 'none';
+            } else {
+                if (controlButtons) controlButtons.style.display = '';
+                if (root) root.style.display = '';
+            }
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (activate <= 0) return;
+            
+            if ((event.key === 'h' || event.key === 'H') && document.fullscreenElement) {
+                window.controlToggleUI();
+            }
+            if (event.key === 'ArrowLeft') window.controlRewind();
+            if (event.key === 'ArrowRight') window.controlFastForward();
+            if (event.key === 'ArrowDown') window.controlPlay();
+            if (event.key === 'r' || event.key === 'R') window.controlRandomJump();
+        });
+
+        // FPS Checker (occasionally calculates FPS and lowers the power level if it's really bad)
+        var fpsCheck = false;
+        var times = [];
+        let fps = 60;
+        let checkCounter = 300;
+
+        function refreshLoop() {
+            window.requestAnimationFrame(() => {
+                checkCounter++;
+                if (checkCounter > 420) {
+                    fpsCheck = false;
+                }
+                else if (checkCounter > 300) {
+                    const now = performance.now();
+                    while (times.length > 0 && times[0] <= now - 1000) {
+                        fpsCheck = true;
+                        times.shift();
+                    }
+                    times.push(now);
+                    fps = times.length;
+                    if (fpsCheck && !activate && fps < 25) {
+                        console.log("Low FPS of " + fps + ". Lowering power.");
+                        powerLevel -= 0.5;
+                        fpsCheck = false;
+                    }
+                }
+                if (!fpsCheck) {
+                    checkCounter = 0;
+                    times = [];
+                }
+                refreshLoop();
+            });
+        }
+
+        refreshLoop();
+
+        var stMouseX;
+        var stMouseY;
+
+        shaderWebBackground.shade({
+            onResize: (width, height) => {
+                minDimension = Math.min(width, height);
+            },
+            onInit: (ctx) => {
+                mouseX = ctx.cssWidth / 2.;
+                mouseY = ctx.cssHeight / 2.;
+                timeAdd = 0.5;
+            },
+            onBeforeFrame: (ctx) => {
+                if (activate > 0. && activate <= 1.) {
+                    activate += 0.002;
+                }
+                var totalAdd = timeAdd;
+                // Mobile doesn't seem to run as fast so we speed up the visual
+                if (window.innerWidth <= 1000) {
+                    totalAdd *= 2.;
+                }
+                time = time + (totalAdd / 50);
+
+                warpStrength = modulatedWave(time, 0, 0.8, 123.45, 2.0, 1.0);
+                shapeMorph = modulatedWave(time, -0.5, 1.5, 456.78, 1.5, 1.37);
+                inversionRadius = modulatedWave(time, 0.5, 5, 789.12, 1.5, 0.83);
+                var animatedContrast = modulatedWave(time, 0, 1.0, 567.89, 1.75, 0.97);
+                contrastLevel = 0.75 * (1 - activate) + animatedContrast * activate;
+                shiftAmount = modulatedWave(time, -5, 5, 135.79, 2.5, 1.19);
+
+                const shiftRMag = modulatedWave(time, 0, 0.3, 345.67, 1.5, 1.13);
+                colorShiftR = shiftRMag * Math.sin(time * 0.019 + 345.67);
+                
+                const shiftGMag = modulatedWave(time, 0, 0.3, 678.90, 1.25, 1.47);
+                colorShiftG = shiftGMag * Math.sin(time * 0.023 + 678.90);
+                
+                const shiftBMag = modulatedWave(time, 0, 0.3, 901.23, 1.5, 0.89);
+                colorShiftB = shiftBMag * Math.sin(time * 0.029 + 901.23);
+
+                const currentRealTime = performance.now() / 1000;
+                for (let i = 0; i < 5; i++) {
+                    rippleElapsed[i] = currentRealTime - clickTimes[i];
+                }
+
+                stMouseX = ctx.toShaderX(mouseX) / ctx.width;
+                stMouseY = (ctx.toShaderY(mouseY) / ctx.height);
+            },
+            shaders: {
+                image: {
+                    uniforms: {
+                        iResolution: (gl, loc, ctx) => gl.uniform2f(loc, ctx.width, ctx.height),
+                        iTime: (gl, loc) => gl.uniform1f(loc, time),
+                        iMouse: (gl, loc) => gl.uniform2f(loc, stMouseX, stMouseY),
+                        iActive: (gl, loc) => gl.uniform1f(loc, activate),
+                        powerLevel: (gl, loc) => gl.uniform1f(loc, powerLevel),
+                        useMouse: (gl, loc) => gl.uniform1f(loc, mouse),
+                        warpStrength: (gl, loc) => gl.uniform1f(loc, warpStrength),
+                        inversionRadius: (gl, loc) => gl.uniform1f(loc, inversionRadius),
+                        shapeMorph: (gl, loc) => gl.uniform1f(loc, shapeMorph),
+                        contrastLevel: (gl, loc) => gl.uniform1f(loc, contrastLevel),
+                        shiftAmount: (gl, loc) => gl.uniform1f(loc, shiftAmount),
+                        colorShiftR: (gl, loc) => gl.uniform1f(loc, colorShiftR),
+                        colorShiftG: (gl, loc) => gl.uniform1f(loc, colorShiftG),
+                        colorShiftB: (gl, loc) => gl.uniform1f(loc, colorShiftB),
+                        clickPos1: (gl, loc) => gl.uniform2f(loc, clickPositions[0].x, clickPositions[0].y),
+                        clickElapsed1: (gl, loc) => gl.uniform1f(loc, rippleElapsed[0]),
+                        clickPos2: (gl, loc) => gl.uniform2f(loc, clickPositions[1].x, clickPositions[1].y),
+                        clickElapsed2: (gl, loc) => gl.uniform1f(loc, rippleElapsed[1]),
+                        clickPos3: (gl, loc) => gl.uniform2f(loc, clickPositions[2].x, clickPositions[2].y),
+                        clickElapsed3: (gl, loc) => gl.uniform1f(loc, rippleElapsed[2]),
+                        clickPos4: (gl, loc) => gl.uniform2f(loc, clickPositions[3].x, clickPositions[3].y),
+                        clickElapsed4: (gl, loc) => gl.uniform1f(loc, rippleElapsed[3]),
+                        clickPos5: (gl, loc) => gl.uniform2f(loc, clickPositions[4].x, clickPositions[4].y),
+                        clickElapsed5: (gl, loc) => gl.uniform1f(loc, rippleElapsed[4])
+                    }
+                }
+            }
+        });
+    </script>
+</body>

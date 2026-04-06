@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vivarium</title>
+    <script src="markdown-it.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="../emoji/blob-emoji.css">
+    <script>
+        (function() {
+            var stored = localStorage.getItem('githubAuth');
+            if (stored) {
+                try {
+                    var data = JSON.parse(stored);
+                    if (Date.now() < data.expiry) {
+                        document.documentElement.style.visibility = 'hidden';
+                    }
+                } catch (e) {}
+            }
+        })();
+    </script>
+</head>
+<body>
+    <div id="login-screen">
+        <div id="login-box">
+            <h1><img src="../emoji/blob/emoji_u1f33f.svg" class="blob-emoji"> Vivarium</h1>
+            <form id="login-form" onsubmit="return false;">
+                <input 
+                    type="text" 
+                    name="username"
+                    value="vivarium"
+                    autocomplete="username"
+                    style="display: none;"
+                />
+                <input 
+                    type="password" 
+                    id="token-input"
+                    name="password"
+                    placeholder="Enter GitHub Token"
+                    autocomplete="current-password"
+                />
+                <button id="login-button" type="submit">Enter</button>
+            </form>
+            <div id="error-message">Bad Password.</div>
+            <div id="loading-message">Loading wiki...</div>
+        </div>
+    </div>
+
+    <div id="wiki-container">
+        <div id="header">
+            <h1><img src="../emoji/blob/emoji_u1f33f.svg" class="blob-emoji"> Vivarium</h1>
+            <div id="header-actions">
+                <button id="index-button">Index</button>
+                <button id="logout-button">Logout</button>
+            </div>
+        </div>
+        <div id="main-content">
+            <div id="sidebar">
+                <div id="search-container">
+                    <div id="search-row">
+                        <div id="search-input-wrapper">
+                            <input 
+                                type="text" 
+                                id="search-box" 
+                                placeholder="Search pages..."
+                                autocomplete="off"
+                            />
+                            <button id="search-clear" type="button" title="Clear search">×</button>
+                        </div>
+                        <button id="sidebar-toggle" title="Toggle sidebar">◀</button>
+                    </div>
+                    <div id="search-results"></div>
+                </div>
+                <div id="pages-container">
+                    <div id="page-list"></div>
+                </div>
+            </div>
+            <div id="resize-handle"></div>
+            <div id="content-wrapper">
+                <div id="view-mode">
+                    <div id="page-header" style="display: flex; gap: 10px; justify-content: space-between; align-items: center;">
+                        <div id="page-status"></div>
+                        <div style="display: flex; gap: 10px;">
+                            <button id="delete-button" style="background: #8b0000;">Delete</button>
+                            <button id="move-button">Move</button>
+                            <button id="new-page-button">Add Child</button>
+                            <button id="edit-button">Edit</button>
+                        </div>
+                    </div>
+                    <div id="content"></div>
+                </div>
+                <div id="edit-mode">
+                    <div style="display: flex; justify-content: flex-end; margin-bottom: 15px;">
+                        <button id="cancel-edit-button">Cancel</button>
+                    </div>
+                    <div id="editor-toolbar">
+                        <button class="toolbar-button" onclick="insertMarkdown('**', '**')" title="Bold"><b>B</b></button>
+                        <button class="toolbar-button" onclick="insertMarkdown('*', '*')" title="Italic"><i>I</i></button>
+                        <button class="toolbar-button" onclick="insertMarkdown('# ', '')" title="Heading">H1</button>
+                        <button class="toolbar-button" onclick="insertMarkdown('## ', '')" title="Heading 2">H2</button>
+                        <button class="toolbar-button" onclick="insertMarkdown('### ', '')" title="Heading 3">H3</button>
+                        <button class="toolbar-button" onclick="insertLink()" title="Link">Link</button>
+                        <button class="toolbar-button" onclick="document.getElementById('image-upload').click()" title="Upload Image">Image</button>
+                        <button class="toolbar-button" onclick="insertMarkdown('`', '`')" title="Inline Code">&lt;/&gt;</button>
+                        <button class="toolbar-button" onclick="insertMarkdown('- ', '')" title="List Item">• List</button>
+                    </div>
+                    <input type="file" id="image-upload" accept="image/*" style="display: none;" onchange="handleImageUpload(event)" />
+                    <textarea id="markdown-editor"></textarea>
+                    <button id="save-button" class="primary">Save</button>
+                    <div id="status-message"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="wiki.js"></script>
+</body>
+</html>
