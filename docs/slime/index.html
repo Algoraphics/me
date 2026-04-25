@@ -4,7 +4,7 @@
     <title>Road.</title>
     <meta name="description" content="Road.">
     <!-- Included components -->
-    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
     
     <script src="components/includes.js"></script>
     <!-- My files -->
@@ -340,7 +340,7 @@
 
       <!-- Camera rig: camera-manager moves the rig, VR headset moves the camera within it -->
       <a-entity id="rig" camera-manager="speed: 12; stop: -2800; id: main" position="0 0 0">
-        <a-entity id="camera" camera="userHeight: 1.6; near: 0.5" look-controls="pointerLockEnabled: true" rotation="0 0 0">
+        <a-entity id="camera" camera="userHeight: 0.8; near: 0.5" look-controls="pointerLockEnabled: true" rotation="0 0 0">
           <a-entity id="analyser" audioanalyser="src: #side; enableBeatDetection: false;"></a-entity>
           <a-entity music-manager="startpos: -50; showbeats: false"></a-entity>
           <a-box material="color:red" audio-react="analyserEl: #analyser" position="0 2 8.5"></a-box>
