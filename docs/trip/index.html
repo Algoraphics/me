@@ -92,24 +92,37 @@
             return new TextDecoder().decode(plain);
         }
 
+        async function load(pw) {
+            var resp = await fetch('app.enc');
+            var blob = await resp.json();
+            var html = await decrypt(pw, blob);
+            localStorage.setItem('trip_pw', pw);
+            prompt.classList.add('hidden');
+            setTimeout(function() {
+                document.open();
+                document.write(html);
+                document.close();
+            }, 400);
+        }
+
         async function attempt() {
             var pw = input.value;
             if (!pw) return;
             try {
-                var resp = await fetch('app.enc');
-                var blob = await resp.json();
-                var html = await decrypt(pw, blob);
-                prompt.classList.add('hidden');
-                setTimeout(function() {
-                    document.open();
-                    document.write(html);
-                    document.close();
-                }, 400);
+                await load(pw);
             } catch(e) {
                 input.classList.add('error');
                 input.value = '';
                 setTimeout(function() { input.classList.remove('error'); }, 400);
             }
+        }
+
+        var saved = localStorage.getItem('trip_pw');
+        if (saved) {
+            load(saved).catch(function() {
+                localStorage.removeItem('trip_pw');
+                prompt.style.display = '';
+            });
         }
 
         input.addEventListener('keydown', function(e) {
