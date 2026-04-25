@@ -4,7 +4,7 @@
     <title>Road.</title>
     <meta name="description" content="Road.">
     <!-- Included components -->
-    <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
+    <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
     
     <script src="components/includes.js"></script>
     <!-- My files -->
@@ -373,7 +373,7 @@
         document.getElementById('start-overlay').style.background = 'rgba(0, 0, 0, 0.25)';
         document.getElementById('skip-wrap').style.display = '';
       });
-      btn.addEventListener('click', function () {
+      function unlockAudio() {
         document.getElementById('start-overlay').style.display = 'none';
         var analyserEl = document.getElementById('analyser');
         if (analyserEl && analyserEl.components.audioanalyser && analyserEl.components.audioanalyser.analyser) {
@@ -381,9 +381,14 @@
           if (ctx && ctx.state === 'suspended') ctx.resume();
         }
         var song = document.getElementById('side');
-        if (song) {
-          song.play().then(function () { song.pause(); song.currentTime = 0; }).catch(function () {});
+        if (song && song.paused) {
+          return song.play().then(function () { song.pause(); }).catch(function () {});
         }
+        return Promise.resolve();
+      }
+
+      btn.addEventListener('click', function () {
+        unlockAudio();
         var rig = document.getElementById('rig');
         var cam = document.getElementById('camera');
         document.getElementById('movingWorld').emit('start');
@@ -462,7 +467,8 @@
       var chapterBtns = document.querySelectorAll('.chapter-btn');
       for (var i = 0; i < chapterBtns.length; i++) {
         chapterBtns[i].addEventListener('click', function () {
-          skipToChapter(parseInt(this.getAttribute('data-chapter')));
+          var idx = parseInt(this.getAttribute('data-chapter'));
+          unlockAudio().then(function () { skipToChapter(idx); });
         });
       }
 
