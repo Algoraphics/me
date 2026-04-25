@@ -291,7 +291,7 @@ void main() {
     combo
   );
   // Mix in fog (TODO currently val 0.0625 is hardcoded, can be updated to fog val)
-  gl_FragColor = mix(vec4(vec3(0.0625),1.0), gl_FragColor, camz);
+  gl_FragColor = mix(vec4(vec3(0.0),1.0), gl_FragColor, camz);
 }
 `
 });
