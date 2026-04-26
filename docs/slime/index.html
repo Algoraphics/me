@@ -340,7 +340,7 @@
 
       <!-- Camera rig: camera-manager moves the rig, VR headset moves the camera within it -->
       <a-entity id="rig" camera-manager="speed: 12; stop: -2800; id: main" position="0 0 0">
-        <a-entity id="camera" camera="userHeight: 0.8; near: 0.5" look-controls="pointerLockEnabled: true; magicWindowTrackingEnabled: false" rotation="0 0 0">
+        <a-entity id="camera" camera="userHeight: 0.8; near: 0.5" look-controls="pointerLockEnabled: false; magicWindowTrackingEnabled: false" rotation="0 0 0">
           <a-entity id="analyser" audioanalyser="src: #side; enableBeatDetection: false;"></a-entity>
           <a-entity music-manager="startpos: -50; showbeats: false"></a-entity>
           <a-box material="color:red" audio-react="analyserEl: #analyser" position="0 2 8.5"></a-box>
@@ -353,10 +353,6 @@
       AFRAME.registerComponent('vr-controls', {
         init: function () {
           this.prevPressed = {};
-          var el = this.el;
-          window.addEventListener('blur', function () {
-            if (el.is('vr-mode')) el.exitVR();
-          });
         },
         tick: function () {
           var gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
@@ -438,6 +434,12 @@
 
       scene.addEventListener('enter-vr', function () {
         if (btn.classList.contains('ready')) doStart();
+        var session = scene.xrSession;
+        if (session) {
+          session.addEventListener('visibilitychange', function () {
+            if (session.visibilityState === 'hidden') scene.exitVR();
+          });
+        }
       });
 
       var BEAT_MS = 594.059;
