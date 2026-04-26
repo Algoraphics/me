@@ -339,7 +339,7 @@
       -->
 
       <!-- Camera rig: camera-manager moves the rig, VR headset moves the camera within it -->
-      <a-entity id="rig" camera-manager="speed: 12; stop: -2800; id: main" position="0 -0.8 0">
+      <a-entity id="rig" camera-manager="speed: 12; stop: -2800; id: main" position="0 0 0">
         <a-entity id="camera" camera="userHeight: 0.8; near: 0.5" look-controls="pointerLockEnabled: true" rotation="0 0 0">
           <a-entity id="analyser" audioanalyser="src: #side; enableBeatDetection: false;"></a-entity>
           <a-entity music-manager="startpos: -50; showbeats: false"></a-entity>
@@ -508,7 +508,7 @@
         if (mw) mw.emit('start');
         emitToClass(cam, 'slide', 'speed', '0');
         rig.emit('start');
-        rig.setAttribute('position', { x: 0, y: -0.8, z: ch.camZ });
+        rig.setAttribute('position', { x: 0, y: 1.6, z: ch.camZ });
 
         forceLoadWorldbuilders();
         if (idx === 3) forceLoadAsteroids();
