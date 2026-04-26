@@ -442,7 +442,7 @@
       btn.addEventListener('click', doStart);
 
       scene.addEventListener('enter-vr', function () {
-        setRigY(0);
+        setRigY(0.25);
         if (btn.classList.contains('ready')) doStart();
         var session = scene.xrSession;
         if (session) {
