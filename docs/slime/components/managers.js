@@ -195,7 +195,8 @@ AFRAME.registerComponent('camera-manager', {
     var el = this.el;
     
     if (el.getAttribute('id') == 'rig') {
-      el.setAttribute('position', '0 1.6 25');
+      var rigY = (typeof RIG_Y !== 'undefined') ? RIG_Y : -1.5;
+      el.setAttribute('position', '0 ' + rigY + ' 25');
     }
     
     var position = el.getAttribute('position');
