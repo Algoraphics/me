@@ -339,7 +339,7 @@
       -->
 
       <!-- Camera rig: camera-manager moves the rig, VR headset moves the camera within it -->
-      <a-entity id="rig" camera-manager="speed: 12; stop: -2800; id: main" position="0 -1.5 0">
+      <a-entity id="rig" camera-manager="speed: 12; stop: -2800; id: main" position="0 1 0">
         <a-entity id="camera" camera="userHeight: 0.8; near: 0.5" look-controls="pointerLockEnabled: false; magicWindowTrackingEnabled: false" rotation="0 0 0">
           <a-entity id="analyser" audioanalyser="src: #side; enableBeatDetection: false;"></a-entity>
           <a-entity music-manager="startpos: -50; showbeats: false"></a-entity>
@@ -418,7 +418,14 @@
         return Promise.resolve();
       }
 
-      var RIG_Y = 1; // lower = scene appears higher relative to player
+      var RIG_Y = 1;
+
+      function setRigY(y) {
+        RIG_Y = y;
+        var rig = document.getElementById('rig');
+        var pos = rig.getAttribute('position');
+        rig.setAttribute('position', { x: pos.x, y: y, z: pos.z });
+      }
 
       var started = false;
       function doStart() {
@@ -435,6 +442,7 @@
       btn.addEventListener('click', doStart);
 
       scene.addEventListener('enter-vr', function () {
+        setRigY(0);
         if (btn.classList.contains('ready')) doStart();
         var session = scene.xrSession;
         if (session) {
@@ -442,6 +450,10 @@
             if (session.visibilityState === 'hidden') scene.exitVR();
           });
         }
+      });
+
+      scene.addEventListener('exit-vr', function () {
+        setRigY(1);
       });
 
       var BEAT_MS = 594.059;
