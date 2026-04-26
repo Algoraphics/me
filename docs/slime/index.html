@@ -444,12 +444,6 @@
       scene.addEventListener('enter-vr', function () {
         setRigY(0.25);
         if (btn.classList.contains('ready')) doStart();
-        var session = scene.xrSession;
-        if (session) {
-          session.addEventListener('visibilitychange', function () {
-            if (session.visibilityState === 'hidden') scene.exitVR();
-          });
-        }
       });
 
       scene.addEventListener('exit-vr', function () {
