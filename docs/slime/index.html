@@ -159,7 +159,7 @@
         </button>
       </div>
     </div>
-    <a-scene id="fog" vr-mode-ui="enabled: true" fog="type: exponential; density: 0.025; color: #000000"
+    <a-scene id="fog" vr-controls vr-mode-ui="enabled: true" fog="type: exponential; density: 0.025; color: #000000"
              animation__fog="property: fog.density; easing: easeOutCirc; to: 0.0; dur: 40000; startEvents: beat">
       <a-assets>
         <img id="glow-texture" src="whiteblur.png">
@@ -340,7 +340,7 @@
 
       <!-- Camera rig: camera-manager moves the rig, VR headset moves the camera within it -->
       <a-entity id="rig" camera-manager="speed: 12; stop: -2800; id: main" position="0 0 0">
-        <a-entity id="camera" camera="userHeight: 0.8; near: 0.5" look-controls="pointerLockEnabled: true" rotation="0 0 0">
+        <a-entity id="camera" camera="userHeight: 0.8; near: 0.5" look-controls="pointerLockEnabled: true; magicWindowTrackingEnabled: false" rotation="0 0 0">
           <a-entity id="analyser" audioanalyser="src: #side; enableBeatDetection: false;"></a-entity>
           <a-entity music-manager="startpos: -50; showbeats: false"></a-entity>
           <a-box material="color:red" audio-react="analyserEl: #analyser" position="0 2 8.5"></a-box>
@@ -350,6 +350,41 @@
       <!-- beat: 594.059 half beat: 297.029 totalbeats: 464 camera-speed: 12 -->
     </a-scene>
     <script>
+      AFRAME.registerComponent('vr-controls', {
+        init: function () {
+          this.prevPressed = {};
+          var el = this.el;
+          window.addEventListener('blur', function () {
+            if (el.is('vr-mode')) el.exitVR();
+          });
+        },
+        tick: function () {
+          var gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+          for (var i = 0; i < gamepads.length; i++) {
+            var gp = gamepads[i];
+            if (!gp) continue;
+            for (var j = 0; j < gp.buttons.length; j++) {
+              var key = i + '_' + j;
+              var pressed = gp.buttons[j].pressed;
+              if (pressed && !this.prevPressed[key]) {
+                this.onButton(j);
+              }
+              this.prevPressed[key] = pressed;
+            }
+          }
+        },
+        onButton: function (index) {
+          var scene = this.el;
+          if (index === 3 || index === 5) {
+            // Vive: Menu (3)  |  Quest: B/Y (5) — exit VR
+            if (scene.is('vr-mode')) scene.exitVR();
+          } else if (index === 2 || index === 4) {
+            // Vive: Grip (2)  |  Quest: A/X (4) — pause / unpause
+            document.getElementById('btn-pause').click();
+          }
+        }
+      });
+
       var scene = document.getElementById('fog');
 
       (function () {
@@ -387,13 +422,22 @@
         return Promise.resolve();
       }
 
-      btn.addEventListener('click', function () {
+      var started = false;
+      function doStart() {
+        if (started) return;
+        started = true;
         unlockAudio();
         var rig = document.getElementById('rig');
         var cam = document.getElementById('camera');
         document.getElementById('movingWorld').emit('start');
         emitToClass(cam, 'slide', 'speed', '0');
         rig.emit('start');
+      }
+
+      btn.addEventListener('click', doStart);
+
+      scene.addEventListener('enter-vr', function () {
+        if (btn.classList.contains('ready')) doStart();
       });
 
       var BEAT_MS = 594.059;
