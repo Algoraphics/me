@@ -174,10 +174,10 @@
         #edit-mode {
             display: none;
             margin: -30px;
-            padding: 4px;
+            padding: 4px 4px 0 4px;
             box-sizing: border-box;
             flex-direction: column;
-            height: calc(100vh - 140px);
+            height: calc(100dvh - 140px);
             min-height: 0;
         }
 
@@ -238,7 +238,8 @@
             display: flex;
             gap: 10px;
             flex-shrink: 0;
-            margin-bottom: 10px;
+            background: #2d2d2d;
+            padding: 0 0 8px 0;
         }
 
         #wiki-link-modal {
@@ -634,7 +635,7 @@
             padding: 30px;
             border-radius: 8px;
             overflow-y: auto;
-            max-height: calc(100vh - 140px);
+            max-height: calc(100dvh - 140px);
             display: flex;
             flex-direction: column;
         }
