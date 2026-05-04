@@ -45,13 +45,22 @@ let editStartSha = null;
 const md = window.markdownit ? window.markdownit({
     html: false,
     linkify: true,
-    typographer: true
+    typographer: true,
+    breaks: true
 }) : null;
 
 if (!md) {
     console.error('markdown-it library not loaded');
     document.addEventListener('DOMContentLoaded', () => {
         document.body.innerHTML = '<div style="color: red; padding: 20px;">Error: markdown-it library failed to load</div>';
+    });
+} else {
+    md.core.ruler.push('add_data_line', (state) => {
+        for (const token of state.tokens) {
+            if (token.map && token.map.length && token.type.endsWith('_open')) {
+                token.attrJoin('data-line', String(token.map[0]));
+            }
+        }
     });
 }
 
@@ -70,6 +79,7 @@ function loadExpandedState() {
 
 async function githubAPI(endpoint, options = {}) {
     const response = await fetch(`https://api.github.com${endpoint}`, {
+        cache: 'no-cache',
         ...options,
         headers: {
             'Authorization': `token ${githubToken}`,
@@ -79,20 +89,48 @@ async function githubAPI(endpoint, options = {}) {
     });
     
     if (!response.ok) {
-        throw new Error(`GitHub API error: ${response.status}`);
+        const error = new Error(`GitHub API error: ${response.status}`);
+        error.status = response.status;
+        throw error;
     }
-    
+
     return response.json();
+}
+
+function mergeCachedIntoFresh(freshData) {
+    const cachedJson = localStorage.getItem('wikiDataCache');
+    if (!cachedJson) return freshData;
+    try {
+        const cached = JSON.parse(cachedJson);
+        const cachedPagesById = {};
+        cached.pages.forEach(p => cachedPagesById[p.id] = p);
+        freshData.pages.forEach(freshPage => {
+            const cachedPage = cachedPagesById[freshPage.id];
+            if (cachedPage && cachedPage.loaded) {
+                if (cachedPage.contentSha === freshPage.contentSha) {
+                    freshPage.markdown = cachedPage.markdown;
+                    freshPage.title = cachedPage.title;
+                    freshPage.loaded = true;
+                } else {
+                    freshPage.loaded = false;
+                }
+            }
+        });
+    } catch (e) {
+        console.warn('Failed to merge cache:', e);
+    }
+    return freshData;
 }
 
 async function syncCurrentPageWithRemote() {
     if (!currentPage || !wikiData || !githubToken) return null;
-    
+
     try {
         const filePath = `${CONTENT_PATH}/${currentPage}.md`;
         const fileData = await githubAPI(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/${filePath}`);
         const page = wikiData.pagesById[currentPage];
-        
+        if (!page) return null;
+
         if (page.loaded && page.contentSha && page.contentSha !== fileData.sha) {
             if (isEditMode) {
                 showStatus('⚠️ This page was updated remotely while editing. Save will overwrite!', 'error');
@@ -202,6 +240,7 @@ async function loadAllPagesForSearch() {
     updateSearchIndex();
     isFullyIndexed = true;
     indexBtn.textContent = 'Indexed ✓';
+    renderSidebar();
 }
 
 function updateSearchIndex() {
@@ -308,10 +347,24 @@ function renderPageItem(pageId, isChild = false) {
     return item;
 }
 
+function sortSidebar() {
+    if (!wikiData) return;
+    const byTitle = (a, b) => {
+        const ta = (wikiData.pagesById[a]?.title || '').toLowerCase();
+        const tb = (wikiData.pagesById[b]?.title || '').toLowerCase();
+        return ta.localeCompare(tb);
+    };
+    wikiData.tree.sort(byTitle);
+    for (const id in wikiData.pagesById) {
+        wikiData.pagesById[id].children.sort(byTitle);
+    }
+}
+
 function renderSidebar() {
+    sortSidebar();
     const pageList = document.getElementById('page-list');
     pageList.innerHTML = '';
-    
+
     wikiData.tree.forEach(pageId => {
         const item = renderPageItem(pageId);
         if (item) {
@@ -505,31 +558,7 @@ async function login() {
         await githubAPI('/user');
         
         const freshData = await loadWikiFromGitHub();
-        const cachedData = localStorage.getItem('wikiDataCache');
-        
-        if (cachedData) {
-            const cached = JSON.parse(cachedData);
-            const cachedPagesById = {};
-            cached.pages.forEach(p => cachedPagesById[p.id] = p);
-            
-            freshData.pages.forEach(freshPage => {
-                const cachedPage = cachedPagesById[freshPage.id];
-                if (cachedPage && cachedPage.loaded) {
-                    if (cachedPage.contentSha === freshPage.contentSha) {
-                        freshPage.markdown = cachedPage.markdown;
-                        freshPage.title = cachedPage.title;
-                        freshPage.loaded = true;
-                    } else {
-                        freshPage.loaded = false;
-                    }
-                }
-            });
-            
-        } else {
-            console.log('Loaded from GitHub');
-        }
-        
-        wikiData = freshData;
+        wikiData = mergeCachedIntoFresh(freshData);
         localStorage.setItem('wikiDataCache', JSON.stringify(wikiData));
         
         setStoredToken(token);
@@ -599,27 +628,144 @@ async function enterEditMode(draft = null) {
     
     editStartSha = page.contentSha;
     
-    let hasConflict = false;
     if (draft && draft.baseCommitSha && draft.baseCommitSha !== wikiData.currentCommitSha) {
-        hasConflict = true;
         showStatus('⚠️ Warning: Page was updated since this draft was created. Save may overwrite remote changes.', 'error');
         document.getElementById('save-button').style.background = '#cc6600';
     }
     
+    const viewLine = getTopVisibleLineFromView();
+
     if (!draft) {
         originalMarkdown = page.markdown;
         document.getElementById('markdown-editor').value = page.markdown;
     } else {
         document.getElementById('markdown-editor').value = draft.content;
     }
-    
+
     document.getElementById('view-mode').style.display = 'none';
-    document.getElementById('edit-mode').style.display = 'block';
+    document.getElementById('edit-mode').style.display = 'flex';
     document.getElementById('edit-button').textContent = 'View';
     isEditMode = true;
+    if (window.innerWidth <= 768) {
+        sidebarWasCollapsedBeforeEdit = document.getElementById('sidebar').classList.contains('collapsed');
+        setSidebarCollapsed(true);
+    }
+
+    if (viewLine !== null) scrollEditorToLine(viewLine);
 }
 
+function getLeafDataLineBlocks() {
+    return [...document.querySelectorAll('#content [data-line]')]
+        .filter(el => !el.querySelector('[data-line]'));
+}
+
+function getViewVisibleTop() {
+    const wrapper = document.getElementById('content-wrapper');
+    if (!wrapper) return null;
+    const wrapperTop = wrapper.getBoundingClientRect().top;
+    const header = document.getElementById('page-header');
+    const headerHeight = (header && header.offsetParent) ? header.getBoundingClientRect().height : 0;
+    return { wrapper, visibleTop: wrapperTop + headerHeight };
+}
+
+function getTopVisibleLineFromView() {
+    const ctx = getViewVisibleTop();
+    if (!ctx) return null;
+    const { visibleTop } = ctx;
+    for (const b of getLeafDataLineBlocks()) {
+        const rect = b.getBoundingClientRect();
+        if (rect.bottom > visibleTop + 1) {
+            return parseInt(b.getAttribute('data-line'), 10);
+        }
+    }
+    return null;
+}
+
+function scrollViewToLine(line) {
+    const ctx = getViewVisibleTop();
+    if (!ctx) return;
+    const { wrapper, visibleTop } = ctx;
+    let target = null;
+    for (const b of getLeafDataLineBlocks()) {
+        const startLine = parseInt(b.getAttribute('data-line'), 10);
+        if (startLine > line) break;
+        target = b;
+    }
+    if (!target) return;
+    const rect = target.getBoundingClientRect();
+    wrapper.scrollTop += (rect.top - visibleTop);
+}
+
+function withEditorMirror(fn) {
+    const editor = document.getElementById('markdown-editor');
+    const style = getComputedStyle(editor);
+    const mirror = document.createElement('div');
+    Object.assign(mirror.style, {
+        position: 'absolute',
+        top: '0',
+        left: '0',
+        visibility: 'hidden',
+        whiteSpace: 'pre-wrap',
+        wordWrap: 'break-word',
+        overflowWrap: 'break-word',
+        boxSizing: 'border-box',
+        width: editor.clientWidth + 'px',
+        paddingTop: style.paddingTop,
+        paddingRight: style.paddingRight,
+        paddingBottom: style.paddingBottom,
+        paddingLeft: style.paddingLeft,
+        fontFamily: style.fontFamily,
+        fontSize: style.fontSize,
+        fontWeight: style.fontWeight,
+        lineHeight: style.lineHeight,
+        letterSpacing: style.letterSpacing,
+        tabSize: style.tabSize
+    });
+    const lines = editor.value.split('\n');
+    const markers = [];
+    for (let i = 0; i < lines.length; i++) {
+        const span = document.createElement('span');
+        span.dataset.l = String(i);
+        markers.push(span);
+        mirror.appendChild(span);
+        if (lines[i].length > 0) mirror.appendChild(document.createTextNode(lines[i]));
+        if (i < lines.length - 1) mirror.appendChild(document.createTextNode('\n'));
+    }
+    document.body.appendChild(mirror);
+    try {
+        return fn(markers);
+    } finally {
+        mirror.remove();
+    }
+}
+
+function scrollEditorToLine(line) {
+    const editor = document.getElementById('markdown-editor');
+    const offset = withEditorMirror((markers) => {
+        const m = markers[Math.min(line, markers.length - 1)];
+        return m ? m.offsetTop : 0;
+    });
+    editor.scrollTop = Math.max(0, offset);
+}
+
+function getTopVisibleLineFromEditor() {
+    const editor = document.getElementById('markdown-editor');
+    const scrollTop = editor.scrollTop;
+    return withEditorMirror((markers) => {
+        let best = 0;
+        for (const m of markers) {
+            if (m.offsetTop > scrollTop) break;
+            best = parseInt(m.dataset.l, 10);
+        }
+        return best;
+    });
+}
+
+let sidebarWasCollapsedBeforeEdit = null;
+
 function closeEditMode() {
+    const editorLine = isEditMode ? getTopVisibleLineFromEditor() : null;
+
     document.getElementById('view-mode').style.display = 'block';
     document.getElementById('edit-mode').style.display = 'none';
     document.getElementById('edit-button').textContent = 'Edit';
@@ -629,6 +775,12 @@ function closeEditMode() {
     isEditMode = false;
     isNewPage = false;
     editStartSha = null;
+    if (sidebarWasCollapsedBeforeEdit === false) {
+        setSidebarCollapsed(false);
+    }
+    sidebarWasCollapsedBeforeEdit = null;
+
+    if (editorLine !== null) scrollViewToLine(editorLine);
 }
 
 function startNewPage() {
@@ -645,10 +797,14 @@ function startNewPage() {
     
     document.getElementById('markdown-editor').value = '# \n\n';
     document.getElementById('view-mode').style.display = 'none';
-    document.getElementById('edit-mode').style.display = 'block';
+    document.getElementById('edit-mode').style.display = 'flex';
     document.getElementById('edit-button').textContent = 'View';
     isEditMode = true;
     updateMoveButtons();
+    if (window.innerWidth <= 768) {
+        sidebarWasCollapsedBeforeEdit = document.getElementById('sidebar').classList.contains('collapsed');
+        setSidebarCollapsed(true);
+    }
     
     setTimeout(() => {
         const editor = document.getElementById('markdown-editor');
@@ -722,117 +878,188 @@ function updateMoveButtons() {
 }
 
 async function executeMove(newParentId) {
-    const oldPath = `${CONTENT_PATH}/${pageToMove}.md`;
-    const oldParts = pageToMove.split('/');
-    const pageName = oldParts[oldParts.length - 1];
-    const newPageId = newParentId ? `${newParentId}/${pageName}` : pageName;
-    const newPath = `${CONTENT_PATH}/${newPageId}.md`;
-    
+    const oldId = pageToMove;
+    const oldPath = `${CONTENT_PATH}/${oldId}.md`;
+    const pageName = oldId.split('/').pop();
+    const newId = newParentId ? `${newParentId}/${pageName}` : pageName;
+    const newPath = `${CONTENT_PATH}/${newId}.md`;
+
     if (oldPath === newPath) {
         showStatus('Page is already in this location', 'error');
         cancelMoveMode();
         return;
     }
-    
+
     const moveBtn = document.getElementById('move-button');
     const oldBtnText = moveBtn.textContent;
-    
+    moveBtn.textContent = 'Placing...';
+    moveBtn.disabled = true;
+    showStatus('Moving page to new location...', 'success');
+
     try {
-        moveBtn.textContent = 'Placing...';
-        moveBtn.disabled = true;
-        showStatus('Moving page to new location...', 'success');
-        
-        const oldData = await githubAPI(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/${oldPath}`);
-        const content = atob(oldData.content.replace(/\n/g, ''));
-        
-        await githubAPI(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/${newPath}`, {
-            method: 'PUT',
-            body: JSON.stringify({
-                message: `Move ${pageToMove} to ${newPageId}`,
-                content: btoa(content)
-            })
+        await performAction({
+            run: async () => {
+                const oldData = await githubAPI(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/${oldPath}`);
+                const content = atob(oldData.content.replace(/\n/g, ''));
+
+                const created = await githubAPI(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/${newPath}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({
+                        message: `Move ${oldId} to ${newId}`,
+                        content: btoa(content),
+                        sha: null
+                    })
+                });
+
+                try {
+                    await githubAPI(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/${oldPath}`, {
+                        method: 'DELETE',
+                        body: JSON.stringify({
+                            message: `Delete old location of ${oldId}`,
+                            sha: oldData.sha
+                        })
+                    });
+                } catch (e) {
+                    const partial = new Error('Move partially completed — duplicate file remains at old path.');
+                    partial.partialMove = { oldPath, newPath, cause: e };
+                    throw partial;
+                }
+
+                return {
+                    content,
+                    contentSha: created.content?.sha || null,
+                    commitSha: created.commit?.sha || null
+                };
+            },
+            applyPatch: ({ content, contentSha, commitSha }) => {
+                const oldPage = wikiData.pagesById[oldId];
+
+                if (oldPage.parentId && wikiData.pagesById[oldPage.parentId]) {
+                    const sibs = wikiData.pagesById[oldPage.parentId].children;
+                    const idx = sibs.indexOf(oldId);
+                    if (idx >= 0) sibs.splice(idx, 1);
+                } else {
+                    const idx = wikiData.tree.indexOf(oldId);
+                    if (idx >= 0) wikiData.tree.splice(idx, 1);
+                }
+
+                delete wikiData.pagesById[oldId];
+                oldPage.id = newId;
+                oldPage.parentId = newParentId || null;
+                oldPage.markdown = content;
+                oldPage.loaded = true;
+                oldPage.contentSha = contentSha || oldPage.contentSha;
+                oldPage.title = content.match(/^#\s+(.+)$/m)?.[1] || pageName;
+                wikiData.pagesById[newId] = oldPage;
+
+                if (newParentId && wikiData.pagesById[newParentId]) {
+                    wikiData.pagesById[newParentId].children.push(newId);
+                } else if (!newParentId) {
+                    wikiData.tree.push(newId);
+                }
+
+                if (commitSha) wikiData.currentCommitSha = commitSha;
+
+                currentPage = newId;
+                expandAncestors(newId);
+                sessionStorage.setItem('currentPage', newId);
+                history.pushState({ pageId: newId }, '', `#${newId}`);
+            }
         });
-        
-        showStatus('Removing from old location...', 'success');
-        
-        await githubAPI(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/${oldPath}`, {
-            method: 'DELETE',
-            body: JSON.stringify({
-                message: `Delete old location of ${pageToMove}`,
-                sha: oldData.sha
-            })
-        });
-        
-        showStatus('Updating local data...', 'success');
-        
-        localStorage.removeItem('wikiDataCache');
-        wikiData = await loadWikiFromGitHub();
-        localStorage.setItem('wikiDataCache', JSON.stringify(wikiData));
-        
-        const newPage = wikiData.pagesById[newPageId];
-        if (newPage) {
-            newPage.markdown = content;
-            newPage.loaded = true;
-            const title = content.match(/^#\s+(.+)$/m)?.[1] || pageName;
-            newPage.title = title;
-        }
-        
-        currentPage = newPageId;
-        expandAncestors(newPageId);
+
         cancelMoveMode();
-        renderSidebar();
-        loadPage(currentPage);
-        
         moveBtn.textContent = oldBtnText;
         moveBtn.disabled = false;
         showStatus('Page moved!', 'success');
     } catch (error) {
         moveBtn.textContent = oldBtnText;
         moveBtn.disabled = false;
-        showStatus('Failed to move: ' + error.message, 'error');
         cancelMoveMode();
+
+        if (error.partialMove) {
+            showStatus(`⚠️ Move partially completed — duplicate file at ${error.partialMove.oldPath}. Try again or delete the duplicate manually.`, 'error');
+            try { await refreshTreeFromRemote(); } catch (e) { /* ignored */ }
+        } else if (error.status === 422) {
+            showStatus('A page already exists at the destination.', 'error');
+        } else if (error.status === 404) {
+            showStatus('Source page no longer exists. Refreshing tree...', 'error');
+            try { await refreshTreeFromRemote(); } catch (e) { /* ignored */ }
+        } else {
+            showStatus('Failed to move: ' + error.message, 'error');
+        }
     }
 }
 
 async function deletePage() {
     const page = wikiData.pagesById[currentPage];
-    
+
     if (page.children && page.children.length > 0) {
         showStatus('Cannot delete pages with children. Delete children first.', 'error');
         return;
     }
-    
+
     if (!confirm(`Are you sure you want to delete "${page.title}"?\n\nThis cannot be undone!`)) {
         return;
     }
-    
-    try {
-        showStatus('Deleting page...', 'success');
-        
-        const filePath = `${CONTENT_PATH}/${currentPage}.md`;
-        const fileData = await githubAPI(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/${filePath}`);
-        
-        await githubAPI(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/${filePath}`, {
-            method: 'DELETE',
-            body: JSON.stringify({
-                message: `Delete ${currentPage}`,
-                sha: fileData.sha
-            })
-        });
-        
-        localStorage.removeItem('wikiDataCache');
-        wikiData = await loadWikiFromGitHub();
-        localStorage.setItem('wikiDataCache', JSON.stringify(wikiData));
-        updateSearchIndex();
-        
-        const newPage = page.parentId || wikiData.tree[0] || 'home';
+
+    const deletedId = currentPage;
+    const sha = page.contentSha;
+    const fallback = (page.parentId && wikiData.pagesById[page.parentId])
+        ? page.parentId
+        : (wikiData.tree.find(id => id !== deletedId) || null);
+
+    function applyDeletePatch() {
+        const p = wikiData.pagesById[deletedId];
+        if (!p) return;
+        if (p.parentId && wikiData.pagesById[p.parentId]) {
+            const sibs = wikiData.pagesById[p.parentId].children;
+            const idx = sibs.indexOf(deletedId);
+            if (idx >= 0) sibs.splice(idx, 1);
+        } else {
+            const idx = wikiData.tree.indexOf(deletedId);
+            if (idx >= 0) wikiData.tree.splice(idx, 1);
+        }
+        wikiData.pages = wikiData.pages.filter(x => x.id !== deletedId);
+        delete wikiData.pagesById[deletedId];
+    }
+
+    async function navigateToFallback() {
         currentPage = null;
-        renderSidebar();
-        loadPage(newPage);
-        
+        if (fallback && wikiData.pagesById[fallback]) {
+            await loadPage(fallback);
+        } else {
+            sessionStorage.removeItem('currentPage');
+            document.getElementById('content').innerHTML = '<p style="color: #999;">No page selected.</p>';
+        }
+    }
+
+    showStatus('Deleting page...', 'success');
+
+    try {
+        await performAction({
+            run: () => githubAPI(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/${CONTENT_PATH}/${deletedId}.md`, {
+                method: 'DELETE',
+                body: JSON.stringify({
+                    message: `Delete ${deletedId}`,
+                    sha
+                })
+            }),
+            applyPatch: applyDeletePatch
+        });
+        await navigateToFallback();
         showStatus('Page deleted!', 'success');
     } catch (error) {
-        showStatus('Failed to delete: ' + error.message, 'error');
+        if (error.status === 404) {
+            applyDeletePatch();
+            localStorage.setItem('wikiDataCache', JSON.stringify(wikiData));
+            renderSidebar();
+            await navigateToFallback();
+            showStatus('Page was already deleted remotely.', 'success');
+        } else if (error.status === 409) {
+            showStatus('Page was edited remotely after you loaded it. Refresh and try again.', 'error');
+        } else {
+            showStatus('Failed to delete: ' + error.message, 'error');
+        }
     }
 }
 
@@ -867,25 +1094,31 @@ function generateFilename(content) {
     return firstText || 'untitled';
 }
 
-async function checkFilenameExists(basePath, filename) {
-    try {
-        await githubAPI(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/${basePath}/${filename}.md`);
-        return true;
-    } catch (e) {
-        return false;
-    }
-}
-
-async function getUniqueFilename(basePath, filename) {
+function getUniqueFilename(parentPageId, filename) {
+    const prefix = parentPageId ? `${parentPageId}/` : '';
     let finalName = filename;
     let counter = 1;
-    
-    while (await checkFilenameExists(basePath, finalName)) {
+    while (wikiData.pagesById[`${prefix}${finalName}`]) {
         finalName = `${filename}-${counter}`;
         counter++;
     }
-    
     return finalName;
+}
+
+async function refreshTreeFromRemote() {
+    const fresh = await loadWikiFromGitHub();
+    wikiData = mergeCachedIntoFresh(fresh);
+    localStorage.setItem('wikiDataCache', JSON.stringify(wikiData));
+    renderSidebar();
+}
+
+async function performAction(def) {
+    const result = await def.run();
+    def.applyPatch(result);
+    localStorage.setItem('wikiDataCache', JSON.stringify(wikiData));
+    renderSidebar();
+    await renderPageContent();
+    return result;
 }
 
 async function saveEdit() {
@@ -896,109 +1129,137 @@ async function saveEdit() {
         return;
     }
     
+    if (isNewPage) {
+        await saveNewPage(newContent);
+        return;
+    }
+
     const page = wikiData.pagesById[currentPage];
-    
-    if (editStartSha && editStartSha !== page.contentSha && !isNewPage) {
+
+    if (editStartSha && editStartSha !== page.contentSha) {
         if (!confirm('⚠️ WARNING: This page was updated remotely since you started editing.\n\nSaving will OVERWRITE the remote changes.\n\nAre you sure you want to continue?')) {
             return;
         }
     }
-    
+
+    if (newContent === originalMarkdown) {
+        showStatus('No changes to save', 'error');
+        return;
+    }
+
+    document.getElementById('save-button').disabled = true;
+    showStatus('Saving to GitHub...', 'success');
+
+    const filePath = `${CONTENT_PATH}/${currentPage}.md`;
+    const editedPageId = currentPage;
+
     try {
-        document.getElementById('save-button').disabled = true;
-        showStatus('Saving to GitHub...', 'success');
-        
-        let filePath, commitMsg, sha;
-        
-        if (isNewPage) {
-            const parentPath = currentPage ? `${CONTENT_PATH}/${currentPage}` : CONTENT_PATH;
-            const baseName = generateFilename(newContent);
-            const uniqueName = await getUniqueFilename(parentPath, baseName);
-            const newPageId = currentPage ? `${currentPage}/${uniqueName}` : uniqueName;
-            
-            filePath = `${CONTENT_PATH}/${newPageId}.md`;
-            commitMsg = `Create ${newPageId}`;
-            sha = null;
-        } else {
-            filePath = `${CONTENT_PATH}/${currentPage}.md`;
-            commitMsg = `Update ${currentPage}`;
-            
-            if (newContent === originalMarkdown) {
-                showStatus('No changes to save', 'error');
-                document.getElementById('save-button').disabled = false;
-                return;
+        await performAction({
+            run: async () => {
+                const resp = await githubAPI(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/${filePath}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({
+                        message: `Update ${editedPageId}`,
+                        content: btoa(newContent),
+                        sha: page.contentSha
+                    })
+                });
+                return {
+                    contentSha: resp.content?.sha || null,
+                    commitSha: resp.commit?.sha || null
+                };
+            },
+            applyPatch: ({ contentSha, commitSha }) => {
+                page.markdown = newContent;
+                page.loaded = true;
+                page.contentSha = contentSha || page.contentSha;
+                page.title = newContent.match(/^#\s+(.+)$/m)?.[1] || page.title;
+                if (commitSha) wikiData.currentCommitSha = commitSha;
+                originalMarkdown = newContent;
+                clearDraft(editedPageId);
             }
-            
-            const currentData = await githubAPI(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/${filePath}`);
-            sha = currentData.sha;
-        }
-        
-        const saveResponse = await githubAPI(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/${filePath}`, {
-            method: 'PUT',
-            body: JSON.stringify({
-                message: commitMsg,
-                content: btoa(newContent),
-                sha: sha
-            })
         });
-        
-        if (saveResponse.commit) {
-            wikiData.currentCommitSha = saveResponse.commit.sha;
-        }
-        
-        localStorage.setItem('wikiDataCache', JSON.stringify(wikiData));
-        
-        if (isNewPage) {
-            const originalPageId = currentPage;
-            const newPageId = filePath.replace(`${CONTENT_PATH}/`, '').replace(/\.md$/, '');
-            const title = newContent.match(/^#\s+(.+)$/m)?.[1] || newPageId.split('/').pop();
-            const parentId = newPageId.includes('/') ? newPageId.substring(0, newPageId.lastIndexOf('/')) : null;
-            
-            const newPage = {
-                id: newPageId,
-                title: title,
-                parentId: parentId,
-                children: [],
-                markdown: newContent,
-                loaded: true,
-                contentSha: saveResponse.content?.sha || null
-            };
-            
-            wikiData.pagesById[newPageId] = newPage;
-            
-            if (parentId && wikiData.pagesById[parentId]) {
-                wikiData.pagesById[parentId].children.push(newPage);
-            } else if (!parentId) {
-                wikiData.pages.push(newPage);
-            }
-            
-            if (originalPageId) {
-                clearDraft(originalPageId);
-            }
-            currentPage = newPageId;
-        } else {
-            const page = wikiData.pagesById[currentPage];
-            page.markdown = newContent;
-            page.loaded = true;
-            const title = newContent.match(/^#\s+(.+)$/m)?.[1] || currentPage.split('/').pop();
-            page.title = title;
-        }
-        
-        originalMarkdown = newContent;
-        clearDraft(currentPage);
-        isNewPage = false;
-        
+
+        closeEditMode();
+        document.getElementById('save-button').disabled = false;
         showStatus('Saved!', 'success');
-        
-        setTimeout(() => {
-            closeEditMode();
-            renderSidebar();
-            loadPage(currentPage);
-            document.getElementById('save-button').disabled = false;
-        }, 1500);
     } catch (error) {
-        if (error.message.includes('409')) {
+        if (error.status === 409) {
             showStatus('⚠️ Save failed: Remote was updated. Cancel/stash this edit and refresh to get latest.', 'error');
+        } else if (error.status === 404) {
+            showStatus('⚠️ This page no longer exists remotely. Refresh to see current state.', 'error');
+        } else {
+            showStatus('Failed to save: ' + error.message, 'error');
+        }
+        document.getElementById('save-button').disabled = false;
+    }
+}
+
+async function saveNewPage(newContent) {
+    const parentPageId = currentPage;
+    const baseName = generateFilename(newContent);
+    const uniqueName = getUniqueFilename(parentPageId, baseName);
+    const newPageId = parentPageId ? `${parentPageId}/${uniqueName}` : uniqueName;
+    const filePath = `${CONTENT_PATH}/${newPageId}.md`;
+    const title = newContent.match(/^#\s+(.+)$/m)?.[1] || uniqueName;
+
+    document.getElementById('save-button').disabled = true;
+    showStatus('Saving to GitHub...', 'success');
+
+    try {
+        await performAction({
+            run: async () => {
+                const resp = await githubAPI(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/${filePath}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({
+                        message: `Create ${newPageId}`,
+                        content: btoa(newContent),
+                        sha: null
+                    })
+                });
+                return {
+                    contentSha: resp.content?.sha || null,
+                    commitSha: resp.commit?.sha || null
+                };
+            },
+            applyPatch: ({ contentSha, commitSha }) => {
+                const parentId = newPageId.includes('/') ? newPageId.substring(0, newPageId.lastIndexOf('/')) : null;
+                const newPage = {
+                    id: newPageId,
+                    title,
+                    parentId,
+                    children: [],
+                    markdown: newContent,
+                    loaded: true,
+                    contentSha
+                };
+                wikiData.pagesById[newPageId] = newPage;
+                wikiData.pages.push(newPage);
+                if (parentId && wikiData.pagesById[parentId]) {
+                    wikiData.pagesById[parentId].children.push(newPageId);
+                } else if (!parentId) {
+                    wikiData.tree.push(newPageId);
+                }
+                if (commitSha) wikiData.currentCommitSha = commitSha;
+
+                if (parentPageId) clearDraft(parentPageId);
+                clearDraft(newPageId);
+                expandAncestors(newPageId);
+                currentPage = newPageId;
+                originalMarkdown = newContent;
+                isNewPage = false;
+                sessionStorage.setItem('currentPage', newPageId);
+                history.pushState({ pageId: newPageId }, '', `#${newPageId}`);
+            }
+        });
+
+        closeEditMode();
+        document.getElementById('save-button').disabled = false;
+        showStatus('Saved!', 'success');
+    } catch (error) {
+        if (error.status === 422) {
+            showStatus('⚠️ A page with that name was just created remotely. Refreshing tree...', 'error');
+            try { await refreshTreeFromRemote(); } catch (e) { /* surfaced below */ }
         } else {
             showStatus('Failed to save: ' + error.message, 'error');
         }
@@ -1053,6 +1314,97 @@ function captureSelection() {
             text: editor.value.substring(editor.selectionStart, editor.selectionEnd).trim()
         };
     }
+}
+
+let wikiLinkPickerSelection = null;
+let wikiLinkResults = [];
+let wikiLinkActiveIndex = 0;
+
+function openWikiLinkPicker() {
+    const editor = document.getElementById('markdown-editor');
+    const start = editor.selectionStart;
+    const end = editor.selectionEnd;
+    const selectedText = editor.value.substring(start, end);
+    if (selectedText.trim()) {
+        wikiLinkPickerSelection = { start, end, text: selectedText };
+    } else if (lastSelection.text) {
+        wikiLinkPickerSelection = { start: lastSelection.start, end: lastSelection.end, text: lastSelection.text };
+    } else {
+        wikiLinkPickerSelection = { start, end, text: '' };
+    }
+
+    const picker = document.getElementById('wiki-link-modal');
+    const input = document.getElementById('wiki-link-search');
+    picker.classList.remove('hidden');
+    input.value = wikiLinkPickerSelection.text.trim();
+    renderWikiLinkResults();
+    input.focus();
+    input.select();
+}
+
+function closeWikiLinkPicker() {
+    document.getElementById('wiki-link-modal').classList.add('hidden');
+    document.getElementById('wiki-link-search').value = '';
+    wikiLinkResults = [];
+    wikiLinkActiveIndex = 0;
+}
+
+function renderWikiLinkResults() {
+    const query = document.getElementById('wiki-link-search').value.trim();
+    const lowerQuery = query.toLowerCase();
+    const container = document.getElementById('wiki-link-results');
+    container.innerHTML = '';
+
+    if (!query) {
+        wikiLinkResults = wikiData.pages.slice().sort((a, b) => a.title.localeCompare(b.title)).slice(0, 30);
+    } else {
+        const matches = [];
+        for (const page of wikiData.pages) {
+            const idx = searchIndex[page.id];
+            if (!idx) continue;
+            const titleMatch = idx.lowerTitle.includes(lowerQuery);
+            const contentMatch = idx.lowerText.includes(lowerQuery);
+            if (!titleMatch && !contentMatch) continue;
+            let rank;
+            if (idx.lowerTitle === lowerQuery) rank = 0;
+            else if (idx.lowerTitle.startsWith(lowerQuery)) rank = 1;
+            else if (titleMatch) rank = 2;
+            else rank = 3;
+            matches.push({ page, rank });
+        }
+        matches.sort((a, b) => a.rank - b.rank || a.page.title.localeCompare(b.page.title));
+        wikiLinkResults = matches.slice(0, 30).map(m => m.page);
+    }
+
+    wikiLinkActiveIndex = Math.min(wikiLinkActiveIndex, Math.max(0, wikiLinkResults.length - 1));
+
+    wikiLinkResults.forEach((page, i) => {
+        const div = document.createElement('div');
+        div.className = 'wiki-link-result' + (i === wikiLinkActiveIndex ? ' active' : '');
+        const title = document.createElement('div');
+        title.className = 'wiki-link-result-title';
+        title.textContent = page.title;
+        div.appendChild(title);
+        const id = document.createElement('div');
+        id.className = 'wiki-link-result-id';
+        id.textContent = page.id;
+        div.appendChild(id);
+        div.onclick = () => insertWikiLink(page);
+        container.appendChild(div);
+    });
+}
+
+function insertWikiLink(page) {
+    const editor = document.getElementById('markdown-editor');
+    const sel = wikiLinkPickerSelection || { start: editor.selectionStart, end: editor.selectionEnd, text: '' };
+    const linkText = sel.text.trim() || page.title;
+    const linkMarkdown = `[${linkText}](${page.id})`;
+    editor.value = editor.value.substring(0, sel.start) + linkMarkdown + editor.value.substring(sel.end);
+    const cursorPos = sel.start + linkMarkdown.length;
+    closeWikiLinkPicker();
+    editor.focus();
+    editor.setSelectionRange(cursorPos, cursorPos);
+    lastSelection = { start: 0, end: 0, text: '' };
 }
 
 function insertLink() {
@@ -1114,17 +1466,25 @@ function searchPages(query) {
                 const start = Math.max(0, index - 40);
                 const end = Math.min(pageIndex.plainText.length, index + lowerQuery.length + 40);
                 let rawSnippet = pageIndex.plainText.substring(start, end);
-                
+
                 const beforeMatch = rawSnippet.substring(0, index - start);
                 const match = rawSnippet.substring(index - start, index - start + query.length);
                 const afterMatch = rawSnippet.substring(index - start + query.length);
-                
+
                 snippet = (start > 0 ? '...' : '') + beforeMatch + '<span class="search-highlight">' + match + '</span>' + afterMatch + (end < pageIndex.plainText.length ? '...' : '');
             }
-            
-            results.push({ page, snippet });
+
+            let rank;
+            if (pageIndex.lowerTitle === lowerQuery) rank = 0;
+            else if (pageIndex.lowerTitle.startsWith(lowerQuery)) rank = 1;
+            else if (titleMatch) rank = 2;
+            else rank = 3;
+
+            results.push({ page, snippet, rank });
         }
     });
+
+    results.sort((a, b) => a.rank - b.rank || a.page.title.localeCompare(b.page.title));
     
     const resultsContainer = document.getElementById('search-results');
     resultsContainer.innerHTML = '';
@@ -1237,6 +1597,16 @@ document.getElementById('login-button').addEventListener('click', login);
 document.getElementById('token-input').addEventListener('keypress', (e) => {
     if (e.key === 'Enter') login();
 });
+document.getElementById('fullscreen-button').addEventListener('click', () => {
+    const container = document.getElementById('wiki-container');
+    const isFullscreen = container.classList.toggle('fullscreen');
+    localStorage.setItem('wikiFullscreen', isFullscreen);
+});
+
+if (localStorage.getItem('wikiFullscreen') === 'true') {
+    document.getElementById('wiki-container').classList.add('fullscreen');
+}
+
 document.getElementById('index-button').addEventListener('click', loadAllPagesForSearch);
 document.getElementById('logout-button').addEventListener('click', logout);
 document.getElementById('edit-button').addEventListener('click', () => {
@@ -1257,7 +1627,7 @@ document.getElementById('move-button').addEventListener('click', () => {
 });
 document.getElementById('delete-button').addEventListener('click', deletePage);
 document.getElementById('new-page-button').addEventListener('click', startNewPage);
-document.getElementById('cancel-edit-button').addEventListener('click', cancelEdit);
+document.getElementById('cancel-edit-button-bottom').addEventListener('click', cancelEdit);
 document.getElementById('save-button').addEventListener('click', saveEdit);
 
 document.getElementById('markdown-editor').addEventListener('input', () => {
@@ -1278,40 +1648,93 @@ document.getElementById('markdown-editor').addEventListener('keydown', (e) => {
     }
 });
 
+document.getElementById('wiki-link-close').addEventListener('click', () => {
+    closeWikiLinkPicker();
+    document.getElementById('markdown-editor').focus();
+});
+
+document.getElementById('wiki-link-modal').addEventListener('click', (e) => {
+    if (e.target.id === 'wiki-link-modal') {
+        closeWikiLinkPicker();
+        document.getElementById('markdown-editor').focus();
+    }
+});
+
+document.getElementById('wiki-link-search').addEventListener('input', () => {
+    wikiLinkActiveIndex = 0;
+    renderWikiLinkResults();
+});
+
+document.getElementById('wiki-link-search').addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        e.preventDefault();
+        closeWikiLinkPicker();
+        document.getElementById('markdown-editor').focus();
+    } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (wikiLinkResults.length === 0) return;
+        wikiLinkActiveIndex = Math.min(wikiLinkActiveIndex + 1, wikiLinkResults.length - 1);
+        renderWikiLinkResults();
+    } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (wikiLinkResults.length === 0) return;
+        wikiLinkActiveIndex = Math.max(wikiLinkActiveIndex - 1, 0);
+        renderWikiLinkResults();
+    } else if (e.key === 'Enter') {
+        e.preventDefault();
+        const page = wikiLinkResults[wikiLinkActiveIndex];
+        if (page) insertWikiLink(page);
+    }
+});
+
 document.getElementById('search-box').addEventListener('input', (e) => {
     debouncedSearch(e.target.value);
 });
 
-document.getElementById('sidebar-toggle').addEventListener('click', () => {
+function applySidebarWidth() {
+    const sidebar = document.getElementById('sidebar');
+    const isMobile = window.innerWidth <= 768;
+    if (sidebar.classList.contains('collapsed') || isMobile) {
+        sidebar.style.width = '';
+    } else {
+        const saved = localStorage.getItem('sidebarWidth');
+        if (saved) sidebar.style.width = saved + 'px';
+    }
+}
+
+function setSidebarCollapsed(collapsed) {
     const sidebar = document.getElementById('sidebar');
     const btn = document.getElementById('sidebar-toggle');
-    const collapsed = sidebar.classList.toggle('collapsed');
     const isMobile = window.innerWidth <= 768;
+    sidebar.classList.toggle('collapsed', collapsed);
     btn.textContent = collapsed ? (isMobile ? '▼' : '▶') : (isMobile ? '▲' : '◀');
     localStorage.setItem('sidebarCollapsed', collapsed);
+    applySidebarWidth();
+}
+
+document.getElementById('collapse-all-button').addEventListener('click', (e) => {
+    e.stopPropagation();
+    const topLevel = new Set(wikiData.tree);
+    expandedParents = new Set([...expandedParents].filter(id => topLevel.has(id)));
+    saveExpandedState();
+    renderSidebar();
+});
+
+document.getElementById('sidebar-toggle').addEventListener('click', () => {
+    const sidebar = document.getElementById('sidebar');
+    setSidebarCollapsed(!sidebar.classList.contains('collapsed'));
 });
 
 document.getElementById('sidebar').addEventListener('click', (e) => {
     const sidebar = document.getElementById('sidebar');
     if (!sidebar.classList.contains('collapsed') || window.innerWidth <= 768) return;
     if (e.target.id === 'sidebar-toggle') return;
-    sidebar.classList.remove('collapsed');
-    document.getElementById('sidebar-toggle').textContent = '◀';
-    localStorage.setItem('sidebarCollapsed', false);
+    setSidebarCollapsed(false);
 });
 
 function applySidebarState() {
     const collapsed = localStorage.getItem('sidebarCollapsed') === 'true';
-    const sidebar = document.getElementById('sidebar');
-    const btn = document.getElementById('sidebar-toggle');
-    const isMobile = window.innerWidth <= 768;
-    if (collapsed) {
-        sidebar.classList.add('collapsed');
-        btn.textContent = isMobile ? '▼' : '▶';
-    } else {
-        sidebar.classList.remove('collapsed');
-        btn.textContent = isMobile ? '▲' : '◀';
-    }
+    setSidebarCollapsed(collapsed);
 }
 
 applySidebarState();
@@ -1334,10 +1757,7 @@ document.getElementById('search-clear').addEventListener('click', () => {
     const sidebar = document.getElementById('sidebar');
     let dragging = false;
     let startX, startWidth;
-    
-    const saved = localStorage.getItem('sidebarWidth');
-    if (saved) sidebar.style.width = saved + 'px';
-    
+
     handle.addEventListener('mousedown', (e) => {
         dragging = true;
         startX = e.clientX;

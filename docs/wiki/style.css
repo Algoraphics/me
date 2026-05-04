@@ -94,6 +94,30 @@
             max-width: 1200px;
             margin: 0 auto;
             padding: 20px;
+            overflow-x: hidden;
+        }
+
+        #wiki-container.fullscreen {
+            max-width: none;
+        }
+
+        #fullscreen-button {
+            padding: 10px 12px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 0;
+        }
+
+        #fullscreen-button img {
+            width: 16px;
+            height: 16px;
+            display: block;
+            filter: brightness(0) invert(1);
+        }
+
+        #wiki-container.fullscreen #fullscreen-button {
+            background: #6a6a6a;
         }
         
         #header {
@@ -150,13 +174,18 @@
         #edit-mode {
             display: none;
             margin: -30px;
-            padding: 0;
+            padding: 4px;
+            box-sizing: border-box;
+            flex-direction: column;
+            height: calc(100vh - 140px);
+            min-height: 0;
         }
-        
+
         #editor-toolbar {
             display: flex;
             gap: 5px;
-            margin: 0 10px 10px 10px;
+            margin: 0 0 10px 0;
+            flex-shrink: 0;
             flex-wrap: wrap;
             padding: 10px;
             background: #1a1a1a;
@@ -186,15 +215,17 @@
         
         #markdown-editor {
             width: 100%;
-            min-height: 400px;
+            flex: 1;
+            min-height: 0;
+            resize: none;
             background: #1a1a1a;
             color: #e0e0e0;
             border: 2px solid #575757;
             border-radius: 6px;
             padding: 15px;
-            margin-bottom: 15px;
-            font-family: 'Courier New', monospace;
-            font-size: 14px;
+            margin-bottom: 10px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 16px;
             line-height: 1.6;
         }
         
@@ -203,13 +234,109 @@
             border-color: #ffd700;
         }
         
-        #save-button {
-            margin: 0 10px 10px 10px;
+        #edit-actions {
+            display: flex;
+            gap: 10px;
+            flex-shrink: 0;
+            margin-bottom: 10px;
         }
+
+        #wiki-link-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        #wiki-link-modal.hidden {
+            display: none;
+        }
+
+        #wiki-link-modal-content {
+            background: #1a1a1a;
+            border: 2px solid #ffd700;
+            border-radius: 8px;
+            padding: 20px;
+            width: min(500px, 90vw);
+            max-height: 70vh;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+        }
+
+        #wiki-link-modal-content h3 {
+            color: #ffd700;
+            margin-bottom: 12px;
+            font-size: 1.1em;
+        }
+
+        #wiki-link-close {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: none;
+            border: none;
+            color: #999;
+            font-size: 24px;
+            line-height: 1;
+            padding: 4px 8px;
+            cursor: pointer;
+        }
+
+        #wiki-link-close:hover {
+            color: #e0e0e0;
+            background: none;
+        }
+
+        #wiki-link-search {
+            width: 100%;
+            padding: 8px 10px;
+            background: #2d2d2d;
+            border: 2px solid #575757;
+            border-radius: 4px;
+            color: #e0e0e0;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        #wiki-link-search:focus {
+            outline: none;
+            border-color: #ffd700;
+        }
+
+        #wiki-link-results {
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .wiki-link-result {
+            padding: 8px 10px;
+            cursor: pointer;
+            border-radius: 4px;
+            color: #e0e0e0;
+        }
+
+        .wiki-link-result:hover,
+        .wiki-link-result.active {
+            background: #ffd700;
+            color: #1a1a1a;
+        }
+
+        .wiki-link-result-title {
+            font-weight: bold;
+            margin-bottom: 2px;
+        }
+
+        .wiki-link-result-id {
+            font-size: 0.8em;
+            opacity: 0.7;
+        }
+
         
-        #cancel-edit-button {
-            margin: 10px 10px 0 0;
-        }
         
         #status-message {
             padding: 10px;
@@ -276,6 +403,7 @@
             min-width: auto;
             width: auto;
             cursor: pointer;
+            margin-right: 8px;
         }
         
         #sidebar.collapsed #search-input-wrapper,
@@ -297,10 +425,10 @@
             gap: 0;
         }
         
-        #sidebar.collapsed #sidebar-toggle {
+        #sidebar.collapsed #search-row {
             margin-bottom: 0;
         }
-        
+
         #search-container {
             padding: 20px;
             padding-bottom: 10px;
@@ -323,17 +451,18 @@
             display: flex;
             gap: 8px;
             align-items: center;
+            margin-bottom: 15px;
         }
-        
+
         #search-input-wrapper {
             flex: 1;
             min-width: 0;
             position: relative;
-            margin-bottom: 15px;
         }
         
         #search-box {
             width: 100%;
+            min-width: 0;
             padding: 10px 28px 10px 10px;
             background: #1a1a1a;
             border: 2px solid #575757;
@@ -360,12 +489,20 @@
             color: #e0e0e0;
         }
         
-        #sidebar-toggle {
+        #sidebar-toggle,
+        #collapse-all-button {
             padding: 6px 8px;
-            font-size: 12px;
-            margin-bottom: 15px;
+            font-size: 15px;
             flex-shrink: 0;
             background: #3d3d3d;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+        }
+
+        #sidebar.collapsed #collapse-all-button {
+            display: none;
         }
         
         #search-box:focus {
@@ -422,6 +559,7 @@
             border-radius: 4px;
             margin-bottom: 2px;
             transition: background 0.2s;
+            overflow-wrap: anywhere;
         }
         
         .page-link:hover {
@@ -476,6 +614,7 @@
             border-radius: 4px;
             margin-bottom: 1px;
             transition: background 0.2s;
+            overflow-wrap: anywhere;
         }
         
         .child-link:hover {
@@ -496,12 +635,19 @@
             border-radius: 8px;
             overflow-y: auto;
             max-height: calc(100vh - 140px);
+            display: flex;
+            flex-direction: column;
         }
         
         #page-header {
             display: flex;
             justify-content: flex-end;
-            margin-bottom: 15px;
+            margin: -30px -30px 15px -30px;
+            padding: 30px 30px 15px 30px;
+            position: sticky;
+            top: -30px;
+            background: #2d2d2d;
+            z-index: 5;
         }
         
         #page-status {
@@ -516,6 +662,8 @@
         
         #content {
             min-height: 200px;
+            overflow-wrap: anywhere;
+            min-width: 0;
         }
         
         #content h1 {
@@ -580,6 +728,10 @@
             #wiki-container {
                 padding: 10px;
             }
+
+            #fullscreen-button {
+                display: none;
+            }
             
             #header {
                 padding: 8px 12px;
@@ -605,7 +757,7 @@
                 padding-bottom: 5px;
             }
             
-            #search-input-wrapper {
+            #search-row {
                 margin-bottom: 8px;
             }
             
@@ -651,9 +803,6 @@
                 gap: 8px;
             }
             
-            #sidebar-toggle {
-                margin-bottom: 8px;
-            }
             
             #pages-container {
                 padding: 0 10px 10px 10px;
@@ -679,10 +828,19 @@
                 padding: 15px;
                 min-width: 0;
             }
+
+            #edit-mode {
+                margin: -15px;
+            }
             
             #page-header {
-                margin-bottom: 8px;
+                margin: -15px -15px 8px -15px;
                 gap: 5px !important;
+                position: sticky;
+                top: -15px;
+                background: #2d2d2d;
+                padding: 15px;
+                z-index: 5;
             }
             
             #page-header > div {
