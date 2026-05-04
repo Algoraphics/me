@@ -564,7 +564,7 @@ async function login() {
         setStoredToken(token);
         
         document.getElementById('login-screen').style.display = 'none';
-        document.getElementById('wiki-container').style.display = 'block';
+        document.getElementById('wiki-container').style.display = 'flex';
         document.documentElement.style.visibility = 'visible';
         
         loadExpandedState();
@@ -1694,9 +1694,24 @@ document.getElementById('search-box').addEventListener('input', (e) => {
 function applySidebarWidth() {
     const sidebar = document.getElementById('sidebar');
     const isMobile = window.innerWidth <= 768;
-    if (sidebar.classList.contains('collapsed') || isMobile) {
+    const collapsed = sidebar.classList.contains('collapsed');
+    if (collapsed) {
         sidebar.style.width = '';
+        sidebar.style.height = '';
+        sidebar.style.maxHeight = '';
+    } else if (isMobile) {
+        sidebar.style.width = '';
+        const savedHeight = localStorage.getItem('sidebarHeight');
+        if (savedHeight) {
+            sidebar.style.height = savedHeight + 'px';
+            sidebar.style.maxHeight = savedHeight + 'px';
+        } else {
+            sidebar.style.height = '';
+            sidebar.style.maxHeight = '';
+        }
     } else {
+        sidebar.style.height = '';
+        sidebar.style.maxHeight = '';
         const saved = localStorage.getItem('sidebarWidth');
         if (saved) sidebar.style.width = saved + 'px';
     }
@@ -1755,35 +1770,58 @@ document.getElementById('search-clear').addEventListener('click', () => {
 (function() {
     const handle = document.getElementById('resize-handle');
     const sidebar = document.getElementById('sidebar');
-    let dragging = false;
-    let startX, startWidth;
+    let dragging = false, isVertical = false;
+    let startCoord, startSize;
 
-    handle.addEventListener('mousedown', (e) => {
+    function startDrag(e) {
+        const point = e.touches ? e.touches[0] : e;
+        isVertical = window.innerWidth <= 768;
         dragging = true;
-        startX = e.clientX;
-        startWidth = sidebar.getBoundingClientRect().width;
+        const rect = sidebar.getBoundingClientRect();
+        startCoord = isVertical ? point.clientY : point.clientX;
+        startSize = isVertical ? rect.height : rect.width;
         handle.classList.add('dragging');
-        document.body.style.cursor = 'col-resize';
+        document.body.style.cursor = isVertical ? 'row-resize' : 'col-resize';
         document.body.style.userSelect = 'none';
         e.preventDefault();
-    });
-    
-    document.addEventListener('mousemove', (e) => {
+    }
+
+    function moveDrag(e) {
         if (!dragging) return;
-        const mainWidth = document.getElementById('main-content').getBoundingClientRect().width;
-        const maxWidth = mainWidth - 500 - 8;
-        const newWidth = Math.max(200, Math.min(maxWidth, startWidth + e.clientX - startX));
-        sidebar.style.width = newWidth + 'px';
-    });
-    
-    document.addEventListener('mouseup', () => {
+        const point = e.touches ? e.touches[0] : e;
+        if (isVertical) {
+            const maxHeight = window.innerHeight - 200;
+            const newHeight = Math.max(80, Math.min(maxHeight, startSize + point.clientY - startCoord));
+            sidebar.style.height = newHeight + 'px';
+            sidebar.style.maxHeight = newHeight + 'px';
+        } else {
+            const mainWidth = document.getElementById('main-content').getBoundingClientRect().width;
+            const maxWidth = mainWidth - 500 - 8;
+            const newWidth = Math.max(200, Math.min(maxWidth, startSize + point.clientX - startCoord));
+            sidebar.style.width = newWidth + 'px';
+        }
+    }
+
+    function endDrag() {
         if (!dragging) return;
         dragging = false;
         handle.classList.remove('dragging');
         document.body.style.cursor = '';
         document.body.style.userSelect = '';
-        localStorage.setItem('sidebarWidth', sidebar.getBoundingClientRect().width);
-    });
+        const rect = sidebar.getBoundingClientRect();
+        if (isVertical) {
+            localStorage.setItem('sidebarHeight', rect.height);
+        } else {
+            localStorage.setItem('sidebarWidth', rect.width);
+        }
+    }
+
+    handle.addEventListener('mousedown', startDrag);
+    handle.addEventListener('touchstart', startDrag, { passive: false });
+    document.addEventListener('mousemove', moveDrag);
+    document.addEventListener('touchmove', moveDrag, { passive: false });
+    document.addEventListener('mouseup', endDrag);
+    document.addEventListener('touchend', endDrag);
 })();
 
 document.addEventListener('keydown', (e) => {
@@ -1812,6 +1850,16 @@ window.addEventListener('popstate', async (e) => {
         }
     }
 });
+
+function updateViewportHeight() {
+    const h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+    document.documentElement.style.setProperty('--vh', h + 'px');
+}
+if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', updateViewportHeight);
+}
+window.addEventListener('resize', updateViewportHeight);
+updateViewportHeight();
 
 const savedToken = getStoredToken();
 if (savedToken) {
