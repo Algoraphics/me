@@ -619,7 +619,11 @@ function logout() {
 
 async function enterEditMode(draft = null) {
     const page = wikiData.pagesById[currentPage];
-    
+
+    const statusMsg = document.getElementById('status-message');
+    statusMsg.textContent = '';
+    statusMsg.className = '';
+
     if (!page.loaded && !draft) {
         await fetchPageContent(currentPage);
     }
@@ -794,7 +798,11 @@ function startNewPage() {
     
     isNewPage = true;
     originalMarkdown = '';
-    
+
+    const statusMsg = document.getElementById('status-message');
+    statusMsg.textContent = '';
+    statusMsg.className = '';
+
     document.getElementById('markdown-editor').value = '# \n\n';
     document.getElementById('view-mode').style.display = 'none';
     document.getElementById('edit-mode').style.display = 'flex';

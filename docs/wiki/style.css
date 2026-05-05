@@ -344,23 +344,20 @@
         
         
         #status-message {
-            padding: 10px;
-            border-radius: 6px;
-            margin: 10px;
-            margin-top: 10px;
             display: none;
+            align-self: center;
+            padding: 0 10px;
+            font-size: 14px;
         }
-        
+
         #status-message.success {
-            background: #2d5016;
             color: #90ee90;
-            display: block;
+            display: inline;
         }
-        
+
         #status-message.error {
-            background: #5a1a1a;
             color: #ff6b6b;
-            display: block;
+            display: inline;
         }
         
         #main-content {
