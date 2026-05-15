@@ -59,9 +59,9 @@ const ContactLink = styled_components__WEBPACK_IMPORTED_MODULE_1__["default"].a 
     }
 `;
 var IntroTextBrief = () => (react__WEBPACK_IMPORTED_MODULE_0__.createElement(_styles__WEBPACK_IMPORTED_MODULE_2__.TextSection, null,
-    "Hi! ",
-    react__WEBPACK_IMPORTED_MODULE_0__.createElement("img", { className: "blob-emoji", src: "emoji/blob/waving hand.svg", alt: "\uD83D\uDC4B" }),
-    react__WEBPACK_IMPORTED_MODULE_0__.createElement("br", null),
+    react__WEBPACK_IMPORTED_MODULE_0__.createElement("div", { style: { paddingBottom: 20 } },
+        "Hi! ",
+        react__WEBPACK_IMPORTED_MODULE_0__.createElement("img", { className: "blob-emoji blob-emoji-wave", src: "emoji/blob/waving hand.svg", alt: "\uD83D\uDC4B" })),
     "My name is Ethan Rabb. I'm a Software Engineer with 10+ years in industry and a passion for creative programming projects.",
     react__WEBPACK_IMPORTED_MODULE_0__.createElement("h2", null, "What kind of work do you do?"),
     "I've done Full Stack feature work in AdTech, Aviation, Construction, Healthcare, and Robotics.",
@@ -77,10 +77,9 @@ var IntroTextRest = (props) => (react__WEBPACK_IMPORTED_MODULE_0__.createElement
     react__WEBPACK_IMPORTED_MODULE_0__.createElement(_styles__WEBPACK_IMPORTED_MODULE_2__.TabLink, { onClick: () => props.onTabChange("Work") }, "Work"),
     "."));
 var IntroText = (props) => (react__WEBPACK_IMPORTED_MODULE_0__.createElement(_styles__WEBPACK_IMPORTED_MODULE_2__.TextSection, null,
-    "Hi! ",
-    react__WEBPACK_IMPORTED_MODULE_0__.createElement("img", { className: "blob-emoji", src: "emoji/blob/waving hand.svg", alt: "\uD83D\uDC4B" }),
-    react__WEBPACK_IMPORTED_MODULE_0__.createElement("br", null),
-    react__WEBPACK_IMPORTED_MODULE_0__.createElement("br", null),
+    react__WEBPACK_IMPORTED_MODULE_0__.createElement("div", { style: { paddingBottom: 20 } },
+        "Hi! ",
+        react__WEBPACK_IMPORTED_MODULE_0__.createElement("img", { className: "blob-emoji blob-emoji-wave", src: "emoji/blob/waving hand.svg", alt: "\uD83D\uDC4B" })),
     "My name is Ethan Rabb. I'm a Software Engineer with 10+ years in industry and a passion for creative programming projects.",
     react__WEBPACK_IMPORTED_MODULE_0__.createElement("h2", null, "What kind of work do you do?"),
     "I've done Full Stack work in AdTech, Aviation, Healthcare,and Robotics. I love novelty, and I'm always looking for new fields and technologies where I can use my programming skills.",
@@ -120,7 +119,7 @@ var Additional = (props) => (react__WEBPACK_IMPORTED_MODULE_0__.createElement(_s
     react__WEBPACK_IMPORTED_MODULE_0__.createElement("br", null),
     react__WEBPACK_IMPORTED_MODULE_0__.createElement("br", null),
     react__WEBPACK_IMPORTED_MODULE_0__.createElement("b", null, "Topics I could talk about for hours:"),
-    " Nature, Movies/TV, Local Restaurants & Bars, Writing, Basketball, Meteorology, Investing, Gaming, Cooking, Robotics, Space",
+    " Nature, Movies/TV, Local Restaurants & Bars, Writing, Basketball, Meteorology, Gaming, Cooking, Robotics, Space, Investing",
     react__WEBPACK_IMPORTED_MODULE_0__.createElement("h2", null, "What's the best way to reach you?"),
     "Here's some icons.",
     react__WEBPACK_IMPORTED_MODULE_0__.createElement(ContactIcons, null,
@@ -158,70 +157,202 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ });
 /* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! react */ "./node_modules/react/index.js");
 /* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(react__WEBPACK_IMPORTED_MODULE_0__);
-/* harmony import */ var styled_components__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! styled-components */ "./node_modules/styled-components/dist/styled-components.browser.esm.js");
-/* harmony import */ var _styles__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./styles */ "./styles.tsx");
+/* harmony import */ var react_dom__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! react-dom */ "./node_modules/react-dom/index.js");
+/* harmony import */ var styled_components__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! styled-components */ "./node_modules/styled-components/dist/styled-components.browser.esm.js");
+/* harmony import */ var _styles__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./styles */ "./styles.tsx");
 
 
 
-const SlimePreview = styled_components__WEBPACK_IMPORTED_MODULE_1__["default"].div `
+
+const SlimePreview = styled_components__WEBPACK_IMPORTED_MODULE_2__["default"].a `
     display: inline-block;
-    border-style: solid;
-    border-color: #212121;
+    border: 3px solid #212121;
     height: fit-content;
     width: ${(props) => props.width};
     line-height: 0;
+    cursor: pointer;
+    transition: border-color 200ms ease;
+    &:hover {
+        border-color: yellow;
+    }
 `;
-const SlimeBoxDesktop = styled_components__WEBPACK_IMPORTED_MODULE_1__["default"].div `
+const SlimeBoxDesktop = styled_components__WEBPACK_IMPORTED_MODULE_2__["default"].div `
     display: flex;
     padding: 0 0 15 0;
 `;
-const SlimeBoxMobile = styled_components__WEBPACK_IMPORTED_MODULE_1__["default"].div `
+const SlimeBoxMobile = styled_components__WEBPACK_IMPORTED_MODULE_2__["default"].div `
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
     padding: 0 0 10 0;
 `;
-const SlimeTextMobile = styled_components__WEBPACK_IMPORTED_MODULE_1__["default"].div `
+const SlimeTextMobile = styled_components__WEBPACK_IMPORTED_MODULE_2__["default"].div `
     padding: 5 0 0 0;
 `;
-const SlimeTextDesktop = styled_components__WEBPACK_IMPORTED_MODULE_1__["default"].div `
+const SlimeTextDesktop = styled_components__WEBPACK_IMPORTED_MODULE_2__["default"].div `
     display: inline-block;
     padding: 10 10 10 30;
     vertical-align: top;
     width: 50%;
 `;
-const FractalText = styled_components__WEBPACK_IMPORTED_MODULE_1__["default"].div `
+const FractalText = styled_components__WEBPACK_IMPORTED_MODULE_2__["default"].div `
     display: inline-block;
 `;
-const FractalBox = styled_components__WEBPACK_IMPORTED_MODULE_1__["default"].div `
-  padding: 10px;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-around;
-`;
-const FractalImg = styled_components__WEBPACK_IMPORTED_MODULE_1__["default"].img `
+const FRACTAL_IMAGE_COUNT = 30;
+const FRACTAL_AUTO_ADVANCE_MS = 5000;
+const FRACTAL_SLIDE_MS = 600;
+const CarouselContainer = styled_components__WEBPACK_IMPORTED_MODULE_2__["default"].div `
+  position: relative;
+  width: 100%;
+  height: ${(props) => props.height};
+  margin: 10px 0;
   user-select: none;
-  flex: 0 9%;
-  margin-bottom: 2%;
-  transition: transform 0.5s ease-in-out;
-  ${(props) => props.isZoom && props.zoomType};
+  background: #111;
+  overflow: hidden;
+`;
+const CarouselTrack = styled_components__WEBPACK_IMPORTED_MODULE_2__["default"].div `
+  display: flex;
+  height: 100%;
+  width: 100%;
+  transform: translateX(${(props) => -props.offset * 100}%);
+  transition: ${(props) => (props.animate ? `transform ${FRACTAL_SLIDE_MS}ms ease` : "none")};
+`;
+const CarouselSlide = styled_components__WEBPACK_IMPORTED_MODULE_2__["default"].div `
+  flex: 0 0 100%;
+  height: 100%;
+`;
+const CarouselImage = styled_components__WEBPACK_IMPORTED_MODULE_2__["default"].img `
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  cursor: zoom-in;
+`;
+const ModalBackdrop = styled_components__WEBPACK_IMPORTED_MODULE_2__["default"].div `
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`;
+const ModalImageWrap = styled_components__WEBPACK_IMPORTED_MODULE_2__["default"].div `
+  position: relative;
+  display: inline-block;
+  line-height: 0;
+`;
+const ModalImage = styled_components__WEBPACK_IMPORTED_MODULE_2__["default"].img `
+  max-width: calc(100vw - 100px);
+  max-height: calc(100vh - 100px);
+  display: block;
+  cursor: default;
+`;
+const ModalCloseButton = styled_components__WEBPACK_IMPORTED_MODULE_2__["default"].button `
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  border: none;
+  font-size: 28px;
+  line-height: 1;
+  width: 44px;
+  height: 44px;
+  cursor: pointer;
+  z-index: 2;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.9);
+  }
+`;
+const ModalArrow = styled_components__WEBPACK_IMPORTED_MODULE_2__["default"].button `
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  ${(props) => (props.side === "left" ? "right: 100%;" : "left: 100%;")}
+  width: 50px;
+  background: rgba(0, 0, 0, 0.4);
+  border: none;
+  color: white;
+  font-size: 36px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 200ms ease;
+  z-index: 2;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.7);
+  }
+`;
+const CarouselArrow = styled_components__WEBPACK_IMPORTED_MODULE_2__["default"].button `
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  ${(props) => props.side}: 0;
+  width: 44px;
+  background: rgba(0, 0, 0, 0.4);
+  border: none;
+  color: white;
+  font-size: 32px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 200ms ease;
+  z-index: 2;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.7);
+  }
 `;
 const FractalGallery = (props) => {
-    const { isMobile, zoomImg, setZoomImg } = props;
-    const targetProp = isMobile ? "transform: scale(3);" : "transform: scale(6);";
-    const images = [];
-    for (let i = 1; i <= 30; ++i) {
-        if (isMobile) {
-            i++;
-        }
-        let path = "PsychoPics/Screenshot (" + i + ").png";
-        let id = "fractalImg" + i;
-        images.push(react__WEBPACK_IMPORTED_MODULE_0__.createElement(FractalImg, { key: i, id: id, src: path, height: isMobile ? "160" : "100", zoomType: targetProp, onClick: (e) => {
-                e.stopPropagation();
-                (zoomImg === id) ? setZoomImg("none") : setZoomImg(id);
-            }, isZoom: zoomImg === id }));
-    }
-    return (react__WEBPACK_IMPORTED_MODULE_0__.createElement(FractalBox, null, images));
+    const { isMobile } = props;
+    const [index, setIndex] = react__WEBPACK_IMPORTED_MODULE_0__.useState(0);
+    const [autoPlay, setAutoPlay] = react__WEBPACK_IMPORTED_MODULE_0__.useState(true);
+    const [animate, setAnimate] = react__WEBPACK_IMPORTED_MODULE_0__.useState(true);
+    const [modalOpen, setModalOpen] = react__WEBPACK_IMPORTED_MODULE_0__.useState(false);
+    const advance = react__WEBPACK_IMPORTED_MODULE_0__.useCallback((delta, stopAutoplay) => {
+        if (stopAutoplay)
+            setAutoPlay(false);
+        setIndex((prev) => {
+            const next = prev + delta;
+            const wrapped = (next + FRACTAL_IMAGE_COUNT) % FRACTAL_IMAGE_COUNT;
+            setAnimate(next >= 0 && next < FRACTAL_IMAGE_COUNT);
+            return wrapped;
+        });
+    }, []);
+    const openModal = () => {
+        setAutoPlay(false);
+        setModalOpen(true);
+    };
+    const closeModal = () => setModalOpen(false);
+    react__WEBPACK_IMPORTED_MODULE_0__.useEffect(() => {
+        if (!autoPlay)
+            return;
+        const id = setInterval(() => advance(1, false), FRACTAL_AUTO_ADVANCE_MS);
+        return () => clearInterval(id);
+    }, [autoPlay, advance]);
+    react__WEBPACK_IMPORTED_MODULE_0__.useEffect(() => {
+        if (animate)
+            return;
+        const handle = requestAnimationFrame(() => requestAnimationFrame(() => setAnimate(true)));
+        return () => cancelAnimationFrame(handle);
+    }, [animate]);
+    const height = isMobile ? "260px" : "440px";
+    return (react__WEBPACK_IMPORTED_MODULE_0__.createElement(react__WEBPACK_IMPORTED_MODULE_0__.Fragment, null,
+        react__WEBPACK_IMPORTED_MODULE_0__.createElement(CarouselContainer, { height: height },
+            react__WEBPACK_IMPORTED_MODULE_0__.createElement(CarouselArrow, { side: "left", onClick: () => advance(-1, true), "aria-label": "Previous image" }, "\u2039"),
+            react__WEBPACK_IMPORTED_MODULE_0__.createElement(CarouselTrack, { offset: index, animate: animate }, Array.from({ length: FRACTAL_IMAGE_COUNT }, (_, i) => {
+                const src = `PsychoPics/Screenshot (${i + 1}).png`;
+                return (react__WEBPACK_IMPORTED_MODULE_0__.createElement(CarouselSlide, { key: i },
+                    react__WEBPACK_IMPORTED_MODULE_0__.createElement(CarouselImage, { src: src, alt: `Fractal sample ${i + 1}`, onClick: openModal })));
+            })),
+            react__WEBPACK_IMPORTED_MODULE_0__.createElement(CarouselArrow, { side: "right", onClick: () => advance(1, true), "aria-label": "Next image" }, "\u203A")),
+        modalOpen && react_dom__WEBPACK_IMPORTED_MODULE_1__.createPortal(react__WEBPACK_IMPORTED_MODULE_0__.createElement(ModalBackdrop, { onClick: closeModal },
+            react__WEBPACK_IMPORTED_MODULE_0__.createElement(ModalImageWrap, null,
+                react__WEBPACK_IMPORTED_MODULE_0__.createElement(ModalArrow, { side: "left", onClick: (e) => { e.stopPropagation(); advance(-1, true); }, "aria-label": "Previous image" }, "\u2039"),
+                react__WEBPACK_IMPORTED_MODULE_0__.createElement(ModalImage, { src: `PsychoPics/Screenshot (${index + 1}).png`, alt: `Fractal sample ${index + 1}`, onClick: (e) => e.stopPropagation() }),
+                react__WEBPACK_IMPORTED_MODULE_0__.createElement(ModalArrow, { side: "right", onClick: (e) => { e.stopPropagation(); advance(1, true); }, "aria-label": "Next image" }, "\u203A")),
+            react__WEBPACK_IMPORTED_MODULE_0__.createElement(ModalCloseButton, { onClick: closeModal, "aria-label": "Close" }, "\u00D7")), document.body)));
 };
 const videoDimensions = { mobile: { width: "285", height: "150" }, desktop: { width: "500", height: "270" } };
 const VideoElement = (props) => {
@@ -234,8 +365,8 @@ const VideoElement = (props) => {
         react__WEBPACK_IMPORTED_MODULE_0__.createElement("source", { src: "SlimePreviewCroppedCompress.mp4", type: "video/mp4" })));
 };
 const Art = (props) => {
-    let { isMobile, onTabChange, zoomImg = "none", setZoomImg = () => { } } = props;
-    var slimePreview = (react__WEBPACK_IMPORTED_MODULE_0__.createElement(SlimePreview, { width: isMobile ? "285" : "500" },
+    let { isMobile, onTabChange } = props;
+    var slimePreview = (react__WEBPACK_IMPORTED_MODULE_0__.createElement(SlimePreview, { width: isMobile ? "285" : "500", href: "slime/" },
         react__WEBPACK_IMPORTED_MODULE_0__.createElement(VideoElement, { isMobile: isMobile })));
     var slimeText = (react__WEBPACK_IMPORTED_MODULE_0__.createElement("div", null,
         "I wanted to give viewers a sense of scale with this experience, beginning with a very grounded visual of \"traveling down the road\" which gradually increases in scope and becomes more surreal.",
@@ -248,7 +379,7 @@ const Art = (props) => {
     var slimeBoxMobile = (react__WEBPACK_IMPORTED_MODULE_0__.createElement(SlimeBoxMobile, { id: "mobilebox" },
         slimePreview,
         react__WEBPACK_IMPORTED_MODULE_0__.createElement(SlimeTextMobile, null, slimeText)));
-    return (react__WEBPACK_IMPORTED_MODULE_0__.createElement(_styles__WEBPACK_IMPORTED_MODULE_2__.Section, null,
+    return (react__WEBPACK_IMPORTED_MODULE_0__.createElement(_styles__WEBPACK_IMPORTED_MODULE_3__.Section, null,
         "My main creative work has been these audio-visual experiences using various WebXR technologies. I love that users can immerse themselves to their comfort level from anywhere.",
         react__WEBPACK_IMPORTED_MODULE_0__.createElement("h2", null, "Slime Freighter"),
         react__WEBPACK_IMPORTED_MODULE_0__.createElement("b", null, "Slime Freighter"),
@@ -260,22 +391,20 @@ const Art = (props) => {
         react__WEBPACK_IMPORTED_MODULE_0__.createElement("br", null),
         react__WEBPACK_IMPORTED_MODULE_0__.createElement("br", null),
         "Nearly everything in the video is synchronized to the beat of the music, using a customized audio-reactivity component that I built for the project.",
-        react__WEBPACK_IMPORTED_MODULE_0__.createElement("h2", null, "Opal & Bismuth"),
+        react__WEBPACK_IMPORTED_MODULE_0__.createElement("h2", null, "Bismuth"),
         react__WEBPACK_IMPORTED_MODULE_0__.createElement(FractalText, null,
             "A fun side-effect of the Slime Freighter video was discovering the potential of fractal visualizations using GLSL shaders.",
             react__WEBPACK_IMPORTED_MODULE_0__.createElement("br", null),
             react__WEBPACK_IMPORTED_MODULE_0__.createElement("br", null),
-            react__WEBPACK_IMPORTED_MODULE_0__.createElement("b", null, "Opal & Bismuth"),
-            " are my attempt to create a visualizer that will always show something new. They use the same basic algorithms, but Opal is based on circular geometry while Bismuth is rectangular.",
-            react__WEBPACK_IMPORTED_MODULE_0__.createElement("br", null),
-            react__WEBPACK_IMPORTED_MODULE_0__.createElement("br", null),
-            "An interactive Bismuth preview is available in the ",
-            onTabChange ? react__WEBPACK_IMPORTED_MODULE_0__.createElement(_styles__WEBPACK_IMPORTED_MODULE_2__.TabLink, { onClick: () => onTabChange("Demo") }, "Demo") : react__WEBPACK_IMPORTED_MODULE_0__.createElement("b", null, "Demo"),
-            ", or you can browse the gallery below to see samples of both visualizers. ",
-            react__WEBPACK_IMPORTED_MODULE_0__.createElement("b", null, " Click to Zoom! "),
+            react__WEBPACK_IMPORTED_MODULE_0__.createElement("b", null, "Bismuth"),
+            " is my attempt to create a visualizer that will always show something new. An interactive preview is available in the ",
+            onTabChange ? react__WEBPACK_IMPORTED_MODULE_0__.createElement(_styles__WEBPACK_IMPORTED_MODULE_3__.TabLink, { onClick: () => onTabChange("Demo") }, "Demo") : react__WEBPACK_IMPORTED_MODULE_0__.createElement("b", null, "Demo"),
+            ". A full, feature-rich version is available on the ",
+            react__WEBPACK_IMPORTED_MODULE_0__.createElement(_styles__WEBPACK_IMPORTED_MODULE_3__.ExternalLink, { href: "https://play.google.com/store/apps/details?id=com.algoraphics.bismuth", target: "_blank", rel: "noopener noreferrer" }, "Google Play Store"),
+            ".",
             react__WEBPACK_IMPORTED_MODULE_0__.createElement("br", null),
             react__WEBPACK_IMPORTED_MODULE_0__.createElement("br", null)),
-        react__WEBPACK_IMPORTED_MODULE_0__.createElement(FractalGallery, { isMobile: isMobile, zoomImg: zoomImg, setZoomImg: setZoomImg })));
+        react__WEBPACK_IMPORTED_MODULE_0__.createElement(FractalGallery, { isMobile: isMobile })));
 };
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (Art);
 
@@ -549,7 +678,7 @@ const TabGroup = (props) => {
             react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_styles__WEBPACK_IMPORTED_MODULE_8__.FixedButtons, null, tabs.map((type) => (react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_styles__WEBPACK_IMPORTED_MODULE_8__.Tab, { padding: props.isMobile ? "8 12" : "8 20", border: props.isMobile ? "solid" : "none", key: type, activeTab: activeTab === type, onClick: () => handleTabChange(type) }, type)))),
             react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_ControlPanel__WEBPACK_IMPORTED_MODULE_6__["default"], { isMobile: props.isMobile, isActive: activeTab === "Demo", onTogglePanel: handleTogglePanel })),
         react__WEBPACK_IMPORTED_MODULE_0___default().createElement("br", null),
-        (displayedTab === "Demo" || activeTab === "Demo") ? (react__WEBPACK_IMPORTED_MODULE_0___default().createElement(TabContent, { visible: !transitioning, duration: TRANSITION_MS }, displayedTab !== "Demo" ? (react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_styles__WEBPACK_IMPORTED_MODULE_8__.Window, { id: "tabwindow", fontSize: props.isMobile ? "14px" : "17px", radius: props.isMobile ? "0%" : "2%", demoActive: false }, getMainWindow(displayedTab, props.isMobile, handleTabChange, zoomImg, setZoomImg))) : (react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_styles__WEBPACK_IMPORTED_MODULE_8__.Window, { id: "tabwindow", fontSize: props.isMobile ? "14px" : "17px", radius: props.isMobile ? "0%" : "2%", demoActive: activeDemo },
+        (displayedTab === "Demo" || activeTab === "Demo") ? (react__WEBPACK_IMPORTED_MODULE_0___default().createElement(TabContent, { visible: !transitioning }, displayedTab !== "Demo" ? (react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_styles__WEBPACK_IMPORTED_MODULE_8__.Window, { id: "tabwindow", fontSize: props.isMobile ? "14px" : "17px", radius: props.isMobile ? "0%" : "2%", demoActive: false }, getMainWindow(displayedTab, props.isMobile, handleTabChange, zoomImg, setZoomImg))) : (react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_styles__WEBPACK_IMPORTED_MODULE_8__.Window, { id: "tabwindow", fontSize: props.isMobile ? "14px" : "17px", radius: props.isMobile ? "0%" : "2%", demoActive: activeDemo },
             react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_Demo__WEBPACK_IMPORTED_MODULE_7__.Demo, { isMobile: props.isMobile, onTabChange: handleTabChange }))))) : (react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_styles__WEBPACK_IMPORTED_MODULE_8__.Window, { id: "tabwindow", fontSize: props.isMobile ? "14px" : "17px", radius: props.isMobile ? "0%" : "2%", demoActive: false },
             react__WEBPACK_IMPORTED_MODULE_0___default().createElement(TabContent, { visible: !transitioning }, getMainWindow(displayedTab, props.isMobile, handleTabChange, zoomImg, setZoomImg))))));
 };
@@ -619,11 +748,11 @@ const Work = (props) => {
     return (react__WEBPACK_IMPORTED_MODULE_0__.createElement(react__WEBPACK_IMPORTED_MODULE_0__.Fragment, null,
         "I've worked at several companies over my career, almost all from different industries.",
         react__WEBPACK_IMPORTED_MODULE_0__.createElement("h2", null, "BillionToOne"),
-        "I joined BillionToOne in 2025 as a Senior Developer on the Digital Experiences team. We build and maintain the company's patient and provider portals, as well as the software pipeline that delivers test results to thousands of patients per week. I do full-stack work for the team wherever needed, building everything from UI features to Billing and EMR integrations. I architected and implemented the company's first successful patient-safe LLM chatbot.",
+        "I joined BillionToOne in 2025 as a Senior Developer on the Digital Experiences team. I build and maintain the company's patient and provider portals, as well as the software pipeline that delivers test results to thousands of patients per week. I do full-stack work for the team wherever needed, building everything from UI features to Billing and EMR integrations. I architected and implemented the company's first successful patient-facing LLM chatbot.",
         react__WEBPACK_IMPORTED_MODULE_0__.createElement("h2", null, "OnsiteIQ"),
         "In 2023, anticipating a move to live in the Bay Area, I switched to a remote position at OnsiteIQ. I led full-stack development on mission-critical features serving millions of progress records across 1000+ construction projects. My focus was on performance optimization, implementing new architecture, and helping establish Agile processes for the team.",
         react__WEBPACK_IMPORTED_MODULE_0__.createElement("h2", null, "Maize Analytics (SecureLink (Imprivata))"),
-        "During Covid, I switched to remote work at Maize Analytics (acquired by SecureLink in 2021 (acquired by Imprivata in 2022)). I led full-stack development on a healthcare data privacy auditing platform serving 50+ hospitals across the US, ingesting millions of records daily. My work focused on database optimization, cross-team collaboration, mentoring junior developers, and leading a full-scale frontend modernization.",
+        "During Covid, I switched to remote work at Maize Analytics (acquired by SecureLink in 2021, and then by Imprivata in 2022). I led full-stack development on a healthcare data privacy auditing platform serving 50+ hospitals across the US, ingesting millions of records daily. My work focused on database optimization, cross-team collaboration, mentoring junior developers, and leading a full-scale frontend modernization.",
         react__WEBPACK_IMPORTED_MODULE_0__.createElement("h2", null, "ForeFlight (Boeing)"),
         "In 2018, after I moved to Austin, I began working at ForeFlight (acquired by Boeing in 2019). I managed a variety of Spring microservices for the server team, focusing mostly on weather data and alerting. I also helped build and improve features for the Logbook web interface and created internal tools to help other teams manage data.",
         react__WEBPACK_IMPORTED_MODULE_0__.createElement("h2", null, "Quantcast"),
@@ -850,7 +979,17 @@ ___CSS_LOADER_EXPORT___.push([module.id, `.blob-emoji {
     height: 2em;
 }
 
-`, "",{"version":3,"sources":["webpack://./emoji/blob-emoji.css"],"names":[],"mappings":"AAAA;IACI,YAAY;IACZ,aAAa;IACb,sBAAsB;IACtB,qBAAqB;AACzB;;AAEA;IACI,YAAY;IACZ,aAAa;AACjB;;AAEA;IACI,UAAU;IACV,WAAW;AACf","sourcesContent":[".blob-emoji {\n    width: 1.2em;\n    height: 1.2em;\n    vertical-align: -0.2em;\n    display: inline-block;\n}\n\n.blob-emoji-lg {\n    width: 1.5em;\n    height: 1.5em;\n}\n\n.blob-emoji-xl {\n    width: 2em;\n    height: 2em;\n}\n\n"],"sourceRoot":""}]);
+.blob-emoji-wave {
+    transform-origin: 70% 70%;
+    animation: blob-emoji-wave 1.1s ease-in-out infinite;
+}
+
+@keyframes blob-emoji-wave {
+    0%, 100% { transform: rotate(-10deg); }
+    50% { transform: rotate(10deg); }
+}
+
+`, "",{"version":3,"sources":["webpack://./emoji/blob-emoji.css"],"names":[],"mappings":"AAAA;IACI,YAAY;IACZ,aAAa;IACb,sBAAsB;IACtB,qBAAqB;AACzB;;AAEA;IACI,YAAY;IACZ,aAAa;AACjB;;AAEA;IACI,UAAU;IACV,WAAW;AACf;;AAEA;IACI,yBAAyB;IACzB,oDAAoD;AACxD;;AAEA;IACI,WAAW,yBAAyB,EAAE;IACtC,MAAM,wBAAwB,EAAE;AACpC","sourcesContent":[".blob-emoji {\n    width: 1.2em;\n    height: 1.2em;\n    vertical-align: -0.2em;\n    display: inline-block;\n}\n\n.blob-emoji-lg {\n    width: 1.5em;\n    height: 1.5em;\n}\n\n.blob-emoji-xl {\n    width: 2em;\n    height: 2em;\n}\n\n.blob-emoji-wave {\n    transform-origin: 70% 70%;\n    animation: blob-emoji-wave 1.1s ease-in-out infinite;\n}\n\n@keyframes blob-emoji-wave {\n    0%, 100% { transform: rotate(-10deg); }\n    50% { transform: rotate(10deg); }\n}\n\n"],"sourceRoot":""}]);
 // Exports
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (___CSS_LOADER_EXPORT___);
 
@@ -36409,15 +36548,16 @@ const TabLink = styled_components__WEBPACK_IMPORTED_MODULE_0__["default"].span `
     }
 `;
 const ExternalLink = styled_components__WEBPACK_IMPORTED_MODULE_0__["default"].a `
-    text-decoration: none;
+    color: yellow;
+    text-decoration: underline;
     &:visited {
         color: goldenrod;
     }
-    &:link {
-        color: yellow;
-    }
     &:hover {
-        font-weight: bold;
+        color: goldenrod;
+    }
+    &:visited:hover {
+        color: darkgoldenrod;
     }
 `;
 const Section = styled_components__WEBPACK_IMPORTED_MODULE_0__["default"].div `
@@ -36427,6 +36567,10 @@ const Section = styled_components__WEBPACK_IMPORTED_MODULE_0__["default"].div `
 `;
 const TextSection = styled_components__WEBPACK_IMPORTED_MODULE_0__["default"].div `
     padding: 5 5 0 5;
+
+    br + br {
+        line-height: 0.6;
+    }
 `;
 const FlexSection = styled_components__WEBPACK_IMPORTED_MODULE_0__["default"].div `
     display: flex;
@@ -36435,7 +36579,7 @@ const FlexSection = styled_components__WEBPACK_IMPORTED_MODULE_0__["default"].di
 `;
 const RoundedImage = styled_components__WEBPACK_IMPORTED_MODULE_0__["default"].img `
     padding: 10px;
-    border-radius: 20%;
+    border-radius: 10%;
 `;
 const CenteredImage = (0,styled_components__WEBPACK_IMPORTED_MODULE_0__["default"])(RoundedImage) `
     margin: 0 auto;
@@ -36502,6 +36646,13 @@ const FixedButtons = styled_components__WEBPACK_IMPORTED_MODULE_0__["default"].d
     z-index: 5;
     position: fixed;
     top: 0;
+
+    & > button:first-child {
+        border-bottom-left-radius: 4px;
+    }
+    & > button:last-child {
+        border-bottom-right-radius: 4px;
+    }
 `;
 
 

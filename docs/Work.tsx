@@ -14,15 +14,15 @@ const Work = (props: { isMobile: boolean }) => {
         <>
             I've worked at several companies over my career, almost all from different industries.
             <h2>BillionToOne</h2>
-                I joined BillionToOne in 2025 as a Senior Developer on the Digital Experiences team. We build and maintain the company's patient and provider portals,
+                I joined BillionToOne in 2025 as a Senior Developer on the Digital Experiences team. I build and maintain the company's patient and provider portals,
                 as well as the software pipeline that delivers test results to thousands of patients per week. I do full-stack work for the team wherever needed, 
-                building everything from UI features to Billing and EMR integrations. I architected and implemented the company's first successful patient-safe LLM chatbot.
+                building everything from UI features to Billing and EMR integrations. I architected and implemented the company's first successful patient-facing LLM chatbot.
             <h2>OnsiteIQ</h2>
                 In 2023, anticipating a move to live in the Bay Area, I switched to a remote position at OnsiteIQ.
                 I led full-stack development on mission-critical features serving millions of progress records across 1000+ construction projects.
                 My focus was on performance optimization, implementing new architecture, and helping establish Agile processes for the team.
             <h2>Maize Analytics (SecureLink (Imprivata))</h2>
-                During Covid, I switched to remote work at Maize Analytics (acquired by SecureLink in 2021 (acquired by Imprivata in 2022)).
+                During Covid, I switched to remote work at Maize Analytics (acquired by SecureLink in 2021, and then by Imprivata in 2022).
                 I led full-stack development on a healthcare data privacy auditing platform serving 50+ hospitals across the US, ingesting millions of records daily.
                 My work focused on database optimization, cross-team collaboration, mentoring junior developers, and leading a full-scale frontend modernization.
             <h2>ForeFlight (Boeing)</h2>

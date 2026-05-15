@@ -48,8 +48,7 @@ const ContactLink = styled.a`
 
 var IntroTextBrief = () => (
     <TextSection>
-        Hi! <img className="blob-emoji" src="emoji/blob/waving hand.svg" alt="👋" />
-        <br />
+        <div style={{ paddingBottom: 20 }}>Hi! <img className="blob-emoji blob-emoji-wave" src="emoji/blob/waving hand.svg" alt="👋" /></div>
                 My name is Ethan Rabb. I'm a Software Engineer with 10+ years in industry and a passion for creative programming projects.
         <h2>What kind of work do you do?</h2>
                         I've done Full Stack feature work in AdTech, Aviation, Construction, Healthcare, and Robotics.
@@ -69,8 +68,7 @@ var IntroTextRest = (props: { onTabChange: (tab: string) => void }) => (
 
 var IntroText = (props: { onTabChange: (tab: string) => void }) => (
     <TextSection>
-        Hi! <img className="blob-emoji" src="emoji/blob/waving hand.svg" alt="👋" />
-        <br /><br />
+        <div style={{ paddingBottom: 20 }}>Hi! <img className="blob-emoji blob-emoji-wave" src="emoji/blob/waving hand.svg" alt="👋" /></div>
                 My name is Ethan Rabb. I'm a Software Engineer with 10+ years in industry and a passion for creative programming projects.
         <h2>What kind of work do you do?</h2>
                         I've done Full Stack work in AdTech, Aviation, Healthcare,and Robotics.
@@ -111,7 +109,7 @@ var Additional = (props: { onTabChange: (tab: string) => void }) => (
         <h2>Do you have any other interests?</h2>
                 Definitely! I have plenty of non-programming hobbies and interests.
         <br /><br /><b>Things I do outside:</b> Climbing, Hiking, Frisbee Golf, Kayaking, Camping, Swimming, Biking, Tennis, Pickleball
-        <br /><br /><b>Topics I could talk about for hours:</b> Nature, Movies/TV, Local Restaurants & Bars, Writing, Basketball, Meteorology, Investing, Gaming, Cooking, Robotics, Space
+        <br /><br /><b>Topics I could talk about for hours:</b> Nature, Movies/TV, Local Restaurants & Bars, Writing, Basketball, Meteorology, Gaming, Cooking, Robotics, Space, Investing
         <h2>What's the best way to reach you?</h2>
                 Here's some icons.
         <ContactIcons>

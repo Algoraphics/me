@@ -11,15 +11,16 @@ export const TabLink = styled.span`
 `;
 
 export const ExternalLink = styled.a`
-    text-decoration: none;
+    color: yellow;
+    text-decoration: underline;
     &:visited {
         color: goldenrod;
     }
-    &:link {
-        color: yellow;
-    }
     &:hover {
-        font-weight: bold;
+        color: goldenrod;
+    }
+    &:visited:hover {
+        color: darkgoldenrod;
     }
 `;
 
@@ -31,6 +32,10 @@ export const Section = styled.div`
 
 export const TextSection = styled.div`
     padding: 5 5 0 5;
+
+    br + br {
+        line-height: 0.6;
+    }
 `;
 
 export const FlexSection = styled.div`
@@ -41,7 +46,7 @@ export const FlexSection = styled.div`
 
 export const RoundedImage = styled.img`
     padding: 10px;
-    border-radius: 20%;
+    border-radius: 10%;
 `;
 
 export const CenteredImage = styled(RoundedImage)`
@@ -117,5 +122,12 @@ export const FixedButtons = styled.div`
     z-index: 5;
     position: fixed;
     top: 0;
+
+    & > button:first-child {
+        border-bottom-left-radius: 4px;
+    }
+    & > button:last-child {
+        border-bottom-right-radius: 4px;
+    }
 `;
 
