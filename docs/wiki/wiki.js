@@ -42,6 +42,23 @@ let currentBlobUrls = [];
 let autoSaveTimer = null;
 let editStartSha = null;
 
+// GitHub's contents API returns/expects base64. atob/btoa operate on
+// one-char-per-byte strings, so they mangle multi-byte UTF-8 (em-dashes,
+// curly quotes, arrows, emoji). These helpers round-trip through UTF-8
+// properly. For pure-ASCII content they are byte-identical to atob/btoa.
+function decodeBase64Utf8(base64) {
+    const binary = atob(base64.replace(/\n/g, ''));
+    const bytes = Uint8Array.from(binary, c => c.charCodeAt(0));
+    return new TextDecoder('utf-8').decode(bytes);
+}
+
+function encodeUtf8Base64(text) {
+    const bytes = new TextEncoder().encode(text);
+    let binary = '';
+    for (const b of bytes) binary += String.fromCharCode(b);
+    return btoa(binary);
+}
+
 const md = window.markdownit ? window.markdownit({
     html: false,
     linkify: true,
@@ -98,7 +115,7 @@ async function githubAPI(endpoint, options = {}) {
 }
 
 function mergeCachedIntoFresh(freshData) {
-    const cachedJson = localStorage.getItem('wikiDataCache');
+    const cachedJson = localStorage.getItem('wikiDataCache_v2');
     if (!cachedJson) return freshData;
     try {
         const cached = JSON.parse(cachedJson);
@@ -204,7 +221,7 @@ async function fetchPageContent(pageId) {
     try {
         const filePath = `${CONTENT_PATH}/${pageId}.md`;
         const fileData = await githubAPI(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/${filePath}`);
-        const markdown = atob(fileData.content.replace(/\n/g, ''));
+        const markdown = decodeBase64Utf8(fileData.content);
         const title = markdown.match(/^#\s+(.+)$/m)?.[1] || pageId.split('/').pop();
         
         page.markdown = markdown;
@@ -212,7 +229,7 @@ async function fetchPageContent(pageId) {
         page.loaded = true;
         page.contentSha = fileData.sha;
         
-        localStorage.setItem('wikiDataCache', JSON.stringify(wikiData));
+        localStorage.setItem('wikiDataCache_v2', JSON.stringify(wikiData));
         return page;
     } catch (error) {
         console.error('Failed to load page:', pageId, error);
@@ -559,7 +576,7 @@ async function login() {
         
         const freshData = await loadWikiFromGitHub();
         wikiData = mergeCachedIntoFresh(freshData);
-        localStorage.setItem('wikiDataCache', JSON.stringify(wikiData));
+        localStorage.setItem('wikiDataCache_v2', JSON.stringify(wikiData));
         
         setStoredToken(token);
         
@@ -600,7 +617,7 @@ async function login() {
 function logout() {
     clearStoredToken();
     sessionStorage.removeItem('currentPage');
-    localStorage.removeItem('wikiDataCache');
+    localStorage.removeItem('wikiDataCache_v2');
     localStorage.removeItem('pageDrafts');
     localStorage.removeItem('expandedParents');
     
@@ -1059,7 +1076,7 @@ async function deletePage() {
     } catch (error) {
         if (error.status === 404) {
             applyDeletePatch();
-            localStorage.setItem('wikiDataCache', JSON.stringify(wikiData));
+            localStorage.setItem('wikiDataCache_v2', JSON.stringify(wikiData));
             renderSidebar();
             await navigateToFallback();
             showStatus('Page was already deleted remotely.', 'success');
@@ -1116,14 +1133,14 @@ function getUniqueFilename(parentPageId, filename) {
 async function refreshTreeFromRemote() {
     const fresh = await loadWikiFromGitHub();
     wikiData = mergeCachedIntoFresh(fresh);
-    localStorage.setItem('wikiDataCache', JSON.stringify(wikiData));
+    localStorage.setItem('wikiDataCache_v2', JSON.stringify(wikiData));
     renderSidebar();
 }
 
 async function performAction(def) {
     const result = await def.run();
     def.applyPatch(result);
-    localStorage.setItem('wikiDataCache', JSON.stringify(wikiData));
+    localStorage.setItem('wikiDataCache_v2', JSON.stringify(wikiData));
     renderSidebar();
     await renderPageContent();
     return result;
@@ -1168,7 +1185,7 @@ async function saveEdit() {
                     method: 'PUT',
                     body: JSON.stringify({
                         message: `Update ${editedPageId}`,
-                        content: btoa(newContent),
+                        content: encodeUtf8Base64(newContent),
                         sha: page.contentSha
                     })
                 });
@@ -1221,7 +1238,7 @@ async function saveNewPage(newContent) {
                     method: 'PUT',
                     body: JSON.stringify({
                         message: `Create ${newPageId}`,
-                        content: btoa(newContent),
+                        content: encodeUtf8Base64(newContent),
                         sha: null
                     })
                 });
