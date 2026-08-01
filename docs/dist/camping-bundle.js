@@ -56460,19 +56460,25 @@ async function saveFile(token, path, data, sha, message) {
     });
 }
 async function triggerScanWorkflow(token, areaId) {
-    await fetch(`https://api.github.com/repos/${REPO_OWNER}/${WORKFLOW_REPO}/actions/workflows/camping-manual.yml/dispatches`, {
+    const response = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${WORKFLOW_REPO}/actions/workflows/camping-manual.yml/dispatches`, {
         method: 'POST',
         headers: {
             'Authorization': `token ${token}`,
             'Accept': 'application/vnd.github.v3+json'
         },
         body: JSON.stringify({
-            ref: 'master',
+            ref: 'main',
             inputs: {
                 sites: areaId
             }
         })
     });
+    // GitHub returns 204 on success; a bad ref/token yields 4xx. Surface it instead
+    // of silently swallowing — a stale 'master' ref failed here unnoticed for months.
+    if (!response.ok) {
+        const detail = await response.text().catch(() => '');
+        throw new Error(`Scan dispatch failed (${response.status}): ${detail}`);
+    }
 }
 async function getWorkflowStates(token) {
     const states = { rotation: false, favorites: false };
@@ -56588,7 +56594,9 @@ function SearchBar({ searchQuery, onSearchChange }) {
 }
 function RecAreaCard({ areaId, area, isFavorite, isDisabled, isAutoDisabled, favoriteCount, isSaving, onToggleFavorite, onToggleDisabled, onScan }) {
     const [isScanning, setIsScanning] = react__WEBPACK_IMPORTED_MODULE_0___default().useState(false);
-    const weekendDates = area.weekendDates || [];
+    // Drop dates that have already passed — stored weekendDates span ~a month and age out.
+    const todayStr = new Date().toLocaleDateString('en-CA'); // en-CA renders as YYYY-MM-DD
+    const weekendDates = (area.weekendDates || []).filter(date => date >= todayStr);
     const hasAvailability = weekendDates.length > 0;
     const scannable = canScan(areaId);
     const minutesAgo = getMinutesSinceScan(areaId);
