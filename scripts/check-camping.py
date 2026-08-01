@@ -27,6 +27,48 @@ SCAN_STATE_FILE = CAMPING_PATH / 'scan-state.json'
 DISCORD_WEBHOOK_URL = os.environ.get('DISCORD_CAMPING_WEBHOOK')
 PACIFIC_TZ = ZoneInfo('America/Los_Angeles')
 
+# --- Site-type filtering ---------------------------------------------------
+# Drop unwanted campsite categories before counting availability. The
+# vocabulary below was confirmed against live camply results (see docs/camping):
+# group, equestrian, hike-in/walk-to (incl. reserveca 'Remote Camping'), RV
+# hookups, and day-use. Note: ReserveCalifornia lumps ~88% of sites into a
+# generic 'Camping' type with no attributes, so RV sites there are undetectable
+# — an accepted limitation, not a bug.
+EXCLUDE_ENABLED = True
+
+_EXCLUDE_TYPE_SUBSTRINGS = ('group', 'equestrian', 'walk to', 'remote camping', 'dailyuse')
+_EXCLUDE_USE_TYPES = ('group campsite', 'group tent site', 'hike in', 'hike & bike', 'day use')
+_HOOKUP_ATTRS = ('Water Hookup', 'Sewer Hookup', 'Electricity Hookup')
+
+def should_exclude(campsite):
+    """Return (True, reason) if this campsite is an unwanted category, else (False, None).
+
+    Pure: evaluates the site regardless of EXCLUDE_ENABLED, so callers gate on
+    the flag and this stays independently testable.
+    """
+    ctype = (getattr(campsite, 'campsite_type', None) or '').lower()
+    use = (getattr(campsite, 'campsite_use_type', None) or '').lower()
+
+    for kw in _EXCLUDE_TYPE_SUBSTRINGS:
+        if kw in ctype:
+            return True, f"type:{kw}"
+    if 'rv' in ctype.split():  # token match so we don't catch 'rv' inside other words
+        return True, "type:rv"
+    for u in _EXCLUDE_USE_TYPES:
+        if u in use:
+            return True, f"use:{u}"
+
+    # Recreation.gov attributes only (ReserveCalifornia returns none of these)
+    attr_map = {a.attribute_name: str(a.attribute_value).strip().lower()
+                for a in (getattr(campsite, 'campsite_attributes', None) or [])}
+    if attr_map.get('Site Access') == 'hike in':
+        return True, "access:hike-in"
+    for hookup in _HOOKUP_ATTRS:
+        if attr_map.get(hookup) == 'yes':
+            return True, f"hookup:{hookup.split()[0].lower()}"
+
+    return False, None
+
 def parse_args():
     parser = argparse.ArgumentParser(description='Camping availability scanner')
     mode = parser.add_mutually_exclusive_group()
@@ -37,6 +79,7 @@ def parse_args():
     parser.add_argument('--start-date', help='Override start date (YYYY-MM-DD)')
     parser.add_argument('--end-date', help='Override end date (YYYY-MM-DD)')
     parser.add_argument('--dry-run', action='store_true', help='Run without saving state or sending notifications')
+    parser.add_argument('--no-filter', action='store_true', help='Disable site-type filtering (include group/equestrian/RV/hike-in/day-use)')
     parser.add_argument('--verbose', '-v', action='store_true', help='Extra logging for debugging')
     return parser.parse_args()
 
@@ -114,8 +157,12 @@ def scan_campground_with_camply(campground_id, campground_name, start_date, end_
         available_dates = {}
         weekend_dates = []
         campground_names = set()
-        
+        excluded = 0
+
         for campsite in campsites:
+            if EXCLUDE_ENABLED and should_exclude(campsite)[0]:
+                excluded += 1
+                continue
             date_str = campsite.booking_date.strftime('%Y-%m-%d')
             if date_str not in available_dates:
                 available_dates[date_str] = 0
@@ -130,7 +177,8 @@ def scan_campground_with_camply(campground_id, campground_name, start_date, end_
         
         return {
             'success': True,
-            'total_sites': len(campsites),
+            'total_sites': len(campsites) - excluded,
+            'excluded': excluded,
             'available_dates': available_dates,
             'weekend_dates': sorted(weekend_dates),
             'campground_names': list(campground_names)
@@ -183,7 +231,11 @@ def scan_rec_area_with_camply(rec_area_id, rec_area_name, start_date, end_date, 
         
         # Aggregate by campground
         by_campground = {}
+        excluded = 0
         for campsite in campsites:
+            if EXCLUDE_ENABLED and should_exclude(campsite)[0]:
+                excluded += 1
+                continue
             cg_name = campsite.facility_name
             date_str = campsite.booking_date.strftime('%Y-%m-%d')
             is_weekend = campsite.booking_date.weekday() in [4, 5]
@@ -206,7 +258,8 @@ def scan_rec_area_with_camply(rec_area_id, rec_area_name, start_date, end_date, 
         
         return {
             'success': True,
-            'total_sites': len(campsites),
+            'total_sites': len(campsites) - excluded,
+            'excluded': excluded,
             'by_campground': by_campground,
             'weekend_dates': sorted(all_weekend_dates)
         }
@@ -371,6 +424,7 @@ def scan_area_month_by_month(area_data, start_date=None, end_date=None, verbose=
     
     all_results = {
         'total_sites': 0,
+        'excluded': 0,
         'weekend_dates': set(),
         'failed_campgrounds': [],
         'any_success': False
@@ -404,6 +458,7 @@ def scan_area_month_by_month(area_data, start_date=None, end_date=None, verbose=
                 month_sites = result['total_sites']
                 month_weekends = len(result.get('weekend_dates', []))
                 all_results['total_sites'] += result['total_sites']
+                all_results['excluded'] += result.get('excluded', 0)
                 all_results['weekend_dates'].update(result.get('weekend_dates', []))
                 all_results['any_success'] = True
                 all_results['consecutive_failures'] = 0
@@ -427,6 +482,7 @@ def scan_area_month_by_month(area_data, start_date=None, end_date=None, verbose=
                     month_sites += result['total_sites']
                     month_weekends += len(result.get('weekend_dates', []))
                     all_results['total_sites'] += result['total_sites']
+                    all_results['excluded'] += result.get('excluded', 0)
                     all_results['weekend_dates'].update(result.get('weekend_dates', []))
                     all_results['any_success'] = True
                     
@@ -475,6 +531,8 @@ def scan_area_month_by_month(area_data, start_date=None, end_date=None, verbose=
         }
     
     log(f"  Total: {all_results['total_sites']} sites, {len(weekend_list)} weekend dates ({duration:.1f}s)")
+    if all_results['excluded']:
+        log(f"  Filtered out {all_results['excluded']} unwanted campsite-nights (group/equestrian/RV/hike-in/day-use)")
     
     if all_results['failed_campgrounds']:
         validation_errors = [c for c in all_results['failed_campgrounds'] if c['is_validation']]
@@ -615,9 +673,12 @@ def process_notifications(rec_areas, results_by_id, favorites_data, dry_run=Fals
 def main():
     args = parse_args()
     log.verbose = args.verbose
-    
+
+    global EXCLUDE_ENABLED
+    EXCLUDE_ENABLED = not args.no_filter
+
     log("Starting camping availability scan")
-    log(f"  dry_run={args.dry_run}, verbose={args.verbose}")
+    log(f"  dry_run={args.dry_run}, verbose={args.verbose}, filter={'off' if args.no_filter else 'on'}")
     
     # Load immutable area metadata
     rec_areas_metadata = load_json(REC_AREAS_FILE, [])
