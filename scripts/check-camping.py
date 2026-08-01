@@ -5,6 +5,7 @@ import os
 import sys
 import logging
 import io
+import math
 import requests
 import signal
 from base64 import b64decode
@@ -26,6 +27,7 @@ SCAN_STATE_FILE = CAMPING_PATH / 'scan-state.json'
 
 DISCORD_WEBHOOK_URL = os.environ.get('DISCORD_CAMPING_WEBHOOK')
 PACIFIC_TZ = ZoneInfo('America/Los_Angeles')
+RIDB_API_KEY = b64decode(b"YTc0MTY0NzEtMWI1ZC00YTY0LWFkM2QtYTIzM2U3Y2I1YzQ0").decode("utf-8")
 
 # --- Site-type filtering ---------------------------------------------------
 # Drop unwanted campsite categories before counting availability. The
@@ -322,12 +324,10 @@ def get_area_image_url(rec_id, provider_name):
         
         if provider_name == 'RecreationDotGov':
             # Use RIDB API to get media
-            api_key = b64decode(b"YTc0MTY0NzEtMWI1ZC00YTY0LWFkM2QtYTIzM2U3Y2I1YzQ0").decode("utf-8")
-            
             url = f"https://ridb.recreation.gov/api/v1/recareas/{numeric_id}/media"
             response = requests.get(
                 url,
-                headers={'apikey': api_key},
+                headers={'apikey': RIDB_API_KEY},
                 timeout=10
             )
             
@@ -384,6 +384,72 @@ def get_campgrounds_for_area(rec_id, provider_name, verbose=False):
     finally:
         camply_logger.removeHandler(handler)
 
+# --- Distance filtering ----------------------------------------------------
+# Sprawling rec areas (national forests) contain campgrounds scattered 50+ miles
+# apart, so a scan surfaces sites nowhere near the destination. Drop campgrounds
+# beyond this radius (straight-line miles) from the rec area's center coordinate.
+# Set to 0/None to disable. Configurable via favorites.json settings.maxCampgroundMiles.
+MAX_CAMPGROUND_MILES = 50
+
+def haversine_miles(lat1, lon1, lat2, lon2):
+    R = 3958.8  # earth radius, miles
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dlat, dlon = math.radians(lat2 - lat1), math.radians(lon2 - lon1)
+    h = math.sin(dlat / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dlon / 2) ** 2
+    return 2 * R * math.asin(math.sqrt(h))
+
+def get_campground_coords(rec_id):
+    """Fetch {facility_id: (lat, lon)} for a rec area's campgrounds from RIDB.
+
+    camply doesn't return campground coordinates, so we ask RIDB directly.
+    Returns {} on any failure — callers fail open (keep campgrounds) rather than
+    dropping everything when RIDB is unreachable.
+    """
+    try:
+        numeric_id = int(rec_id.replace('recgov-', '').replace('reserveca-', ''))
+        coords = {}
+        offset = 0
+        while offset < 300:  # safety cap; RIDB pages are 50 wide
+            resp = requests.get(
+                f"https://ridb.recreation.gov/api/v1/recareas/{numeric_id}/facilities",
+                headers={'apikey': RIDB_API_KEY},
+                params={'limit': 50, 'offset': offset},
+                timeout=10,
+            )
+            if resp.status_code != 200:
+                break
+            data = resp.json().get('RECDATA', [])
+            for f in data:
+                lat, lon = f.get('FacilityLatitude'), f.get('FacilityLongitude')
+                if lat and lon:
+                    coords[str(f.get('FacilityID'))] = (lat, lon)
+            if len(data) < 50:
+                break
+            offset += 50
+        return coords
+    except Exception:
+        return {}
+
+def filter_campgrounds_by_distance(rec_id, campgrounds, center_lat, center_lon, max_miles):
+    """Drop campgrounds farther than max_miles from (center_lat, center_lon).
+
+    Campgrounds whose coordinates can't be found are KEPT (fail open).
+    Returns (kept_campgrounds, dropped_count).
+    """
+    coords = get_campground_coords(rec_id)
+    if not coords:
+        return campgrounds, 0  # couldn't locate any campground — don't filter
+    kept, dropped = [], 0
+    for cg in campgrounds:
+        c = coords.get(str(cg.facility_id))
+        if c is None:
+            kept.append(cg)  # unknown location -> keep
+        elif haversine_miles(center_lat, center_lon, c[0], c[1]) <= max_miles:
+            kept.append(cg)
+        else:
+            dropped += 1
+    return kept, dropped
+
 def scan_area_month_by_month(area_data, start_date=None, end_date=None, verbose=False, dry_run=False):
     rec_id = area_data['id']
     provider = area_data.get('provider', 'RecreationDotGov')
@@ -421,7 +487,24 @@ def scan_area_month_by_month(area_data, start_date=None, end_date=None, verbose=
             'no_campgrounds': True,
             'area_id': rec_id
         }
-    
+
+    # Distance filter (RecreationDotGov only — ReserveCalifornia scans the whole
+    # area at once and isn't in RIDB). Keeps only campgrounds near the center.
+    if provider == 'RecreationDotGov' and MAX_CAMPGROUND_MILES:
+        center_lat, center_lon = area_data.get('latitude'), area_data.get('longitude')
+        if center_lat is not None and center_lon is not None:
+            campgrounds, dropped = filter_campgrounds_by_distance(
+                rec_id, campgrounds, center_lat, center_lon, MAX_CAMPGROUND_MILES)
+            if dropped:
+                log(f"  Distance filter: kept {len(campgrounds)} campgrounds within "
+                    f"{MAX_CAMPGROUND_MILES}mi of center ({dropped} farther dropped)")
+            if not campgrounds:
+                return {
+                    'success': True,
+                    'parsed': {'total_sites': 0, 'weekend_dates': []},
+                    'duration': time.time() - start_time,
+                }
+
     all_results = {
         'total_sites': 0,
         'excluded': 0,
@@ -674,7 +757,7 @@ def main():
     args = parse_args()
     log.verbose = args.verbose
 
-    global EXCLUDE_ENABLED
+    global EXCLUDE_ENABLED, MAX_CAMPGROUND_MILES
     EXCLUDE_ENABLED = not args.no_filter
 
     log("Starting camping availability scan")
@@ -701,7 +784,9 @@ def main():
     areas_by_id = {area['id']: area for area in rec_areas}
     
     favorites_data = load_json(FAVORITES_FILE, {'favorites': [], 'disabled': [], 'autoDisabled': [], 'settings': {'notificationsEnabled': False}})
-    
+    MAX_CAMPGROUND_MILES = favorites_data.get('settings', {}).get('maxCampgroundMiles', MAX_CAMPGROUND_MILES)
+    log(f"  max campground distance: {MAX_CAMPGROUND_MILES}mi")
+
     if not rec_areas:
         log("No recreation areas found. Run build_rec_areas.py first.")
         return 1
