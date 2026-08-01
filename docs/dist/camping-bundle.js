@@ -56415,6 +56415,12 @@ const WORKFLOWS = {
     favorites: 'camping-favorites.yml',
     manual: 'camping-manual.yml'
 };
+// Weekend dates that haven't already passed. Stored weekendDates span ~a month
+// and age out, so both the card display and the sort must ignore past dates.
+function futureWeekendDates(area) {
+    const todayStr = new Date().toLocaleDateString('en-CA'); // en-CA renders as YYYY-MM-DD
+    return (area.weekendDates || []).filter(date => date >= todayStr);
+}
 async function githubAPI(token, endpoint, options = {}) {
     const response = await fetch(`https://api.github.com${endpoint}`, {
         ...options,
@@ -56594,9 +56600,7 @@ function SearchBar({ searchQuery, onSearchChange }) {
 }
 function RecAreaCard({ areaId, area, isFavorite, isDisabled, isAutoDisabled, favoriteCount, isSaving, onToggleFavorite, onToggleDisabled, onScan }) {
     const [isScanning, setIsScanning] = react__WEBPACK_IMPORTED_MODULE_0___default().useState(false);
-    // Drop dates that have already passed — stored weekendDates span ~a month and age out.
-    const todayStr = new Date().toLocaleDateString('en-CA'); // en-CA renders as YYYY-MM-DD
-    const weekendDates = (area.weekendDates || []).filter(date => date >= todayStr);
+    const weekendDates = futureWeekendDates(area);
     const hasAvailability = weekendDates.length > 0;
     const scannable = canScan(areaId);
     const minutesAgo = getMinutesSinceScan(areaId);
@@ -56827,8 +56831,8 @@ function CampingApp({ token }) {
         const isFavB = favorites.favorites.includes(areaB.id);
         const isDisabledA = favorites.disabled.includes(areaA.id) || (favorites.autoDisabled || []).includes(areaA.id);
         const isDisabledB = favorites.disabled.includes(areaB.id) || (favorites.autoDisabled || []).includes(areaB.id);
-        const hasAvailA = (areaA.weekendDates || []).length > 0;
-        const hasAvailB = (areaB.weekendDates || []).length > 0;
+        const hasAvailA = futureWeekendDates(areaA).length > 0;
+        const hasAvailB = futureWeekendDates(areaB).length > 0;
         const hasErrorA = (areaA.scanError || false) && !isDisabledA;
         const hasErrorB = (areaB.scanError || false) && !isDisabledB;
         const hasNoAvailA = !!areaA.lastScanned && !hasAvailA && !hasErrorA && !isDisabledA;
