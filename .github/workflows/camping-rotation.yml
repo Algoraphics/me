@@ -5,6 +5,11 @@ on:
     - cron: '0 14 * * *'  # Daily at 6 AM PT (14:00 UTC)
   workflow_dispatch:
 
+# Serialize with the manual/favorites scans so no two runs push to Vivarium at once.
+concurrency:
+  group: camping-scan
+  cancel-in-progress: false
+
 jobs:
   rotation-scan:
     runs-on: ubuntu-latest

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Switch, FormControlLabel, Tooltip } from '@mui/material';
+import { Switch, FormControlLabel, Tooltip, Checkbox } from '@mui/material';
 
 const REPO_OWNER = 'Algoraphics';
 const REPO_NAME = 'Vivarium';
@@ -201,6 +201,8 @@ async function setWorkflowEnabled(token: string, workflow: 'rotation' | 'favorit
 }
 
 const SCAN_COOLDOWN_MS = 15 * 60 * 1000;
+const MANUAL_SCAN_KEY = 'manual-batch';  // localStorage key for the shared manual-scan cooldown
+const MAX_BATCH = 10;                     // most sites scannable in one manual run
 
 function getScanTime(areaKey: string): number | null {
     const stored = localStorage.getItem(`camping-scan-${areaKey}`);
@@ -215,12 +217,6 @@ function getMinutesSinceScan(areaKey: string): number | null {
     const scanTime = getScanTime(areaKey);
     if (!scanTime) return null;
     return Math.floor((Date.now() - scanTime) / 60000);
-}
-
-function canScan(areaKey: string): boolean {
-    const scanTime = getScanTime(areaKey);
-    if (!scanTime) return true;
-    return Date.now() - scanTime >= SCAN_COOLDOWN_MS;
 }
 
 function LoginScreen({ onLogin }: { onLogin: (token: string) => void }) {
@@ -319,8 +315,10 @@ function RecAreaCard({
     isSaving,
     onToggleFavorite,
     onToggleDisabled,
-    onScan
-}: { 
+    isSelected,
+    onToggleSelect,
+    selectDisabled
+}: {
     areaId: string;
     area: RecArea;
     isFavorite: boolean;
@@ -330,13 +328,12 @@ function RecAreaCard({
     isSaving: boolean;
     onToggleFavorite: () => void;
     onToggleDisabled: () => void;
-    onScan: () => void;
+    isSelected: boolean;
+    onToggleSelect: () => void;
+    selectDisabled: boolean;
 }) {
-    const [isScanning, setIsScanning] = React.useState(false);
     const weekendDates = futureWeekendDates(area);
     const hasAvailability = weekendDates.length > 0;
-    const scannable = canScan(areaId);
-    const minutesAgo = getMinutesSinceScan(areaId);
     
     // Extract numeric rec area ID for URL building
     const numericId = areaId.replace('recgov-', '').replace('reserveca-', '');
@@ -361,12 +358,6 @@ function RecAreaCard({
             
             return `https://www.recreation.gov/search?q=${encodedName}&recarea=${numericId}&inventory_type=camping&checkin=${checkin}&checkout=${checkout}`;
         }
-    };
-    
-    const handleScanClick = async () => {
-        setIsScanning(true);
-        await onScan();
-        setTimeout(() => setIsScanning(false), 1000);
     };
     
     return (
@@ -476,13 +467,22 @@ function RecAreaCard({
                                 })}
                             </span>
                         )}
-                        <button 
-                            className={`scan-button ${!scannable || isScanning ? 'on-cooldown' : ''}`}
-                            onClick={(e) => { e.stopPropagation(); handleScanClick(); }}
-                            disabled={!scannable || isScanning}
-                        >
-                            {isScanning ? 'Scanning...' : scannable ? 'Scan now' : `Scanned ${minutesAgo}m ago`}
-                        </button>
+                        <FormControlLabel
+                            control={
+                                <Checkbox
+                                    checked={isSelected}
+                                    onChange={(e) => { e.stopPropagation(); onToggleSelect(); }}
+                                    disabled={selectDisabled}
+                                    sx={{
+                                        color: '#9c9588',
+                                        '&.Mui-checked': { color: '#4ade80' },
+                                    }}
+                                />
+                            }
+                            label="Scan"
+                            onClick={(e) => e.stopPropagation()}
+                            sx={{ color: '#e8e4df', mr: 0, '& .MuiFormControlLabel-label': { fontSize: '13px' } }}
+                        />
                     </div>
                 </div>
             </div>
@@ -527,9 +527,17 @@ function CampingApp({ token }: { token: string }) {
     const [searchQuery, setSearchQuery] = useState('');
     const [loading, setLoading] = useState(true);
     const [savingAreaId, setSavingAreaId] = useState<string | null>(null);
+    const [selected, setSelected] = useState<Set<string>>(new Set());
+    const [, setTick] = useState(0);  // bump to re-render so the cooldown label/countdown stays current
 
     useEffect(() => {
         loadData();
+    }, []);
+
+    // Tick every 30s so "Scanned Xm ago" advances and the button re-enables when cooldown expires
+    useEffect(() => {
+        const id = setInterval(() => setTick(t => t + 1), 30000);
+        return () => clearInterval(id);
     }, []);
 
     const loadData = async () => {
@@ -573,12 +581,27 @@ function CampingApp({ token }: { token: string }) {
     };
 
 
-    const handleScan = async (areaId: string) => {
+    const toggleSelect = (areaId: string) => {
+        setSelected(prev => {
+            const next = new Set(prev);
+            if (next.has(areaId)) {
+                next.delete(areaId);
+            } else if (next.size < MAX_BATCH) {
+                next.add(areaId);
+            }
+            return next;
+        });
+    };
+
+    const handleBatchScan = async () => {
+        if (selected.size === 0) return;
         try {
-            await triggerScanWorkflow(token, areaId);
-            setScanTime(areaId, Date.now());
+            await triggerScanWorkflow(token, Array.from(selected).join(','));
+            setScanTime(MANUAL_SCAN_KEY, Date.now());
+            setSelected(new Set());
+            setTick(t => t + 1);  // reflect the new cooldown immediately
         } catch (e) {
-            console.error('Error triggering scan:', e);
+            console.error('Error triggering batch scan:', e);
         }
     };
 
@@ -748,6 +771,17 @@ function CampingApp({ token }: { token: string }) {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
+    // Shared manual-scan cooldown (one clock for all sites, not per-card)
+    const lastManualScan = getScanTime(MANUAL_SCAN_KEY);
+    const cooldownActive = lastManualScan != null && (Date.now() - lastManualScan) < SCAN_COOLDOWN_MS;
+    const minutesSinceScan = getMinutesSinceScan(MANUAL_SCAN_KEY);
+    const batchDisabled = cooldownActive || selected.size === 0;
+    const batchLabel = cooldownActive
+        ? `Scanned ${minutesSinceScan}m ago`
+        : selected.size === 0
+            ? 'Select to scan'
+            : `Scan ${selected.size} site${selected.size === 1 ? '' : 's'}`;
+
     return (
         <div id="camping-app">
             <header id="camping-header">
@@ -848,6 +882,17 @@ function CampingApp({ token }: { token: string }) {
                         label="Discord Notifications"
                         sx={{ color: '#e8e4df', '& .MuiFormControlLabel-label': { fontSize: '14px' } }}
                     />
+                    <Tooltip title={selected.size >= MAX_BATCH ? `Max ${MAX_BATCH} sites per scan` : ''} arrow>
+                        <span style={{ marginLeft: 'auto' }}>
+                            <button
+                                className="run-scan-button"
+                                onClick={handleBatchScan}
+                                disabled={batchDisabled}
+                            >
+                                {batchLabel}
+                            </button>
+                        </span>
+                    </Tooltip>
                 </div>
             </div>
             
@@ -882,7 +927,9 @@ function CampingApp({ token }: { token: string }) {
                             isSaving={savingAreaId === area.id}
                             onToggleFavorite={() => toggleFavorite(area.id)}
                             onToggleDisabled={() => toggleDisabled(area.id)}
-                            onScan={() => handleScan(area.id)}
+                            isSelected={selected.has(area.id)}
+                            onToggleSelect={() => toggleSelect(area.id)}
+                            selectDisabled={cooldownActive || (selected.size >= MAX_BATCH && !selected.has(area.id))}
                         />
                     ))
                 )}

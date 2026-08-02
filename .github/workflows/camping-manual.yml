@@ -8,6 +8,11 @@ on:
         required: true
         type: string
 
+# Serialize with the rotation/favorites scans so no two runs push to Vivarium at once.
+concurrency:
+  group: camping-scan
+  cancel-in-progress: false
+
 jobs:
   manual-scan:
     runs-on: ubuntu-latest

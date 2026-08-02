@@ -4807,6 +4807,341 @@ const touchRippleClasses = (0,_mui_utils_generateUtilityClasses__WEBPACK_IMPORTE
 
 /***/ }),
 
+/***/ "./node_modules/@mui/material/esm/Checkbox/Checkbox.js":
+/*!*************************************************************!*\
+  !*** ./node_modules/@mui/material/esm/Checkbox/Checkbox.js ***!
+  \*************************************************************/
+/***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
+/* harmony export */ });
+/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! react */ "./node_modules/react/index.js");
+/* harmony import */ var prop_types__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! prop-types */ "./node_modules/prop-types/index.js");
+/* harmony import */ var clsx__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! clsx */ "./node_modules/clsx/dist/clsx.mjs");
+/* harmony import */ var _mui_utils_composeClasses__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @mui/utils/composeClasses */ "./node_modules/@mui/utils/esm/composeClasses/composeClasses.js");
+/* harmony import */ var _internal_SwitchBase_js__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../internal/SwitchBase.js */ "./node_modules/@mui/material/esm/internal/SwitchBase.js");
+/* harmony import */ var _internal_svg_icons_CheckBoxOutlineBlank_js__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ../internal/svg-icons/CheckBoxOutlineBlank.js */ "./node_modules/@mui/material/esm/internal/svg-icons/CheckBoxOutlineBlank.js");
+/* harmony import */ var _internal_svg_icons_CheckBox_js__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ../internal/svg-icons/CheckBox.js */ "./node_modules/@mui/material/esm/internal/svg-icons/CheckBox.js");
+/* harmony import */ var _internal_svg_icons_IndeterminateCheckBox_js__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ../internal/svg-icons/IndeterminateCheckBox.js */ "./node_modules/@mui/material/esm/internal/svg-icons/IndeterminateCheckBox.js");
+/* harmony import */ var _utils_capitalize_js__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! ../utils/capitalize.js */ "./node_modules/@mui/material/esm/utils/capitalize.js");
+/* harmony import */ var _styles_rootShouldForwardProp_js__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! ../styles/rootShouldForwardProp.js */ "./node_modules/@mui/material/esm/styles/rootShouldForwardProp.js");
+/* harmony import */ var _checkboxClasses_js__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! ./checkboxClasses.js */ "./node_modules/@mui/material/esm/Checkbox/checkboxClasses.js");
+/* harmony import */ var _zero_styled_index_js__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! ../zero-styled/index.js */ "./node_modules/@mui/material/esm/styles/styled.js");
+/* harmony import */ var _utils_memoTheme_js__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! ../utils/memoTheme.js */ "./node_modules/@mui/material/esm/utils/memoTheme.js");
+/* harmony import */ var _utils_createSimplePaletteValueFilter_js__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! ../utils/createSimplePaletteValueFilter.js */ "./node_modules/@mui/material/esm/utils/createSimplePaletteValueFilter.js");
+/* harmony import */ var _DefaultPropsProvider_index_js__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! ../DefaultPropsProvider/index.js */ "./node_modules/@mui/material/esm/DefaultPropsProvider/DefaultPropsProvider.js");
+/* harmony import */ var _utils_index_js__WEBPACK_IMPORTED_MODULE_15__ = __webpack_require__(/*! ../utils/index.js */ "./node_modules/@mui/material/esm/utils/mergeSlotProps.js");
+/* harmony import */ var _utils_useSlot_js__WEBPACK_IMPORTED_MODULE_16__ = __webpack_require__(/*! ../utils/useSlot.js */ "./node_modules/@mui/material/esm/utils/useSlot.js");
+/* harmony import */ var react_jsx_runtime__WEBPACK_IMPORTED_MODULE_17__ = __webpack_require__(/*! react/jsx-runtime */ "./node_modules/react/jsx-runtime.js");
+'use client';
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+const useUtilityClasses = ownerState => {
+  const {
+    classes,
+    indeterminate,
+    color,
+    size
+  } = ownerState;
+  const slots = {
+    root: ['root', indeterminate && 'indeterminate', `color${(0,_utils_capitalize_js__WEBPACK_IMPORTED_MODULE_8__["default"])(color)}`, `size${(0,_utils_capitalize_js__WEBPACK_IMPORTED_MODULE_8__["default"])(size)}`]
+  };
+  const composedClasses = (0,_mui_utils_composeClasses__WEBPACK_IMPORTED_MODULE_3__["default"])(slots, _checkboxClasses_js__WEBPACK_IMPORTED_MODULE_10__.getCheckboxUtilityClass, classes);
+  return {
+    ...classes,
+    // forward the disabled and checked classes to the SwitchBase
+    ...composedClasses
+  };
+};
+const CheckboxRoot = (0,_zero_styled_index_js__WEBPACK_IMPORTED_MODULE_11__["default"])(_internal_SwitchBase_js__WEBPACK_IMPORTED_MODULE_4__["default"], {
+  shouldForwardProp: prop => (0,_styles_rootShouldForwardProp_js__WEBPACK_IMPORTED_MODULE_9__["default"])(prop) || prop === 'classes',
+  name: 'MuiCheckbox',
+  slot: 'Root',
+  overridesResolver: (props, styles) => {
+    const {
+      ownerState
+    } = props;
+    return [styles.root, ownerState.indeterminate && styles.indeterminate, styles[`size${(0,_utils_capitalize_js__WEBPACK_IMPORTED_MODULE_8__["default"])(ownerState.size)}`], ownerState.color !== 'default' && styles[`color${(0,_utils_capitalize_js__WEBPACK_IMPORTED_MODULE_8__["default"])(ownerState.color)}`]];
+  }
+})((0,_utils_memoTheme_js__WEBPACK_IMPORTED_MODULE_12__["default"])(({
+  theme
+}) => ({
+  color: (theme.vars || theme).palette.text.secondary,
+  variants: [{
+    props: {
+      color: 'default',
+      disableRipple: false
+    },
+    style: {
+      '&:hover': {
+        backgroundColor: theme.alpha((theme.vars || theme).palette.action.active, (theme.vars || theme).palette.action.hoverOpacity)
+      }
+    }
+  }, ...Object.entries(theme.palette).filter((0,_utils_createSimplePaletteValueFilter_js__WEBPACK_IMPORTED_MODULE_13__["default"])()).map(([color]) => ({
+    props: {
+      color,
+      disableRipple: false
+    },
+    style: {
+      '&:hover': {
+        backgroundColor: theme.alpha((theme.vars || theme).palette[color].main, (theme.vars || theme).palette.action.hoverOpacity)
+      }
+    }
+  })), ...Object.entries(theme.palette).filter((0,_utils_createSimplePaletteValueFilter_js__WEBPACK_IMPORTED_MODULE_13__["default"])()).map(([color]) => ({
+    props: {
+      color
+    },
+    style: {
+      [`&.${_checkboxClasses_js__WEBPACK_IMPORTED_MODULE_10__["default"].checked}, &.${_checkboxClasses_js__WEBPACK_IMPORTED_MODULE_10__["default"].indeterminate}`]: {
+        color: (theme.vars || theme).palette[color].main
+      },
+      [`&.${_checkboxClasses_js__WEBPACK_IMPORTED_MODULE_10__["default"].disabled}`]: {
+        color: (theme.vars || theme).palette.action.disabled
+      }
+    }
+  })), {
+    // Should be last to override other colors
+    props: {
+      disableRipple: false
+    },
+    style: {
+      // Reset on touch devices, it doesn't add specificity
+      '&:hover': {
+        '@media (hover: none)': {
+          backgroundColor: 'transparent'
+        }
+      }
+    }
+  }]
+})));
+const defaultCheckedIcon = /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_17__.jsx)(_internal_svg_icons_CheckBox_js__WEBPACK_IMPORTED_MODULE_6__["default"], {});
+const defaultIcon = /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_17__.jsx)(_internal_svg_icons_CheckBoxOutlineBlank_js__WEBPACK_IMPORTED_MODULE_5__["default"], {});
+const defaultIndeterminateIcon = /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_17__.jsx)(_internal_svg_icons_IndeterminateCheckBox_js__WEBPACK_IMPORTED_MODULE_7__["default"], {});
+const Checkbox = /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0__.forwardRef(function Checkbox(inProps, ref) {
+  const props = (0,_DefaultPropsProvider_index_js__WEBPACK_IMPORTED_MODULE_14__.useDefaultProps)({
+    props: inProps,
+    name: 'MuiCheckbox'
+  });
+  const {
+    checkedIcon = defaultCheckedIcon,
+    color = 'primary',
+    icon: iconProp = defaultIcon,
+    indeterminate = false,
+    indeterminateIcon: indeterminateIconProp = defaultIndeterminateIcon,
+    inputProps,
+    size = 'medium',
+    disableRipple = false,
+    className,
+    slots = {},
+    slotProps = {},
+    ...other
+  } = props;
+  const icon = indeterminate ? indeterminateIconProp : iconProp;
+  const indeterminateIcon = indeterminate ? indeterminateIconProp : checkedIcon;
+  const ownerState = {
+    ...props,
+    disableRipple,
+    color,
+    indeterminate,
+    size
+  };
+  const classes = useUtilityClasses(ownerState);
+  const externalInputProps = slotProps.input ?? inputProps;
+  const [RootSlot, rootSlotProps] = (0,_utils_useSlot_js__WEBPACK_IMPORTED_MODULE_16__["default"])('root', {
+    ref,
+    elementType: CheckboxRoot,
+    className: (0,clsx__WEBPACK_IMPORTED_MODULE_2__["default"])(classes.root, className),
+    shouldForwardComponentProp: true,
+    externalForwardedProps: {
+      slots,
+      slotProps,
+      ...other
+    },
+    ownerState,
+    additionalProps: {
+      type: 'checkbox',
+      icon: /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0__.cloneElement(icon, {
+        fontSize: icon.props.fontSize ?? size
+      }),
+      checkedIcon: /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0__.cloneElement(indeterminateIcon, {
+        fontSize: indeterminateIcon.props.fontSize ?? size
+      }),
+      disableRipple,
+      slots,
+      slotProps: {
+        input: (0,_utils_index_js__WEBPACK_IMPORTED_MODULE_15__["default"])(typeof externalInputProps === 'function' ? externalInputProps(ownerState) : externalInputProps, {
+          'data-indeterminate': indeterminate
+        })
+      }
+    }
+  });
+  return /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_17__.jsx)(RootSlot, {
+    ...rootSlotProps,
+    classes: classes
+  });
+});
+ true ? Checkbox.propTypes /* remove-proptypes */ = {
+  // ┌────────────────────────────── Warning ──────────────────────────────┐
+  // │ These PropTypes are generated from the TypeScript type definitions. │
+  // │    To update them, edit the d.ts file and run `pnpm proptypes`.     │
+  // └─────────────────────────────────────────────────────────────────────┘
+  /**
+   * If `true`, the component is checked.
+   */
+  checked: prop_types__WEBPACK_IMPORTED_MODULE_1__.bool,
+  /**
+   * The icon to display when the component is checked.
+   * @default <CheckBoxIcon />
+   */
+  checkedIcon: prop_types__WEBPACK_IMPORTED_MODULE_1__.node,
+  /**
+   * Override or extend the styles applied to the component.
+   */
+  classes: prop_types__WEBPACK_IMPORTED_MODULE_1__.object,
+  /**
+   * @ignore
+   */
+  className: prop_types__WEBPACK_IMPORTED_MODULE_1__.string,
+  /**
+   * The color of the component.
+   * It supports both default and custom theme colors, which can be added as shown in the
+   * [palette customization guide](https://mui.com/material-ui/customization/palette/#custom-colors).
+   * @default 'primary'
+   */
+  color: prop_types__WEBPACK_IMPORTED_MODULE_1__.oneOfType([prop_types__WEBPACK_IMPORTED_MODULE_1__.oneOf(['default', 'primary', 'secondary', 'error', 'info', 'success', 'warning']), prop_types__WEBPACK_IMPORTED_MODULE_1__.string]),
+  /**
+   * The default checked state. Use when the component is not controlled.
+   */
+  defaultChecked: prop_types__WEBPACK_IMPORTED_MODULE_1__.bool,
+  /**
+   * If `true`, the component is disabled.
+   * @default false
+   */
+  disabled: prop_types__WEBPACK_IMPORTED_MODULE_1__.bool,
+  /**
+   * If `true`, the ripple effect is disabled.
+   * @default false
+   */
+  disableRipple: prop_types__WEBPACK_IMPORTED_MODULE_1__.bool,
+  /**
+   * The icon to display when the component is unchecked.
+   * @default <CheckBoxOutlineBlankIcon />
+   */
+  icon: prop_types__WEBPACK_IMPORTED_MODULE_1__.node,
+  /**
+   * The id of the `input` element.
+   */
+  id: prop_types__WEBPACK_IMPORTED_MODULE_1__.string,
+  /**
+   * If `true`, the component appears indeterminate.
+   * This does not set the native input element to indeterminate due
+   * to inconsistent behavior across browsers.
+   * However, we set a `data-indeterminate` attribute on the `input`.
+   * @default false
+   */
+  indeterminate: prop_types__WEBPACK_IMPORTED_MODULE_1__.bool,
+  /**
+   * The icon to display when the component is indeterminate.
+   * @default <IndeterminateCheckBoxIcon />
+   */
+  indeterminateIcon: prop_types__WEBPACK_IMPORTED_MODULE_1__.node,
+  /**
+   * [Attributes](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/input#attributes) applied to the `input` element.
+   * @deprecated Use `slotProps.input` instead. This prop will be removed in a future major release. See [Migrating from deprecated APIs](/material-ui/migration/migrating-from-deprecated-apis/) for more details.
+   */
+  inputProps: prop_types__WEBPACK_IMPORTED_MODULE_1__.object,
+  /**
+   * Callback fired when the state is changed.
+   *
+   * @param {React.ChangeEvent<HTMLInputElement>} event The event source of the callback.
+   * You can pull out the new checked state by accessing `event.target.checked` (boolean).
+   */
+  onChange: prop_types__WEBPACK_IMPORTED_MODULE_1__.func,
+  /**
+   * If `true`, the `input` element is required.
+   * @default false
+   */
+  required: prop_types__WEBPACK_IMPORTED_MODULE_1__.bool,
+  /**
+   * The size of the component.
+   * `small` is equivalent to the dense checkbox styling.
+   * @default 'medium'
+   */
+  size: prop_types__WEBPACK_IMPORTED_MODULE_1__.oneOfType([prop_types__WEBPACK_IMPORTED_MODULE_1__.oneOf(['medium', 'small']), prop_types__WEBPACK_IMPORTED_MODULE_1__.string]),
+  /**
+   * The props used for each slot inside.
+   * @default {}
+   */
+  slotProps: prop_types__WEBPACK_IMPORTED_MODULE_1__.shape({
+    input: prop_types__WEBPACK_IMPORTED_MODULE_1__.oneOfType([prop_types__WEBPACK_IMPORTED_MODULE_1__.func, prop_types__WEBPACK_IMPORTED_MODULE_1__.object]),
+    root: prop_types__WEBPACK_IMPORTED_MODULE_1__.oneOfType([prop_types__WEBPACK_IMPORTED_MODULE_1__.func, prop_types__WEBPACK_IMPORTED_MODULE_1__.object])
+  }),
+  /**
+   * The components used for each slot inside.
+   * @default {}
+   */
+  slots: prop_types__WEBPACK_IMPORTED_MODULE_1__.shape({
+    input: prop_types__WEBPACK_IMPORTED_MODULE_1__.elementType,
+    root: prop_types__WEBPACK_IMPORTED_MODULE_1__.elementType
+  }),
+  /**
+   * The system prop that allows defining system overrides as well as additional CSS styles.
+   */
+  sx: prop_types__WEBPACK_IMPORTED_MODULE_1__.oneOfType([prop_types__WEBPACK_IMPORTED_MODULE_1__.arrayOf(prop_types__WEBPACK_IMPORTED_MODULE_1__.oneOfType([prop_types__WEBPACK_IMPORTED_MODULE_1__.func, prop_types__WEBPACK_IMPORTED_MODULE_1__.object, prop_types__WEBPACK_IMPORTED_MODULE_1__.bool])), prop_types__WEBPACK_IMPORTED_MODULE_1__.func, prop_types__WEBPACK_IMPORTED_MODULE_1__.object]),
+  /**
+   * The value of the component. The DOM API casts this to a string.
+   * The browser uses "on" as the default value.
+   */
+  value: prop_types__WEBPACK_IMPORTED_MODULE_1__.any
+} : 0;
+/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (Checkbox);
+
+/***/ }),
+
+/***/ "./node_modules/@mui/material/esm/Checkbox/checkboxClasses.js":
+/*!********************************************************************!*\
+  !*** ./node_modules/@mui/material/esm/Checkbox/checkboxClasses.js ***!
+  \********************************************************************/
+/***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__),
+/* harmony export */   getCheckboxUtilityClass: () => (/* binding */ getCheckboxUtilityClass)
+/* harmony export */ });
+/* harmony import */ var _mui_utils_generateUtilityClasses__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @mui/utils/generateUtilityClasses */ "./node_modules/@mui/utils/esm/generateUtilityClasses/generateUtilityClasses.js");
+/* harmony import */ var _mui_utils_generateUtilityClass__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @mui/utils/generateUtilityClass */ "./node_modules/@mui/utils/esm/generateUtilityClass/generateUtilityClass.js");
+
+
+function getCheckboxUtilityClass(slot) {
+  return (0,_mui_utils_generateUtilityClass__WEBPACK_IMPORTED_MODULE_1__["default"])('MuiCheckbox', slot);
+}
+const checkboxClasses = (0,_mui_utils_generateUtilityClasses__WEBPACK_IMPORTED_MODULE_0__["default"])('MuiCheckbox', ['root', 'checked', 'disabled', 'indeterminate', 'colorPrimary', 'colorSecondary', 'sizeSmall', 'sizeMedium']);
+/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (checkboxClasses);
+
+/***/ }),
+
 /***/ "./node_modules/@mui/material/esm/DefaultPropsProvider/DefaultPropsProvider.js":
 /*!*************************************************************************************!*\
   !*** ./node_modules/@mui/material/esm/DefaultPropsProvider/DefaultPropsProvider.js ***!
@@ -6369,6 +6704,288 @@ if (true) {
   Portal['propTypes' + ''] = (0,_mui_utils_exactProp__WEBPACK_IMPORTED_MODULE_7__["default"])(Portal.propTypes);
 }
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (Portal);
+
+/***/ }),
+
+/***/ "./node_modules/@mui/material/esm/SvgIcon/SvgIcon.js":
+/*!***********************************************************!*\
+  !*** ./node_modules/@mui/material/esm/SvgIcon/SvgIcon.js ***!
+  \***********************************************************/
+/***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
+/* harmony export */ });
+/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! react */ "./node_modules/react/index.js");
+/* harmony import */ var prop_types__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! prop-types */ "./node_modules/prop-types/index.js");
+/* harmony import */ var clsx__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! clsx */ "./node_modules/clsx/dist/clsx.mjs");
+/* harmony import */ var _mui_utils_composeClasses__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @mui/utils/composeClasses */ "./node_modules/@mui/utils/esm/composeClasses/composeClasses.js");
+/* harmony import */ var _utils_capitalize_js__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../utils/capitalize.js */ "./node_modules/@mui/material/esm/utils/capitalize.js");
+/* harmony import */ var _zero_styled_index_js__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ../zero-styled/index.js */ "./node_modules/@mui/material/esm/styles/styled.js");
+/* harmony import */ var _utils_memoTheme_js__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ../utils/memoTheme.js */ "./node_modules/@mui/material/esm/utils/memoTheme.js");
+/* harmony import */ var _DefaultPropsProvider_index_js__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ../DefaultPropsProvider/index.js */ "./node_modules/@mui/material/esm/DefaultPropsProvider/DefaultPropsProvider.js");
+/* harmony import */ var _svgIconClasses_js__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! ./svgIconClasses.js */ "./node_modules/@mui/material/esm/SvgIcon/svgIconClasses.js");
+/* harmony import */ var react_jsx_runtime__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! react/jsx-runtime */ "./node_modules/react/jsx-runtime.js");
+'use client';
+
+
+
+
+
+
+
+
+
+
+
+const useUtilityClasses = ownerState => {
+  const {
+    color,
+    fontSize,
+    classes
+  } = ownerState;
+  const slots = {
+    root: ['root', color !== 'inherit' && `color${(0,_utils_capitalize_js__WEBPACK_IMPORTED_MODULE_4__["default"])(color)}`, `fontSize${(0,_utils_capitalize_js__WEBPACK_IMPORTED_MODULE_4__["default"])(fontSize)}`]
+  };
+  return (0,_mui_utils_composeClasses__WEBPACK_IMPORTED_MODULE_3__["default"])(slots, _svgIconClasses_js__WEBPACK_IMPORTED_MODULE_8__.getSvgIconUtilityClass, classes);
+};
+const SvgIconRoot = (0,_zero_styled_index_js__WEBPACK_IMPORTED_MODULE_5__["default"])('svg', {
+  name: 'MuiSvgIcon',
+  slot: 'Root',
+  overridesResolver: (props, styles) => {
+    const {
+      ownerState
+    } = props;
+    return [styles.root, ownerState.color !== 'inherit' && styles[`color${(0,_utils_capitalize_js__WEBPACK_IMPORTED_MODULE_4__["default"])(ownerState.color)}`], styles[`fontSize${(0,_utils_capitalize_js__WEBPACK_IMPORTED_MODULE_4__["default"])(ownerState.fontSize)}`]];
+  }
+})((0,_utils_memoTheme_js__WEBPACK_IMPORTED_MODULE_6__["default"])(({
+  theme
+}) => ({
+  userSelect: 'none',
+  width: '1em',
+  height: '1em',
+  display: 'inline-block',
+  flexShrink: 0,
+  transition: theme.transitions?.create?.('fill', {
+    duration: (theme.vars ?? theme).transitions?.duration?.shorter
+  }),
+  variants: [{
+    props: props => !props.hasSvgAsChild,
+    style: {
+      // the <svg> will define the property that has `currentColor`
+      // for example heroicons uses fill="none" and stroke="currentColor"
+      fill: 'currentColor'
+    }
+  }, {
+    props: {
+      fontSize: 'inherit'
+    },
+    style: {
+      fontSize: 'inherit'
+    }
+  }, {
+    props: {
+      fontSize: 'small'
+    },
+    style: {
+      fontSize: theme.typography?.pxToRem?.(20) || '1.25rem'
+    }
+  }, {
+    props: {
+      fontSize: 'medium'
+    },
+    style: {
+      fontSize: theme.typography?.pxToRem?.(24) || '1.5rem'
+    }
+  }, {
+    props: {
+      fontSize: 'large'
+    },
+    style: {
+      fontSize: theme.typography?.pxToRem?.(35) || '2.1875rem'
+    }
+  },
+  // TODO v5 deprecate color prop, v6 remove for sx
+  ...Object.entries((theme.vars ?? theme).palette).filter(([, value]) => value && value.main).map(([color]) => ({
+    props: {
+      color
+    },
+    style: {
+      color: (theme.vars ?? theme).palette?.[color]?.main
+    }
+  })), {
+    props: {
+      color: 'action'
+    },
+    style: {
+      color: (theme.vars ?? theme).palette?.action?.active
+    }
+  }, {
+    props: {
+      color: 'disabled'
+    },
+    style: {
+      color: (theme.vars ?? theme).palette?.action?.disabled
+    }
+  }, {
+    props: {
+      color: 'inherit'
+    },
+    style: {
+      color: undefined
+    }
+  }]
+})));
+const SvgIcon = /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0__.forwardRef(function SvgIcon(inProps, ref) {
+  const props = (0,_DefaultPropsProvider_index_js__WEBPACK_IMPORTED_MODULE_7__.useDefaultProps)({
+    props: inProps,
+    name: 'MuiSvgIcon'
+  });
+  const {
+    children,
+    className,
+    color = 'inherit',
+    component = 'svg',
+    fontSize = 'medium',
+    htmlColor,
+    inheritViewBox = false,
+    titleAccess,
+    viewBox = '0 0 24 24',
+    ...other
+  } = props;
+  const hasSvgAsChild = /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0__.isValidElement(children) && children.type === 'svg';
+  const ownerState = {
+    ...props,
+    color,
+    component,
+    fontSize,
+    instanceFontSize: inProps.fontSize,
+    inheritViewBox,
+    viewBox,
+    hasSvgAsChild
+  };
+  const more = {};
+  if (!inheritViewBox) {
+    more.viewBox = viewBox;
+  }
+  const classes = useUtilityClasses(ownerState);
+  return /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_9__.jsxs)(SvgIconRoot, {
+    as: component,
+    className: (0,clsx__WEBPACK_IMPORTED_MODULE_2__["default"])(classes.root, className),
+    focusable: "false",
+    color: htmlColor,
+    "aria-hidden": titleAccess ? undefined : true,
+    role: titleAccess ? 'img' : undefined,
+    ref: ref,
+    ...more,
+    ...other,
+    ...(hasSvgAsChild && children.props),
+    ownerState: ownerState,
+    children: [hasSvgAsChild ? children.props.children : children, titleAccess ? /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_9__.jsx)("title", {
+      children: titleAccess
+    }) : null]
+  });
+});
+ true ? SvgIcon.propTypes /* remove-proptypes */ = {
+  // ┌────────────────────────────── Warning ──────────────────────────────┐
+  // │ These PropTypes are generated from the TypeScript type definitions. │
+  // │    To update them, edit the d.ts file and run `pnpm proptypes`.     │
+  // └─────────────────────────────────────────────────────────────────────┘
+  /**
+   * Node passed into the SVG element.
+   */
+  children: prop_types__WEBPACK_IMPORTED_MODULE_1__.node,
+  /**
+   * Override or extend the styles applied to the component.
+   */
+  classes: prop_types__WEBPACK_IMPORTED_MODULE_1__.object,
+  /**
+   * @ignore
+   */
+  className: prop_types__WEBPACK_IMPORTED_MODULE_1__.string,
+  /**
+   * The color of the component.
+   * It supports both default and custom theme colors, which can be added as shown in the
+   * [palette customization guide](https://mui.com/material-ui/customization/palette/#custom-colors).
+   * You can use the `htmlColor` prop to apply a color attribute to the SVG element.
+   * @default 'inherit'
+   */
+  color: prop_types__WEBPACK_IMPORTED_MODULE_1__.oneOfType([prop_types__WEBPACK_IMPORTED_MODULE_1__.oneOf(['inherit', 'action', 'disabled', 'primary', 'secondary', 'error', 'info', 'success', 'warning']), prop_types__WEBPACK_IMPORTED_MODULE_1__.string]),
+  /**
+   * The component used for the root node.
+   * Either a string to use a HTML element or a component.
+   */
+  component: prop_types__WEBPACK_IMPORTED_MODULE_1__.elementType,
+  /**
+   * The fontSize applied to the icon. Defaults to 24px, but can be configure to inherit font size.
+   * @default 'medium'
+   */
+  fontSize: prop_types__WEBPACK_IMPORTED_MODULE_1__.oneOfType([prop_types__WEBPACK_IMPORTED_MODULE_1__.oneOf(['inherit', 'large', 'medium', 'small']), prop_types__WEBPACK_IMPORTED_MODULE_1__.string]),
+  /**
+   * Applies a color attribute to the SVG element.
+   */
+  htmlColor: prop_types__WEBPACK_IMPORTED_MODULE_1__.string,
+  /**
+   * If `true`, the root node will inherit the custom `component`'s viewBox and the `viewBox`
+   * prop will be ignored.
+   * Useful when you want to reference a custom `component` and have `SvgIcon` pass that
+   * `component`'s viewBox to the root node.
+   * @default false
+   */
+  inheritViewBox: prop_types__WEBPACK_IMPORTED_MODULE_1__.bool,
+  /**
+   * The shape-rendering attribute. The behavior of the different options is described on the
+   * [MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Attribute/shape-rendering).
+   * If you are having issues with blurry icons you should investigate this prop.
+   */
+  shapeRendering: prop_types__WEBPACK_IMPORTED_MODULE_1__.string,
+  /**
+   * The system prop that allows defining system overrides as well as additional CSS styles.
+   */
+  sx: prop_types__WEBPACK_IMPORTED_MODULE_1__.oneOfType([prop_types__WEBPACK_IMPORTED_MODULE_1__.arrayOf(prop_types__WEBPACK_IMPORTED_MODULE_1__.oneOfType([prop_types__WEBPACK_IMPORTED_MODULE_1__.func, prop_types__WEBPACK_IMPORTED_MODULE_1__.object, prop_types__WEBPACK_IMPORTED_MODULE_1__.bool])), prop_types__WEBPACK_IMPORTED_MODULE_1__.func, prop_types__WEBPACK_IMPORTED_MODULE_1__.object]),
+  /**
+   * Provides a human-readable title for the element that contains it.
+   * https://www.w3.org/TR/SVG-access/#Equivalent
+   */
+  titleAccess: prop_types__WEBPACK_IMPORTED_MODULE_1__.string,
+  /**
+   * Allows you to redefine what the coordinates without units mean inside an SVG element.
+   * For example, if the SVG element is 500 (width) by 200 (height),
+   * and you pass viewBox="0 0 50 20",
+   * this means that the coordinates inside the SVG will go from the top left corner (0,0)
+   * to bottom right (50,20) and each unit will be worth 10px.
+   * @default '0 0 24 24'
+   */
+  viewBox: prop_types__WEBPACK_IMPORTED_MODULE_1__.string
+} : 0;
+SvgIcon.muiName = 'SvgIcon';
+/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (SvgIcon);
+
+/***/ }),
+
+/***/ "./node_modules/@mui/material/esm/SvgIcon/svgIconClasses.js":
+/*!******************************************************************!*\
+  !*** ./node_modules/@mui/material/esm/SvgIcon/svgIconClasses.js ***!
+  \******************************************************************/
+/***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__),
+/* harmony export */   getSvgIconUtilityClass: () => (/* binding */ getSvgIconUtilityClass)
+/* harmony export */ });
+/* harmony import */ var _mui_utils_generateUtilityClasses__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @mui/utils/generateUtilityClasses */ "./node_modules/@mui/utils/esm/generateUtilityClasses/generateUtilityClasses.js");
+/* harmony import */ var _mui_utils_generateUtilityClass__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @mui/utils/generateUtilityClass */ "./node_modules/@mui/utils/esm/generateUtilityClass/generateUtilityClass.js");
+
+
+function getSvgIconUtilityClass(slot) {
+  return (0,_mui_utils_generateUtilityClass__WEBPACK_IMPORTED_MODULE_1__["default"])('MuiSvgIcon', slot);
+}
+const svgIconClasses = (0,_mui_utils_generateUtilityClasses__WEBPACK_IMPORTED_MODULE_0__["default"])('MuiSvgIcon', ['root', 'colorPrimary', 'colorSecondary', 'colorAction', 'colorError', 'colorDisabled', 'fontSizeInherit', 'fontSizeSmall', 'fontSizeMedium', 'fontSizeLarge']);
+/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (svgIconClasses);
 
 /***/ }),
 
@@ -8729,6 +9346,87 @@ const SwitchBase = /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0__.forwardRef(fu
 
 /***/ }),
 
+/***/ "./node_modules/@mui/material/esm/internal/svg-icons/CheckBox.js":
+/*!***********************************************************************!*\
+  !*** ./node_modules/@mui/material/esm/internal/svg-icons/CheckBox.js ***!
+  \***********************************************************************/
+/***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
+/* harmony export */ });
+/* harmony import */ var _utils_createSvgIcon_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../utils/createSvgIcon.js */ "./node_modules/@mui/material/esm/utils/createSvgIcon.js");
+/* harmony import */ var react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! react/jsx-runtime */ "./node_modules/react/jsx-runtime.js");
+'use client';
+
+
+
+/**
+ * @ignore - internal component.
+ */
+
+/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = ((0,_utils_createSvgIcon_js__WEBPACK_IMPORTED_MODULE_0__["default"])(/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__.jsx)("path", {
+  d: "M19 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.11 0 2-.9 2-2V5c0-1.1-.89-2-2-2zm-9 14l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"
+}), 'CheckBox'));
+
+/***/ }),
+
+/***/ "./node_modules/@mui/material/esm/internal/svg-icons/CheckBoxOutlineBlank.js":
+/*!***********************************************************************************!*\
+  !*** ./node_modules/@mui/material/esm/internal/svg-icons/CheckBoxOutlineBlank.js ***!
+  \***********************************************************************************/
+/***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
+/* harmony export */ });
+/* harmony import */ var _utils_createSvgIcon_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../utils/createSvgIcon.js */ "./node_modules/@mui/material/esm/utils/createSvgIcon.js");
+/* harmony import */ var react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! react/jsx-runtime */ "./node_modules/react/jsx-runtime.js");
+'use client';
+
+
+
+/**
+ * @ignore - internal component.
+ */
+
+/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = ((0,_utils_createSvgIcon_js__WEBPACK_IMPORTED_MODULE_0__["default"])(/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__.jsx)("path", {
+  d: "M19 5v14H5V5h14m0-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"
+}), 'CheckBoxOutlineBlank'));
+
+/***/ }),
+
+/***/ "./node_modules/@mui/material/esm/internal/svg-icons/IndeterminateCheckBox.js":
+/*!************************************************************************************!*\
+  !*** ./node_modules/@mui/material/esm/internal/svg-icons/IndeterminateCheckBox.js ***!
+  \************************************************************************************/
+/***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
+/* harmony export */ });
+/* harmony import */ var _utils_createSvgIcon_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../utils/createSvgIcon.js */ "./node_modules/@mui/material/esm/utils/createSvgIcon.js");
+/* harmony import */ var react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! react/jsx-runtime */ "./node_modules/react/jsx-runtime.js");
+'use client';
+
+
+
+/**
+ * @ignore - internal component.
+ */
+
+/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = ((0,_utils_createSvgIcon_js__WEBPACK_IMPORTED_MODULE_0__["default"])(/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_1__.jsx)("path", {
+  d: "M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10H7v-2h10v2z"
+}), 'IndeterminateCheckBox'));
+
+/***/ }),
+
 /***/ "./node_modules/@mui/material/esm/internal/switchBaseClasses.js":
 /*!**********************************************************************!*\
   !*** ./node_modules/@mui/material/esm/internal/switchBaseClasses.js ***!
@@ -10751,6 +11449,49 @@ function createSimplePaletteValueFilter(additionalPropertiesToCheck = []) {
 
 /***/ }),
 
+/***/ "./node_modules/@mui/material/esm/utils/createSvgIcon.js":
+/*!***************************************************************!*\
+  !*** ./node_modules/@mui/material/esm/utils/createSvgIcon.js ***!
+  \***************************************************************/
+/***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (/* binding */ createSvgIcon)
+/* harmony export */ });
+/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! react */ "./node_modules/react/index.js");
+/* harmony import */ var _SvgIcon_index_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../SvgIcon/index.js */ "./node_modules/@mui/material/esm/SvgIcon/SvgIcon.js");
+/* harmony import */ var react_jsx_runtime__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! react/jsx-runtime */ "./node_modules/react/jsx-runtime.js");
+'use client';
+
+
+
+
+/**
+ * Private module reserved for @mui packages.
+ */
+
+function createSvgIcon(path, displayName) {
+  function Component(props, ref) {
+    return /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_2__.jsx)(_SvgIcon_index_js__WEBPACK_IMPORTED_MODULE_1__["default"], {
+      "data-testid":  true ? `${displayName}Icon` : 0,
+      ref: ref,
+      ...props,
+      children: path
+    });
+  }
+  if (true) {
+    // Need to set `displayName` on the inner component for React.memo.
+    // React prior to 16.14 ignores `displayName` on the wrapper.
+    Component.displayName = `${displayName}Icon`;
+  }
+  Component.muiName = _SvgIcon_index_js__WEBPACK_IMPORTED_MODULE_1__["default"].muiName;
+  return /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0__.memo(/*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0__.forwardRef(Component));
+}
+
+/***/ }),
+
 /***/ "./node_modules/@mui/material/esm/utils/memoTheme.js":
 /*!***********************************************************!*\
   !*** ./node_modules/@mui/material/esm/utils/memoTheme.js ***!
@@ -10766,6 +11507,96 @@ __webpack_require__.r(__webpack_exports__);
 
 const memoTheme = _mui_system__WEBPACK_IMPORTED_MODULE_0__["default"];
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (memoTheme);
+
+/***/ }),
+
+/***/ "./node_modules/@mui/material/esm/utils/mergeSlotProps.js":
+/*!****************************************************************!*\
+  !*** ./node_modules/@mui/material/esm/utils/mergeSlotProps.js ***!
+  \****************************************************************/
+/***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (/* binding */ mergeSlotProps)
+/* harmony export */ });
+/* harmony import */ var clsx__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! clsx */ "./node_modules/clsx/dist/clsx.mjs");
+
+
+// Brought from [Base UI](https://github.com/mui/base-ui/blob/master/packages/react/src/merge-props/mergeProps.ts#L119)
+// Use it directly from Base UI once it's a package dependency.
+function isEventHandler(key, value) {
+  // This approach is more efficient than using a regex.
+  const thirdCharCode = key.charCodeAt(2);
+  return key[0] === 'o' && key[1] === 'n' && thirdCharCode >= 65 /* A */ && thirdCharCode <= 90 /* Z */ && typeof value === 'function';
+}
+function mergeSlotProps(externalSlotProps, defaultSlotProps) {
+  if (!externalSlotProps) {
+    return defaultSlotProps;
+  }
+  function extractHandlers(externalSlotPropsValue, defaultSlotPropsValue) {
+    const handlers = {};
+    Object.keys(defaultSlotPropsValue).forEach(key => {
+      if (isEventHandler(key, defaultSlotPropsValue[key]) && typeof externalSlotPropsValue[key] === 'function') {
+        // only compose the handlers if both default and external slot props match the event handler
+        handlers[key] = (...args) => {
+          externalSlotPropsValue[key](...args);
+          defaultSlotPropsValue[key](...args);
+        };
+      }
+    });
+    return handlers;
+  }
+  if (typeof externalSlotProps === 'function' || typeof defaultSlotProps === 'function') {
+    return ownerState => {
+      const defaultSlotPropsValue = typeof defaultSlotProps === 'function' ? defaultSlotProps(ownerState) : defaultSlotProps;
+      const externalSlotPropsValue = typeof externalSlotProps === 'function' ? externalSlotProps({
+        ...ownerState,
+        ...defaultSlotPropsValue
+      }) : externalSlotProps;
+      const className = (0,clsx__WEBPACK_IMPORTED_MODULE_0__["default"])(ownerState?.className, defaultSlotPropsValue?.className, externalSlotPropsValue?.className);
+      const handlers = extractHandlers(externalSlotPropsValue, defaultSlotPropsValue);
+      return {
+        ...defaultSlotPropsValue,
+        ...externalSlotPropsValue,
+        ...handlers,
+        ...(!!className && {
+          className
+        }),
+        ...(defaultSlotPropsValue?.style && externalSlotPropsValue?.style && {
+          style: {
+            ...defaultSlotPropsValue.style,
+            ...externalSlotPropsValue.style
+          }
+        }),
+        ...(defaultSlotPropsValue?.sx && externalSlotPropsValue?.sx && {
+          sx: [...(Array.isArray(defaultSlotPropsValue.sx) ? defaultSlotPropsValue.sx : [defaultSlotPropsValue.sx]), ...(Array.isArray(externalSlotPropsValue.sx) ? externalSlotPropsValue.sx : [externalSlotPropsValue.sx])]
+        })
+      };
+    };
+  }
+  const typedDefaultSlotProps = defaultSlotProps;
+  const handlers = extractHandlers(externalSlotProps, typedDefaultSlotProps);
+  const className = (0,clsx__WEBPACK_IMPORTED_MODULE_0__["default"])(typedDefaultSlotProps?.className, externalSlotProps?.className);
+  return {
+    ...defaultSlotProps,
+    ...externalSlotProps,
+    ...handlers,
+    ...(!!className && {
+      className
+    }),
+    ...(typedDefaultSlotProps?.style && externalSlotProps?.style && {
+      style: {
+        ...typedDefaultSlotProps.style,
+        ...externalSlotProps.style
+      }
+    }),
+    ...(typedDefaultSlotProps?.sx && externalSlotProps?.sx && {
+      sx: [...(Array.isArray(typedDefaultSlotProps.sx) ? typedDefaultSlotProps.sx : [typedDefaultSlotProps.sx]), ...(Array.isArray(externalSlotProps.sx) ? externalSlotProps.sx : [externalSlotProps.sx])]
+    })
+  };
+}
 
 /***/ }),
 
@@ -56379,9 +57210,10 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! react */ "./node_modules/react/index.js");
 /* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(react__WEBPACK_IMPORTED_MODULE_0__);
 /* harmony import */ var react_dom_client__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! react-dom/client */ "./node_modules/react-dom/client.js");
-/* harmony import */ var _mui_material__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @mui/material */ "./node_modules/@mui/material/esm/Tooltip/Tooltip.js");
-/* harmony import */ var _mui_material__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @mui/material */ "./node_modules/@mui/material/esm/FormControlLabel/FormControlLabel.js");
-/* harmony import */ var _mui_material__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @mui/material */ "./node_modules/@mui/material/esm/Switch/Switch.js");
+/* harmony import */ var _mui_material__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @mui/material */ "./node_modules/@mui/material/esm/FormControlLabel/FormControlLabel.js");
+/* harmony import */ var _mui_material__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @mui/material */ "./node_modules/@mui/material/esm/Checkbox/Checkbox.js");
+/* harmony import */ var _mui_material__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @mui/material */ "./node_modules/@mui/material/esm/Tooltip/Tooltip.js");
+/* harmony import */ var _mui_material__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @mui/material */ "./node_modules/@mui/material/esm/Switch/Switch.js");
 
 
 
@@ -56528,6 +57360,8 @@ async function setWorkflowEnabled(token, workflow, enabled) {
     }
 }
 const SCAN_COOLDOWN_MS = 15 * 60 * 1000;
+const MANUAL_SCAN_KEY = 'manual-batch'; // localStorage key for the shared manual-scan cooldown
+const MAX_BATCH = 10; // most sites scannable in one manual run
 function getScanTime(areaKey) {
     const stored = localStorage.getItem(`camping-scan-${areaKey}`);
     return stored ? parseInt(stored, 10) : null;
@@ -56540,12 +57374,6 @@ function getMinutesSinceScan(areaKey) {
     if (!scanTime)
         return null;
     return Math.floor((Date.now() - scanTime) / 60000);
-}
-function canScan(areaKey) {
-    const scanTime = getScanTime(areaKey);
-    if (!scanTime)
-        return true;
-    return Date.now() - scanTime >= SCAN_COOLDOWN_MS;
 }
 function LoginScreen({ onLogin }) {
     const [token, setToken] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)('');
@@ -56598,12 +57426,9 @@ function SearchBar({ searchQuery, onSearchChange }) {
     return (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "search-container" },
         react__WEBPACK_IMPORTED_MODULE_0___default().createElement("input", { type: "text", placeholder: "Search recreation areas...", value: searchQuery, onChange: (e) => onSearchChange(e.target.value), className: "search-input" })));
 }
-function RecAreaCard({ areaId, area, isFavorite, isDisabled, isAutoDisabled, favoriteCount, isSaving, onToggleFavorite, onToggleDisabled, onScan }) {
-    const [isScanning, setIsScanning] = react__WEBPACK_IMPORTED_MODULE_0___default().useState(false);
+function RecAreaCard({ areaId, area, isFavorite, isDisabled, isAutoDisabled, favoriteCount, isSaving, onToggleFavorite, onToggleDisabled, isSelected, onToggleSelect, selectDisabled }) {
     const weekendDates = futureWeekendDates(area);
     const hasAvailability = weekendDates.length > 0;
-    const scannable = canScan(areaId);
-    const minutesAgo = getMinutesSinceScan(areaId);
     // Extract numeric rec area ID for URL building
     const numericId = areaId.replace('recgov-', '').replace('reserveca-', '');
     const provider = area.provider || 'RecreationDotGov';
@@ -56625,11 +57450,6 @@ function RecAreaCard({ areaId, area, isFavorite, isDisabled, isAutoDisabled, fav
             const encodedName = encodeURIComponent(area.name);
             return `https://www.recreation.gov/search?q=${encodedName}&recarea=${numericId}&inventory_type=camping&checkin=${checkin}&checkout=${checkout}`;
         }
-    };
-    const handleScanClick = async () => {
-        setIsScanning(true);
-        await onScan();
-        setTimeout(() => setIsScanning(false), 1000);
     };
     return (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: `rec-area-card ${(isDisabled || isAutoDisabled) ? 'disabled' : ''}` },
         react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "card-header" },
@@ -56673,7 +57493,10 @@ function RecAreaCard({ areaId, area, isFavorite, isDisabled, isAutoDisabled, fav
                         hour: 'numeric',
                         minute: '2-digit'
                     }))),
-                    react__WEBPACK_IMPORTED_MODULE_0___default().createElement("button", { className: `scan-button ${!scannable || isScanning ? 'on-cooldown' : ''}`, onClick: (e) => { e.stopPropagation(); handleScanClick(); }, disabled: !scannable || isScanning }, isScanning ? 'Scanning...' : scannable ? 'Scan now' : `Scanned ${minutesAgo}m ago`))))));
+                    react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_mui_material__WEBPACK_IMPORTED_MODULE_2__["default"], { control: react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_mui_material__WEBPACK_IMPORTED_MODULE_3__["default"], { checked: isSelected, onChange: (e) => { e.stopPropagation(); onToggleSelect(); }, disabled: selectDisabled, sx: {
+                                color: '#9c9588',
+                                '&.Mui-checked': { color: '#4ade80' },
+                            } }), label: "Scan", onClick: (e) => e.stopPropagation(), sx: { color: '#e8e4df', mr: 0, '& .MuiFormControlLabel-label': { fontSize: '13px' } } }))))));
 }
 function TabBar({ activeTab, onTabChange, favoriteCount }) {
     return (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "tab-bar" },
@@ -56696,8 +57519,15 @@ function CampingApp({ token }) {
     const [searchQuery, setSearchQuery] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)('');
     const [loading, setLoading] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)(true);
     const [savingAreaId, setSavingAreaId] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)(null);
+    const [selected, setSelected] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)(new Set());
+    const [, setTick] = (0,react__WEBPACK_IMPORTED_MODULE_0__.useState)(0); // bump to re-render so the cooldown label/countdown stays current
     (0,react__WEBPACK_IMPORTED_MODULE_0__.useEffect)(() => {
         loadData();
+    }, []);
+    // Tick every 30s so "Scanned Xm ago" advances and the button re-enables when cooldown expires
+    (0,react__WEBPACK_IMPORTED_MODULE_0__.useEffect)(() => {
+        const id = setInterval(() => setTick(t => t + 1), 30000);
+        return () => clearInterval(id);
     }, []);
     const loadData = async () => {
         setLoading(true);
@@ -56735,13 +57565,29 @@ function CampingApp({ token }) {
         }
         setLoading(false);
     };
-    const handleScan = async (areaId) => {
+    const toggleSelect = (areaId) => {
+        setSelected(prev => {
+            const next = new Set(prev);
+            if (next.has(areaId)) {
+                next.delete(areaId);
+            }
+            else if (next.size < MAX_BATCH) {
+                next.add(areaId);
+            }
+            return next;
+        });
+    };
+    const handleBatchScan = async () => {
+        if (selected.size === 0)
+            return;
         try {
-            await triggerScanWorkflow(token, areaId);
-            setScanTime(areaId, Date.now());
+            await triggerScanWorkflow(token, Array.from(selected).join(','));
+            setScanTime(MANUAL_SCAN_KEY, Date.now());
+            setSelected(new Set());
+            setTick(t => t + 1); // reflect the new cooldown immediately
         }
         catch (e) {
-            console.error('Error triggering scan:', e);
+            console.error('Error triggering batch scan:', e);
         }
     };
     const saveFavorites = async (newFavorites, areaId) => {
@@ -56886,6 +57732,16 @@ function CampingApp({ token }) {
     const scrollToTop = () => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
+    // Shared manual-scan cooldown (one clock for all sites, not per-card)
+    const lastManualScan = getScanTime(MANUAL_SCAN_KEY);
+    const cooldownActive = lastManualScan != null && (Date.now() - lastManualScan) < SCAN_COOLDOWN_MS;
+    const minutesSinceScan = getMinutesSinceScan(MANUAL_SCAN_KEY);
+    const batchDisabled = cooldownActive || selected.size === 0;
+    const batchLabel = cooldownActive
+        ? `Scanned ${minutesSinceScan}m ago`
+        : selected.size === 0
+            ? 'Select to scan'
+            : `Scan ${selected.size} site${selected.size === 1 ? '' : 's'}`;
     return (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { id: "camping-app" },
         react__WEBPACK_IMPORTED_MODULE_0___default().createElement("header", { id: "camping-header" },
             react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", null,
@@ -56902,11 +57758,11 @@ function CampingApp({ token }) {
                     react__WEBPACK_IMPORTED_MODULE_0___default().createElement("span", null,
                         "Last scan: ",
                         lastScanDate))),
-            react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_mui_material__WEBPACK_IMPORTED_MODULE_2__["default"], { title: "Jump to bottom", arrow: true },
+            react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_mui_material__WEBPACK_IMPORTED_MODULE_4__["default"], { title: "Jump to bottom", arrow: true },
                 react__WEBPACK_IMPORTED_MODULE_0___default().createElement("button", { onClick: scrollToBottom, className: "jump-to-bottom-button", "aria-label": "Jump to bottom" }, "\u2193"))),
         react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "scan-controls" },
             react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "settings-row" },
-                react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_mui_material__WEBPACK_IMPORTED_MODULE_3__["default"], { control: react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_mui_material__WEBPACK_IMPORTED_MODULE_4__["default"], { checked: workflowStates.rotation, onChange: () => toggleWorkflow('rotation'), sx: {
+                react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_mui_material__WEBPACK_IMPORTED_MODULE_2__["default"], { control: react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_mui_material__WEBPACK_IMPORTED_MODULE_5__["default"], { checked: workflowStates.rotation, onChange: () => toggleWorkflow('rotation'), sx: {
                             '& .MuiSwitch-switchBase': {
                                 color: '#9c9588',
                             },
@@ -56920,7 +57776,7 @@ function CampingApp({ token }) {
                                 backgroundColor: '#4ade80',
                             },
                         } }), label: "Daily Rotation Scan", sx: { color: '#e8e4df', '& .MuiFormControlLabel-label': { fontSize: '14px' } } }),
-                react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_mui_material__WEBPACK_IMPORTED_MODULE_3__["default"], { control: react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_mui_material__WEBPACK_IMPORTED_MODULE_4__["default"], { checked: workflowStates.favorites, onChange: () => toggleWorkflow('favorites'), sx: {
+                react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_mui_material__WEBPACK_IMPORTED_MODULE_2__["default"], { control: react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_mui_material__WEBPACK_IMPORTED_MODULE_5__["default"], { checked: workflowStates.favorites, onChange: () => toggleWorkflow('favorites'), sx: {
                             '& .MuiSwitch-switchBase': {
                                 color: '#9c9588',
                             },
@@ -56934,7 +57790,7 @@ function CampingApp({ token }) {
                                 backgroundColor: '#4ade80',
                             },
                         } }), label: "Favorites Scan (2x/day)", sx: { color: '#e8e4df', '& .MuiFormControlLabel-label': { fontSize: '14px' } } }),
-                react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_mui_material__WEBPACK_IMPORTED_MODULE_3__["default"], { control: react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_mui_material__WEBPACK_IMPORTED_MODULE_4__["default"], { checked: favorites.settings.notificationsEnabled, onChange: toggleNotifications, sx: {
+                react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_mui_material__WEBPACK_IMPORTED_MODULE_2__["default"], { control: react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_mui_material__WEBPACK_IMPORTED_MODULE_5__["default"], { checked: favorites.settings.notificationsEnabled, onChange: toggleNotifications, sx: {
                             '& .MuiSwitch-switchBase': {
                                 color: '#9c9588',
                             },
@@ -56947,7 +57803,10 @@ function CampingApp({ token }) {
                             '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
                                 backgroundColor: '#4ade80',
                             },
-                        } }), label: "Discord Notifications", sx: { color: '#e8e4df', '& .MuiFormControlLabel-label': { fontSize: '14px' } } }))),
+                        } }), label: "Discord Notifications", sx: { color: '#e8e4df', '& .MuiFormControlLabel-label': { fontSize: '14px' } } }),
+                react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_mui_material__WEBPACK_IMPORTED_MODULE_4__["default"], { title: selected.size >= MAX_BATCH ? `Max ${MAX_BATCH} sites per scan` : '', arrow: true },
+                    react__WEBPACK_IMPORTED_MODULE_0___default().createElement("span", { style: { marginLeft: 'auto' } },
+                        react__WEBPACK_IMPORTED_MODULE_0___default().createElement("button", { className: "run-scan-button", onClick: handleBatchScan, disabled: batchDisabled }, batchLabel))))),
         react__WEBPACK_IMPORTED_MODULE_0___default().createElement(SearchBar, { searchQuery: searchQuery, onSearchChange: setSearchQuery }),
         react__WEBPACK_IMPORTED_MODULE_0___default().createElement(TabBar, { activeTab: activeTab, onTabChange: setActiveTab, favoriteCount: favoriteCount }),
         activeTab === 'favorites' && (react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "favorites-limit-label" }, "You can have up to 5 favorites")),
@@ -56955,9 +57814,9 @@ function CampingApp({ token }) {
             ? 'No favorites yet. Star some recreation areas from the All Areas tab!'
             : totalAreas === 0
                 ? 'No recreation areas loaded. This may be a data loading issue.'
-                : 'No areas match your search.')) : (displayAreas.map(area => (react__WEBPACK_IMPORTED_MODULE_0___default().createElement(RecAreaCard, { key: area.id, areaId: area.id, area: area, isFavorite: favorites.favorites.includes(area.id), isDisabled: favorites.disabled.includes(area.id), isAutoDisabled: (favorites.autoDisabled || []).includes(area.id), favoriteCount: favoriteCount, isSaving: savingAreaId === area.id, onToggleFavorite: () => toggleFavorite(area.id), onToggleDisabled: () => toggleDisabled(area.id), onScan: () => handleScan(area.id) }))))),
+                : 'No areas match your search.')) : (displayAreas.map(area => (react__WEBPACK_IMPORTED_MODULE_0___default().createElement(RecAreaCard, { key: area.id, areaId: area.id, area: area, isFavorite: favorites.favorites.includes(area.id), isDisabled: favorites.disabled.includes(area.id), isAutoDisabled: (favorites.autoDisabled || []).includes(area.id), favoriteCount: favoriteCount, isSaving: savingAreaId === area.id, onToggleFavorite: () => toggleFavorite(area.id), onToggleDisabled: () => toggleDisabled(area.id), isSelected: selected.has(area.id), onToggleSelect: () => toggleSelect(area.id), selectDisabled: cooldownActive || (selected.size >= MAX_BATCH && !selected.has(area.id)) }))))),
         react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", { className: "scroll-to-top-container" },
-            react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_mui_material__WEBPACK_IMPORTED_MODULE_2__["default"], { title: "Jump to top", arrow: true },
+            react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_mui_material__WEBPACK_IMPORTED_MODULE_4__["default"], { title: "Jump to top", arrow: true },
                 react__WEBPACK_IMPORTED_MODULE_0___default().createElement("button", { onClick: scrollToTop, className: "jump-to-top-button", "aria-label": "Jump to top" }, "\u2191")))));
 }
 function App() {
