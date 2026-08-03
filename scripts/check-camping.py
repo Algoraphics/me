@@ -826,6 +826,11 @@ def main():
             log(f"  Error scanning {area_data.get('name')}: {result.get('error', 'Unknown error')}")
             area['scanError'] = True
             area['lastScanned'] = datetime.now(timezone.utc).isoformat()
+            # A failed scan must not keep displaying a prior run's availability — it may be
+            # stale and pre-filter (e.g. a horse site the filter would now drop). Clear it so
+            # the UI shows "Scan failed" instead of old dates.
+            area['weekendDates'] = []
+            area['bookingHorizon'] = None
             continue
         
         results_by_id[area_id] = result
