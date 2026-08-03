@@ -78,6 +78,9 @@ def parse_args():
     mode.add_argument('--rotation', action='store_true', help='Run rotation scan (ignores favorites)')
     mode.add_argument('--favorites', action='store_true', help='Scan only favorites')
     parser.add_argument('--rotation-size', type=int, default=10, help='Number of areas to scan in rotation mode (default: 10)')
+    parser.add_argument('--provider', choices=['RecreationDotGov', 'ReserveCalifornia'],
+                        help='Only scan areas from this provider (default: all). Used to split '
+                             'recgov (GitHub Actions) from reserveca (laptop, residential IP).')
     parser.add_argument('--start-date', help='Override start date (YYYY-MM-DD)')
     parser.add_argument('--end-date', help='Override end date (YYYY-MM-DD)')
     parser.add_argument('--dry-run', action='store_true', help='Run without saving state or sending notifications')
@@ -285,36 +288,64 @@ def scan_rec_area_with_camply(rec_area_id, rec_area_name, start_date, end_date, 
             'is_validation_error': is_validation_error
         }
 
-def select_rotation_areas(rec_areas, favorites_data, scan_state, rotation_size=4):
+def filter_by_provider(areas, provider):
+    """Keep only areas matching the given provider (no-op if provider is None)."""
+    if not provider:
+        return areas
+    return [a for a in areas if a.get('provider', 'RecreationDotGov') == provider]
+
+# The rotation index is tracked per-provider so a recgov rotation (GitHub Actions)
+# and a reserveca rotation (laptop) don't clobber each other's position. The legacy
+# single 'currentIndex' seeds the no-provider ('all') bucket for backward compat.
+def _rotation_key(provider):
+    return provider or 'all'
+
+def get_rotation_index(scan_state, provider):
+    key = _rotation_key(provider)
+    indices = scan_state.get('rotationIndex', {})
+    if key in indices:
+        return indices[key]
+    return scan_state.get('currentIndex', 0) if key == 'all' else 0
+
+def set_rotation_index(scan_state, provider, value):
+    scan_state.setdefault('rotationIndex', {})[_rotation_key(provider)] = value
+    if _rotation_key(provider) == 'all':
+        scan_state['currentIndex'] = value  # keep the legacy field in sync
+
+def select_rotation_areas(rec_areas, favorites_data, scan_state, rotation_size=4, provider=None):
     disabled = set(favorites_data.get('disabled', [])) | set(favorites_data.get('autoDisabled', []))
     enabled = [area for area in rec_areas if area['id'] not in disabled]
-    
+    enabled = filter_by_provider(enabled, provider)
+
     if not enabled:
         log("No enabled areas to scan")
         return []
-    
+
     enabled = sorted(enabled, key=lambda a: a['id'])
-    
-    current_index = scan_state.get('currentIndex', 0) % len(enabled)
-    
+
+    current_index = get_rotation_index(scan_state, provider) % len(enabled)
+
     selected = []
     for i in range(rotation_size):
         idx = (current_index + i) % len(enabled)
         selected.append(enabled[idx])
-    
-    log(f"Rotation mode: scanning {len(selected)} areas starting at index {current_index}")
+
+    suffix = f" (provider={provider})" if provider else ""
+    log(f"Rotation mode: scanning {len(selected)} areas starting at index {current_index}{suffix}")
     return selected
 
-def select_favorites_areas(rec_areas, favorites_data):
+def select_favorites_areas(rec_areas, favorites_data, provider=None):
     favorites = set(favorites_data.get('favorites', []))
     disabled = set(favorites_data.get('disabled', [])) | set(favorites_data.get('autoDisabled', []))
-    
+
     if not favorites:
         log("No favorites to scan")
         return []
-    
+
     selected = [area for area in rec_areas if area['id'] in favorites and area['id'] not in disabled]
-    log(f"Favorites mode: scanning {len(selected)} favorite areas")
+    selected = filter_by_provider(selected, provider)
+    suffix = f" (provider={provider})" if provider else ""
+    log(f"Favorites mode: scanning {len(selected)} favorite areas{suffix}")
     return selected
 
 def get_area_image_url(rec_id, provider_name):
@@ -794,11 +825,12 @@ def main():
     if args.sites:
         site_ids = set(s.strip() for s in args.sites.split(','))
         areas_to_scan = [area for area in rec_areas if area['id'] in site_ids]
+        areas_to_scan = filter_by_provider(areas_to_scan, args.provider)
         log(f"Manual mode: scanning {len(areas_to_scan)} specified areas")
     elif args.favorites:
-        areas_to_scan = select_favorites_areas(rec_areas, favorites_data)
+        areas_to_scan = select_favorites_areas(rec_areas, favorites_data, args.provider)
     elif args.rotation:
-        areas_to_scan = select_rotation_areas(rec_areas, favorites_data, scan_state, args.rotation_size)
+        areas_to_scan = select_rotation_areas(rec_areas, favorites_data, scan_state, args.rotation_size, args.provider)
     else:
         log("No scan mode specified. Use --sites, --rotation, or --favorites")
         return 1
@@ -867,12 +899,13 @@ def main():
         if args.rotation:
             disabled = set(favorites_data.get('disabled', [])) | set(favorites_data.get('autoDisabled', []))
             enabled = [area for area in rec_areas if area['id'] not in disabled]
-            enabled = sorted(enabled, key=lambda a: a['id'])
+            enabled = filter_by_provider(enabled, args.provider)
             num_enabled = len(enabled)
             if num_enabled > 0:
-                new_index = (scan_state.get('currentIndex', 0) + args.rotation_size) % num_enabled
-                scan_state['currentIndex'] = new_index
-                log(f"Updated rotation index to {new_index}")
+                new_index = (get_rotation_index(scan_state, args.provider) + args.rotation_size) % num_enabled
+                set_rotation_index(scan_state, args.provider, new_index)
+                log(f"Updated rotation index to {new_index}"
+                    + (f" (provider={args.provider})" if args.provider else ""))
         
         for area in rec_areas:
             area_id = area['id']
