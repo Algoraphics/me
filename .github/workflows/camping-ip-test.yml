@@ -1,0 +1,56 @@
+name: Camping IP Test
+
+# Throwaway diagnostic: does a raw (non-camply) HTTP call to the ReserveCalifornia
+# endpoint get 403 from a GitHub datacenter IP? Compares raw curl / plain python /
+# camply on the SAME runner. Delete after we have the answer.
+on:
+  workflow_dispatch:
+
+jobs:
+  ip-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Public IP and hosting org
+        run: curl -s https://ipinfo.io/json || true
+
+      - name: Raw curl — status codes (browser UA)
+        env:
+          UA: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+          URL: "https://california-rdr.prod.cali.rd12.recreation-management.tylerapp.com/rdr/search/filters"
+        run: |
+          echo "GET  -> $(curl -s -o /dev/null -w '%{http_code}' -A "$UA" "$URL")"
+          echo "POST -> $(curl -s -o /dev/null -w '%{http_code}' -A "$UA" -X POST -H 'Content-Type: application/json' -d '{}' "$URL")"
+
+      - name: Raw curl — response headers (browser UA)
+        env:
+          UA: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+          URL: "https://california-rdr.prod.cali.rd12.recreation-management.tylerapp.com/rdr/search/filters"
+        run: curl -s -D - -o /dev/null -A "$UA" "$URL" || true
+
+      - name: Plain python request (no camply)
+        run: |
+          python3 - <<'PY'
+          import urllib.request
+          url = "https://california-rdr.prod.cali.rd12.recreation-management.tylerapp.com/rdr/search/filters"
+          ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+          try:
+              r = urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": ua}), timeout=20)
+              print("python status:", r.status)
+          except Exception as e:
+              print("python error:", repr(e)[:300])
+          PY
+
+      - name: camply control (same runner)
+        run: |
+          pip install camply >/dev/null 2>&1
+          python3 - <<'PY'
+          import datetime
+          from camply.search import SearchReserveCalifornia
+          from camply.containers import SearchWindow
+          w = SearchWindow(start_date=datetime.date(2026, 9, 1), end_date=datetime.date(2026, 10, 1))
+          try:
+              cs = SearchReserveCalifornia(search_window=w, recreation_area=[682]).get_matching_campsites(log=False, verbose=False)
+              print("camply SUCCESS:", len(cs), "campsites")
+          except Exception as e:
+              print("camply ERROR:", repr(e)[:300])
+          PY
